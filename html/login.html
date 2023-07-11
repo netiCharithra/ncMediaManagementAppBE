@@ -1,0 +1,26 @@
+<div class="row">
+        <div class="col-md-6">
+            </div>
+        <div class="col-md-6">
+                <div class="postionRelative">
+                        <h3 class="postionAbsolute">Login to New Workspace</h3>
+                    </div>
+                <div class="position-state">
+                            <div class="form-group">
+                                    <label>User Name</label><br>
+                                    <input class="size-default" type="text" name="userid" placeholder="Enter UserName"
+                     [(ngModel)]="username" (ngModelChange)="onFieldChange('userid')" /><br>
+                                    <span *ngIf="!usernameValid" class="setDanger">Please enter valid username</span>
+                                </div>
+                            <div class="form-group">
+                                    <label>Password</label><br>
+                                    <input class="size-default" type="password" name="password"
+                    placeholder="Enter Password" [(ngModel)]="password"
+                    (ngModelChange)="onFieldChange('password')" /><br>
+                                    <span *ngIf="!passwordValid"  class="setDanger">Please enter valid password</span>
+                                </div>
+                            <button type="button" class="size-default submit-design"
+                (click)="onFormSubmit()">Login</button>
+                    </div>
+            </div>
+</div>

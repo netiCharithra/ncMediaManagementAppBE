@@ -1,0 +1,14 @@
+{
+  "type": "service_account",
+  "project_id": "ncmedianewsportal",
+  "private_key_id": "52aa0eead9715dd33fc6ce36667d6c7d78022cd0",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDZui0vT0rsYyg/\nWiItfWcuhbE9s1zyHZ4JF6e/YUe98p1U5tqAQuW/H3HBtIRQ9aKBm+JYbX+i1K1h\nskIpYlgb3BowDQnDDrjMAKnsySh6Ui3xzE7Y4gZC+V9AfgpejrHVwitRcxK7mdFC\ngmXWebTTetDByv6fTpC8C28Y8tI/QJdUu5cJPcgIYMRPK5ulDVVSRzDj+fXjTYLc\nSIAj7I2RgmeizXgmkQAE3NjtPsNneG2GiYFt0u5gktc1rQYlar4HbgCOl+ZizRus\nSsBO8LIJIsYQO0+aMERv7Jnc9mA60d+UmfphSAqi9NvVNQxYfLB5sxjVSAJFJGEi\nLGo7qh7XAgMBAAECggEAEZxqjToXsFkw5zbuLsnG789mj7wTV44nu0qLigJfYDDg\nov5tTBSdKsFrXSSx0y6bL2qhe0+YFF6pi450pY5L3C0IfTyAvqNRNUcUd4+p04MU\nLku9UPOvV/l9x+SqCA34unaTNGpfaIc/kuajQB7mDnkPq600vUQIlv1Bxj3V3cHA\nh1qemmUGqRir4jOOmepAbwQsMzdzp3NA1zmYiPPUoy8diydc/zRpVDRu5ZSihmwl\nWSeAuk3Ore16yuWBFeU7gRlHrU/PIVGISqSlMg3mjicXOkTw5Pn+3xkOCMLo2zxd\ng+bSq3NtB4SPyfb2Za84If8F8gNfa2xTAC6NahdRoQKBgQDyGcYAM3DqHrroGKdF\nQfLZdZqVqw6DByzTpi4fF0963cuWbYsjLu1aFn+6HTn/uZGxTiOMzEHT/A+r71rr\nIczrWlgi2RDYyNYjkUqHhhGaf/Wr3CRFk2F13S8wnYqmCkPP4n20y99DJTZPl6jF\nvzU420IseKOpTdDyTJPmJ05GhwKBgQDmOi3y7cV5swNCaBej03CGVB8MvWdTbQ8L\nIz9uZl9HMg9Z3RS8eshfie0f39U9Or0qjgdOtNuq/nZJ02r6J953uY4sl0XWJ7hm\niuX1VYstjgXGD2EcxKbsp7PXwB+vRLsIri6xKq16CESLoq9d/U/hCBkhPZ9mmDOW\naPVnBkUpMQKBgQDZK011uK89FDvNHvBNLA9QCjKUt1DZMIKBiLwun5ZoPLT3R2Rc\nNygqe6wvoy/3uNp8Ff/FuSQDqEPWk2sXKMbNB8mv2M9H50BPv3D/iMAZu1cAxwSy\ndLYkKDjAf1F0CBk0TZM9rvOjI6pIU17No+t2CRifE8ibgnZAI3k4J2IL2QKBgEHf\n48XewuJPll8p6Zm2pjvJVhkPGMGGMwe8zimIoTp92GaeG5DSkQLFNFQqd5lNdVL3\n0J90oGYM6Uu2cqWhQsZ/EW8w2YqtUtYEaEgKcghW2tARFnhkzF5qncrd7jL4N4wE\nStfmnjyMoRBTPFpoYLLC3m3kc/enFRu0bINOB/wBAoGAbQzTx3fmj5cKlOkd+xl8\nMzAN7UjydiBP15oPC+z554dItzPcZVXNiaQBCu9YkwAYVkUnOM++AYcE8GdRfm2s\ninACZ9i+8X0ZsscS4bEE5x1Xy/B54QDb0PnA8Srcll6hFtYwcnsmGdMCqhB3fIsc\neWn42Ut0WwNePAMynAyHJnY=\n-----END PRIVATE KEY-----\n",
+  "client_email": "ncmediawebnewsuploads@ncmedianewsportal.iam.gserviceaccount.com",
+  "client_id": "101777722798592167087",
+  "client_sectet": "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",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ncmediawebnewsuploads%40ncmedianewsportal.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
