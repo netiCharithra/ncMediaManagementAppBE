@@ -40,7 +40,7 @@ var bodyParser = require('body-parser');
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 const start = async () => {
-    port = process.env.PORT
+    port = process.env.PORT || 3000
     try {
         await connect(process.env.MONGO_DB_URL)
         app.listen(port, () => {
