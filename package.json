@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "nodemonStart": "nodemon app.js",
-    "start":"node app.js"
+    "start": "node app.js"
   },
   "author": "Shaik Mohammad Muzmil",
   "license": "ISC",

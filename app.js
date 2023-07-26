@@ -188,7 +188,6 @@ async function uploadToDrive(file, folderId) {
     return response.data
 }
 
-<<<<<<< HEAD
 
 
 
@@ -276,6 +275,3 @@ app.post('/api/v2/registerEmployee_v2', upload.fields([{ name: 'profilePic' }, {
 
 });
 start();
-=======
-start();
->>>>>>> d81e252d7a9f5d79550720186657f5ab96afc57e
