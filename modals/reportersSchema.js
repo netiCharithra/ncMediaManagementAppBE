@@ -71,7 +71,26 @@ const dataSchema = {
         type: String,
         default: false
     },
-    disabledOn: {}
+    disabledOn: {},
+    profilePicture:{
+        type:String
+    },
+    identityProof: {
+        type: String
+    },
+    identityVerificationStatus: {
+        type: String,
+        default:"pending"
+    },
+    identityVerificationRejectionReason: {
+        type: String
+    },
+    identityApprovedBy:{
+        type:String
+    },
+    identityApprovedOn:{
+        type:Number
+    }
 }
 const reporterSchema = new mongoose.Schema(dataSchema)
 

@@ -35,10 +35,18 @@ const registerReporter = async (req, res) => {
         }
 
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Registring Employee`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Employee Adding User',            
+            functionality: 'To Register a employee',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
-            msg: 'Failed while generating Employee ID'
-        })
+            msg: 'Failed to while processing..',
+
+        });
     }
 }
 
@@ -51,7 +59,7 @@ const reporterLogin = async (req, res) => {
         } = req.body;
         const userData = await reporterSchema.findOne({
             mail
-        }) //returns single object
+        }).select('-__v -passwordCopy -_id') //returns single object
         if (!userData) {
             res.status(200).json({
                 status: "failed",
@@ -76,12 +84,7 @@ const reporterLogin = async (req, res) => {
                 });
             } else {
                 let userDataCopy = JSON.parse(JSON.stringify(userData));
-                let deleteElements = ['_id', 'password', 'passwordCopy', '__v', 'createdDate'];
-                deleteElements.forEach(element => {
-                    if (userDataCopy[element]) {
-                        delete userDataCopy[element]
-                    }
-                })
+                
                 res.status(200).json({
                     status: "success",
                     msg: 'successfully logged in',
@@ -90,6 +93,13 @@ const reporterLogin = async (req, res) => {
             }
         }
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Loging Employee`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Employee Login Page',
+            functionality: 'To Login User',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while logging in! Try after some time.'
@@ -101,6 +111,7 @@ const reporterLogin = async (req, res) => {
 const getMetaData = async (req, res) => {
     try {
         let metaData = {}
+        console.log(await metaDataSchema.find())
         for (let index = 0; index < req.body.metaList.length; index++) {
             let value = await metaDataSchema.findOne({
                 type: req.body.metaList[index]
@@ -122,6 +133,13 @@ const getMetaData = async (req, res) => {
         }
 
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching Metadata`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'MetaDAta',
+            functionality: 'To Fetch Metadata',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while loading!'
@@ -233,6 +251,14 @@ const publishNews = async (req, res) => {
             }
         }
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Publishing News`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'News Publish',
+            functionality: 'Add news for approval',
+            employeeId:req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while publishing..! ',
@@ -277,6 +303,14 @@ const getNewsInfo = async (req, res) => {
             }
         }
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching  News Info`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Fetch News Info ',
+            functionality: 'To Fetch News Info Publish',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while publishing..! ',
@@ -556,9 +590,17 @@ const getNewsList = async (req, res) => {
             }
         }
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching News List`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Fetch News List ',
+            functionality: 'To Fetch News List ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
-            msg: 'Error while publishing..! ',
+            msg: 'Error while Processing..! ',
             error: error
         })
     }
@@ -588,7 +630,7 @@ const getAllEmployees = async (req, res) => {
                 });
             } else {
 
-                let allEmployees = await reporterSchema.find().where('activeUser').equals(true);
+                let allEmployees = await reporterSchema.find().select('-password -__v -passwordCopy -_id').where('activeUser').equals(true);
                 let responseData = await stateDistrictMapping(allEmployees, [], ['_id', 'password', 'passwordCopy', 'createdOn', 'activeUser', 'disabledUser', '__v', 'disabledBy', 'disabledOn', 'lastUpdatedBy', 'lastUpdatedOn'])
                 res.status(200).json({
                     status: "success",
@@ -600,6 +642,14 @@ const getAllEmployees = async (req, res) => {
             }
         }
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Listing all Employees`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Employees List ',
+            functionality: 'To List All Employees',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while publishing..! ',
@@ -751,6 +801,14 @@ const fetchDashboard = async (req, res) => {
 
 
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching Dashboard`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Fetch Dashboard ',
+            functionality: 'To Fetch Dashboard ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..! ',
@@ -899,6 +957,14 @@ const addSubscribers = async (req, res) => {
             }
         }
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Adding Subscribers`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Adding Subscribers ',
+            functionality: 'To Fetch Dashboard ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..!'
@@ -966,6 +1032,10 @@ const getEmployeesData = async (req, res) => {
                                 {
                                     "label": "Mandal",
                                     "key": "mandal"
+                                },
+                                {
+                                    "label": "Identity Verification Status",
+                                    "key": "identityVerificationStatus"
                                 }
                             ]
                         }
@@ -1063,6 +1133,13 @@ const getEmployeesData = async (req, res) => {
                         "actions": [
                             {
                                 type: "button",
+                                tooltip: "Edit",
+                                icon: "edit",
+                                key: "edit",
+                                class: "btn btn-success"
+                            },
+                            {
+                                type: "button",
                                 tooltip: "In Active",
                                 icon: "edit_off",
                                 key: "inactive",
@@ -1074,6 +1151,13 @@ const getEmployeesData = async (req, res) => {
                                 key: "disable",
                                 class: "btn btn-danger",
                                 icon: "no_accounts",
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Verify Identity",
+                                key: "verify_identity",
+                                class: "btn btn-outline-primary",
+                                icon: "fact_check",
                             }
                         ],
                         "createNew": {
@@ -1087,6 +1171,13 @@ const getEmployeesData = async (req, res) => {
                     responseData['inActiveEmployees']['metaData'] = {
                         title: "In Active Employees",
                         "actions": [
+                            {
+                                type: "button",
+                                tooltip: "Edit",
+                                icon: "edit",
+                                key: "edit",
+                                class: "btn btn-success"
+                            },
                             {
                                 type: "button",
                                 tooltip: "Active",
@@ -1241,6 +1332,14 @@ const getEmployeesData = async (req, res) => {
             }
         }
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Listing Employees Data`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Fetch Employees Data ',
+            functionality: 'To Fetch Employees Data ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..!'
@@ -1275,6 +1374,7 @@ const manipulateEmployee = async (req, res) => {
                 });
             } else {
 
+                console.log(data)
 
                 if (data.type === 'create') {
 
@@ -1377,11 +1477,57 @@ const manipulateEmployee = async (req, res) => {
                         msg: 'Employee Enabled Successfully...!',
                         data: task
                     });
+                } else if (data.type === 'edit') {
+                    let task = await reporterSchema.updateOne({ employeeId: data.data.employeeId },
+
+                        {
+                            name: data.data.name,
+                            mobile: data.data.mobile,
+                            state: data.data.state,
+                            district: data.data.district,
+                            mandal: data.data.mandal,
+                            role: data.data.role,
+                            lastUpdatedOn: new Date().getTime(),
+                            lastUpdatedBy: data.employeeId,
+                            disabledBy: '',
+                            disabledOn: ''
+                        }
+                    )
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'Updated Successfully...!',
+                        data: task
+                    });
+                    console.log(data)
+                } else if (data.type === 'verify_identity') {
+                    let task = await reporterSchema.updateOne({ employeeId: data.data.employeeId },
+
+                        {
+                            identityVerificationStatus: data.status,
+                            identityVerificationRejectionReason: data.data.identityVerificationRejectionReason,
+                            identityApprovedOn: new Date().getTime(),
+                            identityApprovedBy: data.employeeId
+                        }
+                    )
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'Identification Updated Successfully...!',
+                        data: task
+                    });
+                    console.log(data)
                 }
             }
         }
 
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Manipulating Employees`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Manipulate Employee Data ',
+            functionality: 'To Manipulate Employee Data ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..!'
@@ -1406,6 +1552,14 @@ const getEmployeeData = async (req, res) => {
             data: userData
         });
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching Individual Employee Data`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Fetch Individual Employee Data ',
+            functionality: 'To Fetch Individual Employee Data ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..!'
@@ -1495,6 +1649,14 @@ const getSubscribers = async (req, res) => {
             }
         }
     } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching All Subscribers`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Fetch All Subscribers ',
+            functionality: 'To Fetch All Subscribers ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..!'
