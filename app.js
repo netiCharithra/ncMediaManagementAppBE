@@ -42,7 +42,7 @@ var bodyParser = require('body-parser');
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 const start = async () => {
-    port = process.env.PORT
+    port = process.env.PORT || 3000
     try {
         await connect(process.env.MONGO_DB_URL)
         app.listen(port, () => {
@@ -188,6 +188,7 @@ async function uploadToDrive(file, folderId) {
     return response.data
 }
 
+<<<<<<< HEAD
 
 
 
@@ -275,3 +276,6 @@ app.post('/api/v2/registerEmployee_v2', upload.fields([{ name: 'profilePic' }, {
 
 });
 start();
+=======
+start();
+>>>>>>> d81e252d7a9f5d79550720186657f5ab96afc57e
