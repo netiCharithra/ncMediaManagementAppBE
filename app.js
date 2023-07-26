@@ -16,7 +16,9 @@ app.get('/', (req, res) => {
 const reporterSchema = require('./modals/reportersSchema');
 const errorLogBookSchema = require('./modals/errorLogBookSchema')
 
-app.use(cors())
+app.use(cors({
+    origin:"*"
+}))
 const connect = require('./connectDB/mongoDB')
 const errorHandler = require('./common-error-handlers/commonErrorHandler')
 const router = require('./common-handlers/commonRoute');
