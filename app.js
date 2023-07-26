@@ -16,11 +16,7 @@ app.get('/', (req, res) => {
 const reporterSchema = require('./modals/reportersSchema');
 const errorLogBookSchema = require('./modals/errorLogBookSchema')
 
-app.use(cors({
-    origin: 'http://localhost:4201',
-    optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 
-}))
 const connect = require('./connectDB/mongoDB')
 const errorHandler = require('./common-error-handlers/commonErrorHandler')
 const router = require('./common-handlers/commonRoute');
@@ -30,7 +26,7 @@ app.use(errorHandler)
 var cookieParser = require('cookie-parser');
 app.use(cookieParser())
 var bodyParser = require('body-parser');
-
+app.use(cors())
 // var corsOptions = {
 //     origin: ["*"], //angular url
 //     Headers: ["Content-Type", "Authorization"],
