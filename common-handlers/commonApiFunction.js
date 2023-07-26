@@ -21,9 +21,7 @@ const registerReporter = async (req, res) => {
                 ...data
             }) //pushing data to DB           
             const token = task.createJwt();
-            res.cookie("tokens", token, {
-                httpOnly: true,
-            }).status(200).json({
+            res.status(200).json({
                 status: "success",
                 msg: "Registered successfully..! You will get a confirmation as soon as accepeted.."
             }).send(task).save(task);

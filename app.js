@@ -16,24 +16,22 @@ app.get('/', (req, res) => {
 const reporterSchema = require('./modals/reportersSchema');
 const errorLogBookSchema = require('./modals/errorLogBookSchema')
 
-app.use(cors({
-    origin:"*"
-}))
+app.use(cors())
 const connect = require('./connectDB/mongoDB')
 const errorHandler = require('./common-error-handlers/commonErrorHandler')
 const router = require('./common-handlers/commonRoute');
 require('dotenv').config();
 app.use('/api/v2', router)
-app.use(errorHandler)
-var cookieParser = require('cookie-parser');
-app.use(cookieParser())
+// app.use(errorHandler)
+// var cookieParser = require('cookie-parser');
+// app.use(cookieParser())
 var bodyParser = require('body-parser');
 
 // var corsOptions = {
-//     origin: ["*"], //angular url
-//     Headers: ["Content-Type", "Authorization"],
+//         origin: "http://localhost:4201/", //angular url
 //     optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
 // };
+// app.use(cors(corsOptions))
 
 // app.use(bodyParser.json({
 //     limit: "50mb",
