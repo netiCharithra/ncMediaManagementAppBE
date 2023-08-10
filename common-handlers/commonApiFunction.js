@@ -109,7 +109,6 @@ const reporterLogin = async (req, res) => {
 const getMetaData = async (req, res) => {
     try {
         let metaData = {}
-        console.log(await metaDataSchema.find())
         for (let index = 0; index < req.body.metaList.length; index++) {
             let value = await metaDataSchema.findOne({
                 type: req.body.metaList[index]
@@ -1372,8 +1371,6 @@ const manipulateEmployee = async (req, res) => {
                 });
             } else {
 
-                console.log(data)
-
                 if (data.type === 'create') {
 
                     let checkMail = await reporterSchema.findOne({
@@ -1496,7 +1493,6 @@ const manipulateEmployee = async (req, res) => {
                         msg: 'Updated Successfully...!',
                         data: task
                     });
-                    console.log(data)
                 } else if (data.type === 'verify_identity') {
                     let task = await reporterSchema.updateOne({ employeeId: data.data.employeeId },
 
@@ -1512,7 +1508,6 @@ const manipulateEmployee = async (req, res) => {
                         msg: 'Identification Updated Successfully...!',
                         data: task
                     });
-                    console.log(data)
                 }
             }
         }
