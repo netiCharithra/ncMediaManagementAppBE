@@ -4,9 +4,6 @@ const app = express();
 var cors = require("cors")
 const multer = require('multer');
 const { google } = require('googleapis')
-const fs = require('fs'); // Import the fs module
-
-const path = require('path');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -46,14 +43,7 @@ const start = async () => {
 }
 
 
-// const upload = multer({ dest: 'uploads/' });
-const uploadsDir = path.join('/uploads', 'files');
-
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir);
-}
-const upload = multer({ dest: uploadsDir });
-
+const upload = multer({ dest: 'uploads/' });
 const stream = require('stream');
 
 app.post('/api/upload/uploadFiles', upload.array('images'), async (req, res) => {
@@ -155,6 +145,8 @@ app.post('/api/upload/uploadFiles', upload.array('images'), async (req, res) => 
     // });
 });
 
+
+const fs = require('fs');
 
 async function uploadToDrive(file, folderId) {
     const credentials = require('./cred.json'); // Replace with your Google Drive API credentials
