@@ -2,45 +2,34 @@ const express = require('express')
 require('express-async-errors')
 const app = express();
 var cors = require("cors")
-const path = require("path");
 const multer = require('multer');
-// const upload=multer();
 const { google } = require('googleapis')
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/', (req, res) => {
-    res.sendFile(`${__dirname}/index.html`)
-})
-const reporterSchema = require('./modals/reportersSchema');
-const errorLogBookSchema = require('./modals/errorLogBookSchema')
+const allowedOrigins = ['http://localhost:4201']; // Add more origins if needed
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
+}));
 
-app.use(cors())
+const reporterSchema = require('./modals/reportersSchema');
+const errorLogBookSchema = require('./modals/errorLogBookSchema');
 const connect = require('./connectDB/mongoDB')
-const errorHandler = require('./common-error-handlers/commonErrorHandler')
 const router = require('./common-handlers/commonRoute');
 require('dotenv').config();
-app.use('/api/v2', router)
-// app.use(errorHandler)
-// var cookieParser = require('cookie-parser');
-// app.use(cookieParser())
+app.use('/api/v2', router);
 var bodyParser = require('body-parser');
-
-// var corsOptions = {
-//         origin: "http://localhost:4201/", //angular url
-//     optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
-// };
-// app.use(cors(corsOptions))
-
-// app.use(bodyParser.json({
-//     limit: "50mb",
-//     type: "application/json"
-// }));
-
-// app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+
 const start = async () => {
     port = process.env.PORT || 3000
     try {
