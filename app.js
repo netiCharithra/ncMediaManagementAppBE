@@ -47,7 +47,8 @@ const start = async () => {
 
 
 // const upload = multer({ dest: 'uploads/' });
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.join('/uploads', 'files');
+
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir);
 }
