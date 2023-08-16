@@ -4,7 +4,7 @@ const app = express();
 const cors = require("cors");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-const allowedOrigins = ['http://localhost:4201']; // Add more origins if needed
+const allowedOrigins = ['http://localhost:4201', 'https://neticharithra-ncmedia.web.app']; // Add more origins if needed
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {
@@ -24,7 +24,7 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 
 const start = async () => {
-    let port = process.env.PORT || 3001
+    let port = process.env.PORT || 3000
     try {
         await connect(process.env.MONGO_DB_URL)
         app.listen(port, () => {
