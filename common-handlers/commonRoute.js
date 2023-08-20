@@ -2,6 +2,7 @@ const express = require('express')
 const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboard, addSubscribers, getSubscribers, getEmployeesData, manipulateEmployee,getEmployeeData,
     getNewsInfo,
     getNewsList, getAllEmployees} = require('./commonApiFunction')
+const { getHomeData, getIndividualNewsInfo } = require('./publicApiFunction')
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
@@ -24,6 +25,12 @@ router.route('/getEmployeeData').post(getEmployeeData);
 router.route('/getNewsList').post(getNewsList);
 router.route('/getNewsInfo').post(getNewsInfo);
 router.route('/getAllEmployees').post(getAllEmployees);
+
+
+
+
+router.route('/public/getHomeData').post(getHomeData);
+router.route('/public/getNewsInfo').post(getIndividualNewsInfo);
 // router.route('/uploadFiles').post('uploadFiles');
 
 module.exports = router

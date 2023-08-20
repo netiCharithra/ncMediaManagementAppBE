@@ -14,10 +14,14 @@ app.use(cors({
         }
     }
 }));
-const connect = require('./connectDB/mongoDB')
+const connect = require('./connectDB/mongoDB');
+
+
 const router = require('./common-handlers/commonRoute');
-require('dotenv').config();
 app.use('/api/v2', router);
+
+
+require('dotenv').config();
 const bodyParser = require('body-parser');
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));

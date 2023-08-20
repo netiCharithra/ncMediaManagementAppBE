@@ -3,6 +3,7 @@ const reporterSchema = require('../modals/reportersSchema');
 const metaDataSchema = require('../modals/metaDataSchema');
 const newsDataSchema = require('../modals/newsDataSchema');
 const subscriberDataSchema = require('../modals/subscriberDataSchema');
+const errorLogBookSchema = require('../modals/errorLogBookSchema');
 // const user = require('../modals/userSchema')
 
 const registerReporter = async (req, res) => {
@@ -36,7 +37,7 @@ const registerReporter = async (req, res) => {
         const obj = await errorLogBookSchema.create({
             message: `Error while Registring Employee`,
             stackTrace: JSON.stringify([...error.stack].join('\n')),
-            page: 'Employee Adding User',            
+            page: 'Employee Adding User',
             functionality: 'To Register a employee',
             errorMessage: `${JSON.stringify(error) || ''}`
         })
@@ -82,7 +83,7 @@ const reporterLogin = async (req, res) => {
                 });
             } else {
                 let userDataCopy = JSON.parse(JSON.stringify(userData));
-                
+
                 res.status(200).json({
                     status: "success",
                     msg: 'successfully logged in',
@@ -170,10 +171,11 @@ const publishNews = async (req, res) => {
                 });
             } else {
                 if (body.type === 'create') {
-                    
+
                     const existingNews = await newsDataSchema.find();
+                    const existingNews_2 = await newsDataSchema.findOne().sort({ newsId: -1 });
                     if (existingNews && existingNews.length > 0) {
-                        body['data']['newsId'] = (existingNews.length + 1);
+                        body['data']['newsId'] = (existingNews_2.newsId + 1);
                     } else {
                         body['data']['newsId'] = 1;
                     };
@@ -186,7 +188,7 @@ const publishNews = async (req, res) => {
                         msg: 'News sent for approval..!',
                         task: task
                     });
-                } else if (body.type === 'approve'){
+                } else if (body.type === 'approve') {
                     let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
                         {
                             approved: true,
@@ -215,7 +217,7 @@ const publishNews = async (req, res) => {
                             rejectedReason: body.data.reason,
                             rejectedBy: body.employeeId
                         }
-                        )
+                    )
                     res.status(200).json({
                         status: "success",
                         msg: 'Rejected..!',
@@ -236,7 +238,9 @@ const publishNews = async (req, res) => {
                             title: body.data.title,
                             sub_title: body.data.sub_title,
                             description: body.data.description,
-                            images: body.data.images
+                            images: body.data.images,
+                            category: body.data.category || 'General',
+                            newsType: body.data.newsType || 'Local'
                         }
                     )
                     res.status(200).json({
@@ -253,7 +257,7 @@ const publishNews = async (req, res) => {
             stackTrace: JSON.stringify([...error.stack].join('\n')),
             page: 'News Publish',
             functionality: 'Add news for approval',
-            employeeId:req.body.employeeId || '',
+            employeeId: req.body.employeeId || '',
             errorMessage: `${JSON.stringify(error) || ''}`
         })
         res.status(200).json({
@@ -480,6 +484,7 @@ const getNewsList = async (req, res) => {
                 }
 
                 if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+
                     const approvedLst = await newsDataSchema.find(
                         {
                             approved: true,
@@ -503,6 +508,7 @@ const getNewsList = async (req, res) => {
                         },
 
                     );
+
                     responseData.rejectedNews.tableData['bodyContent'] = await stateDistrictMapping(rejectedLst, []);
                     responseData['approvedNews']['metaData'] = {
                         title: "Published News",
@@ -578,8 +584,108 @@ const getNewsList = async (req, res) => {
                         data: responseData
                     });
                 }
-                else if (body.role === 'DISTRICT MANAGER' || body.role === 'ADVERTISEMENT MANAGER') {
+                else if (body.role === 'DISTRICT MANAGER') {
+                    const approvedLst = await newsDataSchema.find(
+                        {
+                            approved: true,
+                            rejected: false,
+                            district:req.body.district
+                        }
 
+                    ).where('approved').equals(true).where('rejected').equals(false);
+                    responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedLst, [])
+                    const ntApprovedLst = await newsDataSchema.find(
+                        {
+                            approved: false,
+                            rejected: false,
+                            district: req.body.district
+                        },
+
+                    );
+                    responseData.notApprovedNews.tableData['bodyContent'] = await stateDistrictMapping(ntApprovedLst, []);
+                    const rejectedLst = await newsDataSchema.find(
+                        {
+                            approved: false,
+                            rejected: { $in: [true] },
+                            district: req.body.district
+                        },
+
+                    );
+
+                    responseData.rejectedNews.tableData['bodyContent'] = await stateDistrictMapping(rejectedLst, []);
+                    responseData['approvedNews']['metaData'] = {
+                        title: "Published News",
+                        "createNew": {
+                            type: "createNew",
+                            label: "Add News",
+                            icon: "add_circle",
+                            key: "createNew",
+                        },
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "View",
+                                icon: "visibility",
+                                key: "view",
+                                class: "btn btn-info"
+                            }
+                        ]
+                    }
+                    responseData['notApprovedNews']['metaData'] = {
+                        title: "Pending News",
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "Approve",
+                                icon: "task_alt",
+                                key: "approve",
+                                class: "btn btn-success",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Reject",
+                                key: "reject",
+                                class: "btn btn-danger",
+                                icon: "dangerous",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Update",
+                                key: "update",
+                                class: "btn btn-info",
+                                icon: "edit_square",
+                                // disable: {
+                                //     role: ['REPORTER']
+                                // }
+                            }
+                        ]
+                    }
+                    responseData['rejectedNews']['metaData'] = {
+                        title: "Rejected News",
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "Approve",
+                                icon: "task_alt",
+                                key: "approve",
+                                class: "btn btn-success",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            }
+                        ]
+                    }
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: responseData
+                    });
                 } else if (body.role === 'REPORTER') {
 
                 }
@@ -665,117 +771,404 @@ const fetchDashboard = async (req, res) => {
         todaysStart.setMinutes(0);
         todaysStart.setSeconds(0);
         if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
-            responseData.dashboardCount.employees = (await reporterSchema.find()).length;
-            responseData.dashboardCount.activeEmployees = (await reporterSchema.find().where('activeUser').equals(true)).length;
-            responseData.dashboardCount.todaysNews = (await newsDataSchema.find().where('createdDate').gt(new Date(todaysStart).getTime())).length;
-            responseData.dashboardCount.todaysNewsApproved = (await newsDataSchema.find().where('createdDate').gt(new Date(todaysStart).getTime()).where('approved').equals(true)).length;
-            responseData.dashboardCount.totalNews = (await newsDataSchema.find()).length;
-            responseData.dashboardCount.totalNewsApproved = (await newsDataSchema.find().where('approved').equals(true)).length;
+
+            let userData = await reporterSchema.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalUsers: { $sum: 1 },
+                        activeUsers: { $sum: { $cond: [{ $eq: ['$activeUser', true] }, 1, 0] } }
+                    }
+                }
+            ])
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let newsInfo = await newsDataSchema.aggregate([
+                {
+                    $facet: {
+                        todaysAllNews: [
+                            {
+                                $match: {
+                                    createdDate: { $gte: today.getTime() }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        todaysApprovedNews: [
+                            {
+                                $match: {
+                                    createdDate: { $gte: today.getTime() },
+                                    approvedOn: { $gt: 0 }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        overallNews: [
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        overallApprovedNews: [
+                            {
+                                $match: {
+                                    approvedOn: { $gt: 0 }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    $project: {
+                        todaysAllNewsCount: { $arrayElemAt: ['$todaysAllNews.count', 0] },
+                        todaysApprovedNewsCount: { $arrayElemAt: ['$todaysApprovedNews.count', 0] },
+                        overallNewsCount: { $arrayElemAt: ['$overallNews.count', 0] },
+                        overallApprovedNewsCount: { $arrayElemAt: ['$overallApprovedNews.count', 0] }
+                    }
+                }
+            ])
+            responseData.dashboardCount.employees = userData[0]?.totalUsers || 0;
+            responseData.dashboardCount.activeEmployees = userData[0]?.activeUsers || 0;
+            responseData.dashboardCount.todaysNews = newsInfo[0].todaysAllNewsCount || 0;
+            responseData.dashboardCount.todaysNewsApproved = newsInfo[0].todaysApprovedNewsCount || 0;
+
+            responseData.dashboardCount.totalNews = newsInfo[0]?.overallNewsCount || 0;
+            responseData.dashboardCount.totalNewsApproved = newsInfo[0]?.overallApprovedNewsCount || 0;
+
             responseData.dashboardCount.contactsAll = (await subscriberDataSchema.find()).length;
             responseData.dashboardCount.contactsAdded = (await subscriberDataSchema.find().where('addedToGroup').equals(true)).length;
         } else if (req.body.role === 'DISTRICT MANAGER' || req.body.role === 'ADVERTISEMENT MANAGER') {
-            responseData.dashboardCount.employees = (await reporterSchema.find(
-                {
-                    district: { $in: [req.body.district] }
-                },
 
-            )).length;
-            responseData.dashboardCount.activeEmployees = (await reporterSchema.find(
+            let dtEmployeeInfo = await reporterSchema.aggregate([
                 {
-                    district: { $in: [req.body.district] },
-                    activeUser: true
+                    $match: {
+                        district: req.body.district // Replace with the desired district value
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalEmployees: { $sum: 1 },
+                        approvedEmployees: { $sum: { $cond: [{ $eq: ['$activeUser', true] }, 1, 0] } }
+                    }
                 }
-            )).length; responseData.dashboardCount.todaysNews = (await newsDataSchema.find().where('createdDate').gt(new Date(todaysStart).getTime()).where('district').equals(req.body.district)).length;
-            responseData.dashboardCount.todaysNewsApproved = (await newsDataSchema.find().where('createdDate').gt(new Date(todaysStart).getTime()).where('district').equals(req.body.district).where('approved').equals(true)).length;
-            responseData.dashboardCount.totalNews = (await newsDataSchema.find().where('district').equals(req.body.district)).length;
-            responseData.dashboardCount.totalNewsApproved = (await newsDataSchema.find().where('district').equals(req.body.district).where('approved').equals(true)).length;
+            ])
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let newsInfo = await newsDataSchema.aggregate([
+                {
+                    $match: {
+                        district: req.body.district // Replace with the desired district value
+                    }
+                },
+                {
+                    $facet: {
+                        todaysAllNews: [
+                            {
+                                $match: {
+                                    createdDate: { $gte: today.getTime() }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        todaysApprovedNews: [
+                            {
+                                $match: {
+                                    createdDate: { $gte: today.getTime() },
+                                    approvedOn: { $gt: 0 }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        overallNews: [
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        overallApprovedNews: [
+                            {
+                                $match: {
+                                    approvedOn: { $gt: 0 }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    $project: {
+                        todaysAllNewsCount: { $arrayElemAt: ['$todaysAllNews.count', 0] },
+                        todaysApprovedNewsCount: { $arrayElemAt: ['$todaysApprovedNews.count', 0] },
+                        overallNewsCount: { $arrayElemAt: ['$overallNews.count', 0] },
+                        overallApprovedNewsCount: { $arrayElemAt: ['$overallApprovedNews.count', 0] }
+                    }
+                }
+            ])
+            console.log(newsInfo)
+
+            responseData.dashboardCount.employees = dtEmployeeInfo[0].totalEmployees || 0;
+            responseData.dashboardCount.activeEmployees = dtEmployeeInfo[0].approvedEmployees || 0;
+            responseData.dashboardCount.todaysNews = newsInfo[0].todaysAllNewsCount || 0;
+            responseData.dashboardCount.todaysNewsApproved = newsInfo[0].todaysApprovedNewsCount || 0;
+            responseData.dashboardCount.totalNews = newsInfo[0].overallNewsCount || 0;
+            responseData.dashboardCount.totalNewsApproved = newsInfo[0].overallApprovedNewsCount || 0;
             responseData.dashboardCount.contactsAll = (await subscriberDataSchema.find().where('district').equals(req.body.district)).length;
             responseData.dashboardCount.contactsAdded = (await subscriberDataSchema.find().where('district').equals(req.body.district).where('addedToGroup').equals(true)).length;
         } else if (req.body.role === 'REPORTER') {
-            // responseData.dashboardCount.reporters = (await reporterSchema.find().where('mandal').equals(req.body.mandal)).length;
-            responseData.dashboardCount.todaysNews = (await newsDataSchema.find().where('createdDate').gt(new Date(todaysStart).getTime()).where('employeeId').equals(req.body.employeeId)).length;
-            responseData.dashboardCount.todaysNewsApproved = (await newsDataSchema.find().where('createdDate').gt(new Date(todaysStart).getTime()).where('employeeId').equals(req.body.employeeId).where('approved').equals(true)).length;
-            responseData.dashboardCount.totalNews = (await newsDataSchema.find().where('employeeId').equals(req.body.employeeId)).length;
-            responseData.dashboardCount.totalNewsApproved = (await newsDataSchema.find().where('employeeId').equals(req.body.employeeId).where('approved').equals(true)).length;
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let newsInfo = await newsDataSchema.aggregate([
+                {
+                    $match: {
+                        employeeId: req.body.employeeId // Replace with the desired district value
+                    }
+                },
+                {
+                    $facet: {
+                        todaysAllNews: [
+                            {
+                                $match: {
+                                    createdDate: { $gte: today.getTime() }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        todaysApprovedNews: [
+                            {
+                                $match: {
+                                    createdDate: { $gte: today.getTime() },
+                                    approvedOn: { $gt: 0 }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        overallNews: [
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ],
+                        overallApprovedNews: [
+                            {
+                                $match: {
+                                    approvedOn: { $gt: 0 }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    count: { $sum: 1 }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    $project: {
+                        todaysAllNewsCount: { $arrayElemAt: ['$todaysAllNews.count', 0] },
+                        todaysApprovedNewsCount: { $arrayElemAt: ['$todaysApprovedNews.count', 0] },
+                        overallNewsCount: { $arrayElemAt: ['$overallNews.count', 0] },
+                        overallApprovedNewsCount: { $arrayElemAt: ['$overallApprovedNews.count', 0] }
+                    }
+                }
+            ])
+            console.log(newsInfo)
+            responseData.dashboardCount.todaysNews = newsInfo[0].todaysAllNewsCount || 0;
+            responseData.dashboardCount.todaysNewsApproved = newsInfo[0].todaysApprovedNewsCount || 0;
+            responseData.dashboardCount.totalNews = newsInfo[0].overallNewsCount || 0;
+            responseData.dashboardCount.totalNewsApproved = newsInfo[0].overallApprovedNewsCount || 0;
             responseData.dashboardCount.contactsAll = (await subscriberDataSchema.find().where('district').equals(req.body.district)).length;
             responseData.dashboardCount.contactsAdded = (await subscriberDataSchema.find().where('district').equals(req.body.district).where('addedToGroup').equals(true)).length;
         }
 
+
         let chartInfos = []
 
         if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
-            const states = await metaDataSchema.findOne({
-                type: "STATES"
-            });
-            let stateID = [];
-            let approvedNews = [];
-            let notApprovedNews = [];
-            const startAndEnd = getRecentOneMonthEpoch();
 
-            let addedContacts = [];
-            let notAddedContacts = [];
-            for (let index = 0; index < states['data'].length; index++) {
-                stateID.push(states['data'][index].value);
-                const approved = await newsDataSchema.find().where('state').equals(states['data'][index].value).where('approved').equals(true).where('createdDate').gt(startAndEnd.oneMonthAgoEpochTime).lt(startAndEnd.presentEpochTime)
-                approvedNews.push(approved.length)
-                const nonapproved = await newsDataSchema.find().where('state').equals(states['data'][index].value).where('approved').equals(false).where('createdDate').gt(startAndEnd.oneMonthAgoEpochTime).lt(startAndEnd.presentEpochTime)
-                notApprovedNews.push(nonapproved.length);
-
-                const addedContactsList = await subscriberDataSchema.find().where('state').equals(states['data'][index].value).where('addedToGroup').equals(true)
-                addedContacts.push(addedContactsList.length)
-                const notAddedContactsList = await subscriberDataSchema.find().where('state').equals(states['data'][index].value).where('addedToGroup').equals(false)
-                notAddedContacts.push(notAddedContactsList.length)
-            }
+            const newsTypeBasedInfo = await newsDataSchema.aggregate([
+                {
+                    $group: {
+                        _id: '$newsType',
+                        approvedCount: {
+                            $sum: { $cond: [{ $gt: ['$approvedOn', 0] }, 1, 0] }
+                        },
+                        notApprovedCount: {
+                            $sum: { $cond: [{ $and: [{ $eq: ['$approved', false] }, { $eq: ['$rejected', false] }] }, 1, 0] }
+                        },
+                        rejectedCount: {
+                            $sum: { $cond: ['$rejected', 1, 0] }
+                        }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        approvedCount: { $ifNull: ['$approvedCount', 0] },
+                        notApprovedCount: { $ifNull: ['$notApprovedCount', 0] },
+                        rejectedCount: { $ifNull: ['$rejectedCount', 0] }
+                    }
+                }
+            ])
             chartInfos.push({
-                title: "State wise news",
-                description: "State wise news for the past one month",
+                title: "Overall news statistics",
+                description: "Locality wise news reports.",
                 type: "state_wise_chart",
                 chartData: {}
             })
 
+            let firstChartData=[];
+            let firstChartapprovedNews=[]
+            let firstChartPendingNews=[]
+            let firstChartRejectedNews=[]
+            for (let index = 0; index < newsTypeBasedInfo.length; index++) {
+                firstChartData.push(newsTypeBasedInfo[index]._id)
+                firstChartapprovedNews.push(newsTypeBasedInfo[index].approvedCount)
+                firstChartPendingNews.push(newsTypeBasedInfo[index].notApprovedCount)
+                firstChartRejectedNews.push(newsTypeBasedInfo[index].rejectedCount)
+            }
             chartInfos[0]['chartData'] = await multiBarChart({
                 type: "category",
-                value: stateID
+                value: firstChartData
             }, [{
                 name: "Approved",
-                value: approvedNews
+                value: firstChartapprovedNews
             }, {
-                name: "Not Approved",
-                value: notApprovedNews
-            }])
-            const myDtList = await metaDataSchema.findOne({
-                type: req.body.state + "_DISTRICTS"
-            });
-            let myDistricts = myDtList['data']
-            let myDistrictIds = [];
-            let myDistrictApprovedNews = []
-            let myDistrictNotApprovedNews = []
-            for (let index = 0; index < myDistricts.length; index++) {
-                myDistrictIds.push(myDistricts[index].value);
-                const approved = await newsDataSchema.find().where('district').equals(myDistricts[index].value).where('approved').equals(true).where('createdDate').gt(startAndEnd.oneMonthAgoEpochTime).lt(startAndEnd.presentEpochTime)
-                myDistrictApprovedNews.push(approved.length)
-                const nonapproved = await newsDataSchema.find().where('district').equals(myDistricts[index].value).where('approved').equals(false).where('createdDate').gt(startAndEnd.oneMonthAgoEpochTime).lt(startAndEnd.presentEpochTime)
-                myDistrictNotApprovedNews.push(nonapproved.length);
+                name: "Pending",
+                value: firstChartPendingNews
+                }, {
+                    name: "Rejected",
+                value: firstChartRejectedNews
+                }])
 
-            }
+
+
+
+                // =============================================================================================
+
+
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+            const startOfOneMonthAgo = new Date(oneMonthAgo.getFullYear(), oneMonthAgo.getMonth(), oneMonthAgo.getDate(), 0, 0, 0);
+
+            const startDateEpoch = startOfOneMonthAgo.getTime() / 1000; // Convert to epoch
+
+            const newsTypeBasedInfoForAMonth = await newsDataSchema.aggregate([
+                {
+                    $match: {
+                        createdDate: { $gte: startDateEpoch } // Filter within the last one month
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$newsType',
+                        approvedCount: {
+                            $sum: { $cond: [{ $gt: ['$approvedOn', 0] }, 1, 0] }
+                        },
+                        notApprovedCount: {
+                            $sum: { $cond: [{ $and: [{ $eq: ['$approved', false] }, { $eq: ['$rejected', false] }] }, 1, 0] }
+                        },
+                        rejectedCount: {
+                            $sum: { $cond: ['$rejected', 1, 0] }
+                        }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        approvedCount: { $ifNull: ['$approvedCount', 0] },
+                        notApprovedCount: { $ifNull: ['$notApprovedCount', 0] },
+                        rejectedCount: { $ifNull: ['$rejectedCount', 0] }
+                    }
+                }
+            ]) 
+
             chartInfos.push({
-                title: "District wise news",
-                description: "District wise news for the past one month",
-                type: "district_wise_chart",
-                // customClass:"col-md-8",
+                title: "Overall news statistics for last one month",
+                description: "Locality wise news reports for last one month.",
+                type: "state_wise_chart",
                 chartData: {}
             })
+
+            let secondChartData = [];
+            let secondChartapprovedNews = []
+            let secondChartPendingNews = []
+            let secondChartRejectedNews = []
+            for (let index = 0; index < newsTypeBasedInfoForAMonth.length; index++) {
+                secondChartData.push(newsTypeBasedInfoForAMonth[index]._id)
+                secondChartapprovedNews.push(newsTypeBasedInfoForAMonth[index].approvedCount)
+                secondChartPendingNews.push(newsTypeBasedInfoForAMonth[index].notApprovedCount)
+                secondChartRejectedNews.push(newsTypeBasedInfoForAMonth[index].rejectedCount)
+            }
             chartInfos[1]['chartData'] = await multiBarChart({
                 type: "category",
-                value: myDistrictIds
+                value: secondChartData
             }, [{
                 name: "Approved",
-                value: myDistrictApprovedNews
+                value: secondChartapprovedNews
             }, {
-                name: "Not Approved",
-                value: myDistrictNotApprovedNews
-            }])
-            responseData['chartInfos'] = chartInfos
+                name: "Pending",
+                value: secondChartPendingNews
+            }, {
+                name: "Rejected",
+                value: secondChartRejectedNews
+            }]);
+
+            responseData['chartInfos'] = chartInfos;
             res.status(200).json({
                 status: "success",
                 msg: 'Successfully fetched. ',
@@ -1658,7 +2051,7 @@ const getSubscribers = async (req, res) => {
 }
 
 const stateDistrictMapping = async (value, hideFieldValues, deleteElementsList) => {
-    let valueCopy = JSON.parse(JSON.stringify(value))
+    let valueCopy = JSON.parse(JSON.stringify(value));
     let allSt = await metaDataSchema.findOne({
         type: "STATES"
     })
@@ -1673,14 +2066,17 @@ const stateDistrictMapping = async (value, hideFieldValues, deleteElementsList) 
         allDistricts[unqiueStateFromValue[index]] = dt['data'];
     };
     for (let index = 0; index < valueCopy.length; index++) {
-        const distINdex = allDistricts[valueCopy[index]['state']].findIndex(ele => ele.value === valueCopy[index]['district']);
-        if (distINdex > -1) {
-            valueCopy[index]['district'] = allDistricts[valueCopy[index]['state']][distINdex].label;
+        if(valueCopy[index]['newsType'] === 'Regional'){
+
+            const distINdex = allDistricts[valueCopy[index]['state']].findIndex(ele => ele.value === valueCopy[index]['district']);
+            if (distINdex > -1) {
+                valueCopy[index]['district'] = allDistricts[valueCopy[index]['state']][distINdex].label;
+            }
+            const stateIndex = allStates.findIndex(ele => ele.value === valueCopy[index]['state']);
+            if (stateIndex > -1) {
+                valueCopy[index]["state"] = allStates[stateIndex].label;
+            };
         }
-        const stateIndex = allStates.findIndex(ele => ele.value === valueCopy[index]['state']);
-        if (stateIndex > -1) {
-            valueCopy[index]["state"] = allStates[stateIndex].label;
-        };
         if (hideFieldValues && hideFieldValues.length > 0) {
             hideFieldValues.forEach(elem => {
                 if (valueCopy[index][elem]) {
@@ -1704,8 +2100,7 @@ function findUniqueValues(objects, key) {
     objects.forEach(obj => {
         uniqueValues.add(obj[key]);
     });
-
-    return Array.from(uniqueValues);
+    return Array.from(uniqueValues).filter(item => item !== undefined && item !== null && item !== '');
 }
 
 function getRecentOneMonthEpoch() {

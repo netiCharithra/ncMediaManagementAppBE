@@ -9,6 +9,11 @@ const dataSchema = {
         type: String,
         required: [true, 'Title Requried']
     },
+    category:{
+        type:String,
+        requried:true,
+        default:"General"
+    },
     sub_title: {
         type: String,
         required: [false, 'Sub Title']
@@ -22,17 +27,19 @@ const dataSchema = {
         type: String,
         required: [true, 'Employee Id']
     },
-    state: {
+    newsType: {
         type: String,
-        required: [false, 'State']
+        default:"Regional",
+        required: [true, 'News Type']
+    },
+    state: {
+        type: String
     },
     district: {
-        type: String,
-        required: [true, 'district']
+        type: String
     },
     mandal: {
-        type: String,
-        required: [true, 'please mandal']
+        type: String
     },
     approved:{
         type:Boolean,
