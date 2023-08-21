@@ -158,6 +158,66 @@ const getIndividualNewsInfo = async (req,res) => {
 
 
 
+
+const getCategoryNewsPaginated = async (req, res) => {
+    // let page stars from zero;
+    const recordsPerPage = req?.body?.count || 10;
+    const pageNumber = req?.body?.page || 0;
+    const skipRecords = (pageNumber - 1) * recordsPerPage;
+
+    const aggregationPipeline = [
+        {
+            $facet: {
+                records: [
+                    {
+                        $match: {
+                            approvedOn: { $gt: 0 }, // Filtering for approved records
+                            category: req.body.category // Match the specific category
+                        }
+                    },
+                    {
+                        $sort: { createdDate: -1 } // Sorting by createdDate in descending order
+                    },
+                    {
+                        $skip: skipRecords // Skipping records based on page number
+                    },
+                    {
+                        $limit: recordsPerPage // Limiting records per page
+                    }
+                ],
+                recentNews: [
+                    {
+                        $match: {
+                            // Assuming 'news' is the category for news articles
+                            approvedOn: { $gt: 0 } // Ensure approvedDate is greater than zero
+                        }
+                    },
+                    {
+                        $sort: { createdDate: -1 } // Sorting by createdDate in descending order
+                    },
+                    {
+                        $limit: 5 // Limiting to the most recent 5 news articles
+                    }
+                ]
+            }
+        }
+    ];
+
+    try {
+        const records = await newsDataSchema.aggregate(aggregationPipeline);
+        const endOfRecords = records[0].records.length === 0; // Set endOfRecords to true if no records are fetched
+        let value = await metaDataSchema.findOne({
+            type: 'NEWS_CATEGORIES'
+        })
+        res.status(200).json({
+            status: "success",
+            data: { records: records[0].records, recentRecords: records[0].recentNews, endOfRecords: endOfRecords, categories:value.data }
+        });
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
 module.exports = {
-    getHomeData, getIndividualNewsInfo
+    getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated
 }
