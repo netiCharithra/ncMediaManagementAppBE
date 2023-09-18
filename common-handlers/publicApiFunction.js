@@ -5,6 +5,12 @@ const metaDataSchema = require('../modals/metaDataSchema');
 
 const getHomeData = async (req, res) => {
     try {
+
+
+        let viewersData = await metaDataSchema.updateOne(
+            { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
+            { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
+        )
         let mostRecentRecords = await newsDataSchema.aggregate([
             {
                 $match: {
@@ -118,6 +124,15 @@ const getHomeData = async (req, res) => {
 }
 
 const getIndividualNewsInfo = async (req,res) => {
+    let viewersData = await metaDataSchema.updateOne(
+        { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
+        { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
+    )
+    let increamentData = await newsDataSchema.findOneAndUpdate(
+        { newsId: req.body.newsId }, // Find the specific record by newsId
+        { $inc: { viewCount: 1 } }, // Increment the viewCount by 1
+        { new: true } // Return the updated document
+    )
     let newsInfo = await newsDataSchema.aggregate([
         {
             $facet: {
@@ -161,6 +176,10 @@ const getIndividualNewsInfo = async (req,res) => {
 
 const getCategoryNewsPaginated = async (req, res) => {
     // let page stars from zero;
+    let viewersData = await metaDataSchema.updateOne(
+        { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
+        { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
+    )
     const recordsPerPage = req?.body?.count || 10;
     const pageNumber = req?.body?.page || 0;
     const skipRecords = (pageNumber - 1) * recordsPerPage;

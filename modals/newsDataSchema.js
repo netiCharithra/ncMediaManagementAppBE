@@ -76,6 +76,10 @@ const dataSchema = {
     },
     lastUpdatedOn: {
         type: Number
+    },
+    viewCount:{
+        type:Number,
+        default:0
     }
 }
 const newsDataSchema = new mongoose.Schema(dataSchema)

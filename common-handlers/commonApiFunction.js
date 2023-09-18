@@ -589,7 +589,7 @@ const getNewsList = async (req, res) => {
                         {
                             approved: true,
                             rejected: false,
-                            district:req.body.district
+                            district: req.body.district
                         }
 
                     ).where('approved').equals(true).where('rejected').equals(false);
@@ -954,7 +954,7 @@ const fetchDashboard = async (req, res) => {
             responseData.dashboardCount.contactsAll = (await subscriberDataSchema.find().where('district').equals(req.body.district)).length;
             responseData.dashboardCount.contactsAdded = (await subscriberDataSchema.find().where('district').equals(req.body.district).where('addedToGroup').equals(true)).length;
         } else if (req.body.role === 'REPORTER') {
-            
+
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
@@ -1070,10 +1070,10 @@ const fetchDashboard = async (req, res) => {
                 chartData: {}
             })
 
-            let firstChartData=[];
-            let firstChartapprovedNews=[]
-            let firstChartPendingNews=[]
-            let firstChartRejectedNews=[]
+            let firstChartData = [];
+            let firstChartapprovedNews = []
+            let firstChartPendingNews = []
+            let firstChartRejectedNews = []
             for (let index = 0; index < newsTypeBasedInfo.length; index++) {
                 firstChartData.push(newsTypeBasedInfo[index]._id)
                 firstChartapprovedNews.push(newsTypeBasedInfo[index].approvedCount)
@@ -1089,15 +1089,15 @@ const fetchDashboard = async (req, res) => {
             }, {
                 name: "Pending",
                 value: firstChartPendingNews
-                }, {
-                    name: "Rejected",
+            }, {
+                name: "Rejected",
                 value: firstChartRejectedNews
-                }])
+            }])
 
 
 
 
-                // =============================================================================================
+            // =============================================================================================
 
 
             const oneMonthAgo = new Date();
@@ -1135,7 +1135,7 @@ const fetchDashboard = async (req, res) => {
                         rejectedCount: { $ifNull: ['$rejectedCount', 0] }
                     }
                 }
-            ]) 
+            ])
 
             chartInfos.push({
                 title: "Overall news statistics for last one month",
@@ -1325,36 +1325,36 @@ const addSubscribers = async (req, res) => {
                 });
             } else {
                 // PERFROM ADDING HERE
-
-                const addSubscriber = await subscriberDataSchema.create(req.body.data)
-                if (!addSubscriber) {
+                // console.log(req.body.data)
+                const subscriberData = await subscriberDataSchema.findOne().where({mobile:req.body.data.mobile})
+                console.log(subscriberData)
+                if (subscriberData){
                     res.status(200).json({
                         status: "failed",
                         msg: 'Duplications found!'
                     })
+                } else {
+                    const addSubscriber = await subscriberDataSchema.create({ ...req.body.data, ...{ addedBy: req.body.employeeId }})
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'Contacts added to list...!',
+                        data: addSubscriber
+                    });
                 }
-                // const existingNews = await newsDataSchema.find({ employeeId: body.data.employeeId }).sort({ newsId: -1 });
-                // if (existingNews && existingNews.length > 0) {
-                //     body['data']['newsId'] = (existingNews[0].newsId + 1);
-                // } else {
-                //     body['data']['newsId'] = 1;
-                // }
-                // const task = await newsDataSchema.create({ ...body.data });
-                res.status(200).json({
-                    status: "success",
-                    msg: 'Contacts added to list...!'
-                });
+                console.log(subscriberData);
+               
             }
         }
     } catch (error) {
-        const obj = await errorLogBookSchema.create({
-            message: `Error while Adding Subscribers`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
-            page: 'Adding Subscribers ',
-            functionality: 'To Fetch Dashboard ',
-            employeeId: req.body.employeeId || '',
-            errorMessage: `${JSON.stringify(error) || ''}`
-        })
+        console.error(error)
+        // const obj = await errorLogBookSchema.create({
+        //     message: `Error while Adding Subscribers`,
+        //     stackTrace: JSON.stringify([...error.stack].join('\n')),
+        //     page: 'Adding Subscribers ',
+        //     functionality: 'To Fetch Dashboard ',
+        //     employeeId: req.body.employeeId || '',
+        //     errorMessage: `${JSON.stringify(error) || ''}`
+        // })
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..!'
@@ -1978,38 +1978,61 @@ const getSubscribers = async (req, res) => {
             } else {
 
 
+
                 const responseData = {
-                    headerContent: [{
-                        key: "name",
-                        label: "Name"
+                    "tableData": {
+                        headerContent: [{
+                            key: "name",
+                            label: "Name"
+                        },
+                        {
+                            key: "state",
+                            label: "State"
+                        },
+                        {
+                            key: "district",
+                            label: "District"
+                        },
+                        {
+                            key: "mandal",
+                            label: "Mandal"
+                        },
+                        {
+                            key: "mobile",
+                            label: "Mobile"
+                        },
+                        {
+                            key: "addedToGroup",
+                            label: "Added to Group"
+                        }
+                        ]
                     },
-                    {
-                        key: "state",
-                        label: "State"
-                    },
-                    {
-                        key: "district",
-                        label: "District"
-                    },
-                    {
-                        key: "mandal",
-                        label: "Mandal"
-                    },
-                    {
-                        key: "mobile",
-                        label: "Mobile"
-                    },
-                    {
-                        key: "addedToGroup",
-                        label: "Added to Group"
+                    "metaData": {
+                        "createNew": {
+                            type: "createNew",
+                            label: "Add Subscriber",
+                            icon: "add_circle",
+                            key: "createNew",
+                        },
+                        "actions": [ 
+                            {
+                                type: "button",
+                                tooltip: "Add to Group",
+                                icon: "group_add",
+                                key: "addToGroup",
+                                class: "btn btn-success",
+                                disable: {
+                                    addedToGroup: [true]
+                                }
+                            }
+                        ]
                     }
-                    ]
                 }
                 // PERFROM GET LIST SUBSCIRBERS
                 if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
                     let allSubscirbers = await subscriberDataSchema.find();
                     let allSubscirbersUpdated = await stateDistrictMapping(allSubscirbers, [])
-                    responseData['bodyContent'] = allSubscirbersUpdated
+                    responseData['tableData']['bodyContent'] = allSubscirbersUpdated
                     res.status(200).json({
                         status: "success",
                         data: responseData
@@ -2017,7 +2040,7 @@ const getSubscribers = async (req, res) => {
                 } else if (req.body.role === 'DISTRICT MANAGER' || req.body.role === 'ADVERTISEMENT MANAGER') {
                     let allSubscirbers = await subscriberDataSchema.find().where('district').equals(req.body.district);
                     let allSubscirbersUpdated = await stateDistrictMapping(allSubscirbers, [])
-                    responseData['bodyContent'] = allSubscirbersUpdated
+                    responseData['tableData']['bodyContent'] = allSubscirbersUpdated
                     res.status(200).json({
                         status: "success",
                         data: responseData
@@ -2025,7 +2048,7 @@ const getSubscribers = async (req, res) => {
                 } else if (req.body.role === 'REPORTER') {
                     let allSubscirbers = await subscriberDataSchema.find().where('district').equals(req.body.district).where('mandal').equals(req.body.mandal);
                     let allSubscirbersUpdated = await stateDistrictMapping(allSubscirbers, ['mobile'])
-                    responseData['bodyContent'] = allSubscirbersUpdated
+                    responseData['tableData']['bodyContent'] = allSubscirbersUpdated
                     res.status(200).json({
                         status: "success",
                         data: responseData
@@ -2040,6 +2063,70 @@ const getSubscribers = async (req, res) => {
             stackTrace: JSON.stringify([...error.stack].join('\n')),
             page: 'Fetch All Subscribers ',
             functionality: 'To Fetch All Subscribers ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while processing..!'
+        })
+    }
+}
+
+const addSubscriberToGroup = async (req, res) => {
+    try {
+        let body = JSON.parse(JSON.stringify(req.body));
+        let employee = await reporterSchema.findOne({
+            employeeId: body.employeeId
+        });
+        if (!employee) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Cannot publish, contact your superior!'
+            });
+        } else {
+            if (employee.disabledUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Forbidden Access!'
+                });
+            } else if (!employee.activeUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
+                });
+            } else {
+              
+             
+                let resp = await subscriberDataSchema.updateOne(
+                    {
+                        mobile:req.body.data.mobile
+                    },
+                    {
+                        addedToGroup:true,
+                        addedBy: req.body.employeeId
+                    }
+                );
+                if (resp.modifiedCount>0){
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'Added to group!'
+                    })
+                } else {
+                    res.status(200).json({
+                        status: "error",
+                        msg: 'Failed to add in group!'
+                    })
+                    
+                };
+            }
+        }
+    } catch (error){
+        const obj = await errorLogBookSchema.create({
+            message: `Error while adding user to whatsapp group`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Subscribers',
+            functionality: 'Adding Subscriber to group,',
             employeeId: req.body.employeeId || '',
             errorMessage: `${JSON.stringify(error) || ''}`
         })
@@ -2066,7 +2153,7 @@ const stateDistrictMapping = async (value, hideFieldValues, deleteElementsList) 
         allDistricts[unqiueStateFromValue[index]] = dt['data'];
     };
     for (let index = 0; index < valueCopy.length; index++) {
-        if(valueCopy[index]['newsType'] === 'Regional'){
+        if (valueCopy[index]['newsType'] === 'Regional') {
 
             const distINdex = allDistricts[valueCopy[index]['state']].findIndex(ele => ele.value === valueCopy[index]['district']);
             if (distINdex > -1) {
@@ -2125,5 +2212,5 @@ module.exports = {
     publishNews,
     fetchDashboard,
     addSubscribers,
-    getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getNewsInfo
+    getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getNewsInfo, addSubscriberToGroup
 }
