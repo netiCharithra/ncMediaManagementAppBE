@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1090074501186",
+    "project_id": "ncmedianewsportal-v2",
+    "storage_bucket": "ncmedianewsportal-v2.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1090074501186:android:ca5640816b389ac5be0ddb",
+        "android_client_info": {
+          "package_name": "neti.charithra.webapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1090074501186-6g8pn1hslhfcbaeh30f6q223r9f0pkd6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAu3vmVscG69poMzlHqzlE7S5kYZsSEhoA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1090074501186-6g8pn1hslhfcbaeh30f6q223r9f0pkd6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

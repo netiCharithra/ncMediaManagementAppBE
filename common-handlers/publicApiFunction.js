@@ -237,6 +237,41 @@ const getCategoryNewsPaginated = async (req, res) => {
         throw error;
     }
 }
+
+const setFCMToken = async(req,res)=>{
+    try{;
+
+        const query = {
+            type: 'FCM_TOKENS',
+        };
+
+
+        const update = {
+            $addToSet: {
+                data: req.body.token,
+            },
+        };
+
+        const options = {
+            upsert: true, // Create a new document if it doesn't exist
+            new: true, // Return the updated document
+        };
+
+
+        let data = await metaDataSchema.findOneAndUpdate(query, update, options);
+        
+        res.status(200).json({
+            status: "success"
+        });
+        //        console.log("set fcm token");
+    }
+     catch(err){
+        res.status(200).json({
+            status: "failed",
+            message:"FAILED to STORE"
+        });
+     }
+}
 module.exports = {
-    getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated
+    getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, setFCMToken
 }

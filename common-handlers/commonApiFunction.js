@@ -4,7 +4,15 @@ const metaDataSchema = require('../modals/metaDataSchema');
 const newsDataSchema = require('../modals/newsDataSchema');
 const subscriberDataSchema = require('../modals/subscriberDataSchema');
 const errorLogBookSchema = require('../modals/errorLogBookSchema');
-// const user = require('../modals/userSchema')
+const user = require('../modals/userSchema')
+const admin = require('firebase-admin');
+const serviceAccount = require('./../ncmedianewsportal-v2-firebase-adminsdk-zr4hr-b428a7eb9b.json');
+// const admin = require("firebase-admin/messaging")
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+});
+const msgingAdmin = require('firebase-admin/messaging');
+
 
 const registerReporter = async (req, res) => {
     try {
@@ -83,6 +91,27 @@ const reporterLogin = async (req, res) => {
                 });
             } else {
                 let userDataCopy = JSON.parse(JSON.stringify(userData));
+                let tokesns = await metaDataSchema.findOne({ type: "FCM_TOKENS" });
+                
+
+
+
+                // const message = {
+                //     data: {
+                //         title: "Notif",
+                //         body: 'This is a Test Notification'
+                //     },
+                //     tokens: tokesns.data,
+                // };
+                // console.log("HII")
+
+                // msgingAdmin.getMessaging()
+                //     .sendMulticast(message)
+                //     .then((response) => {
+
+                //         console.log("Successfully sent message:", response);
+                //     })
+
 
                 res.status(200).json({
                     status: "success",
@@ -189,6 +218,7 @@ const publishNews = async (req, res) => {
                         task: task
                     });
                 } else if (body.type === 'approve') {
+                    console.log(body)
                     let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
                         {
                             approved: true,
@@ -200,7 +230,8 @@ const publishNews = async (req, res) => {
                             rejectedReason: '',
                             rejectedBy: ''
                         }
-                    )
+                    );
+                   
                     res.status(200).json({
                         status: "success",
                         msg: 'Approved..!',
@@ -518,6 +549,17 @@ const getNewsList = async (req, res) => {
                             icon: "add_circle",
                             key: "createNew",
                         },
+                        "headerExternalActions": [
+                            {
+                                type: "select",
+                                label: "External Link News",
+                                icon: "add_circle",
+                                key: "externalLink",
+                                options: [
+                                    "Andhra Jyothi"
+                                ]
+                            }
+                        ],
                         "actions": [
                             {
                                 type: "button",
@@ -1326,15 +1368,15 @@ const addSubscribers = async (req, res) => {
             } else {
                 // PERFROM ADDING HERE
                 // console.log(req.body.data)
-                const subscriberData = await subscriberDataSchema.findOne().where({mobile:req.body.data.mobile})
+                const subscriberData = await subscriberDataSchema.findOne().where({ mobile: req.body.data.mobile })
                 console.log(subscriberData)
-                if (subscriberData){
+                if (subscriberData) {
                     res.status(200).json({
                         status: "failed",
                         msg: 'Duplications found!'
                     })
                 } else {
-                    const addSubscriber = await subscriberDataSchema.create({ ...req.body.data, ...{ addedBy: req.body.employeeId }})
+                    const addSubscriber = await subscriberDataSchema.create({ ...req.body.data, ...{ addedBy: req.body.employeeId } })
                     res.status(200).json({
                         status: "success",
                         msg: 'Contacts added to list...!',
@@ -1342,7 +1384,7 @@ const addSubscribers = async (req, res) => {
                     });
                 }
                 console.log(subscriberData);
-               
+
             }
         }
     } catch (error) {
@@ -2014,7 +2056,7 @@ const getSubscribers = async (req, res) => {
                             icon: "add_circle",
                             key: "createNew",
                         },
-                        "actions": [ 
+                        "actions": [
                             {
                                 type: "button",
                                 tooltip: "Add to Group",
@@ -2096,18 +2138,18 @@ const addSubscriberToGroup = async (req, res) => {
                     msg: 'Employement not yet approved..! Kindly Contact your Superior.'
                 });
             } else {
-              
-             
+
+
                 let resp = await subscriberDataSchema.updateOne(
                     {
-                        mobile:req.body.data.mobile
+                        mobile: req.body.data.mobile
                     },
                     {
-                        addedToGroup:true,
+                        addedToGroup: true,
                         addedBy: req.body.employeeId
                     }
                 );
-                if (resp.modifiedCount>0){
+                if (resp.modifiedCount > 0) {
                     res.status(200).json({
                         status: "success",
                         msg: 'Added to group!'
@@ -2117,11 +2159,11 @@ const addSubscriberToGroup = async (req, res) => {
                         status: "error",
                         msg: 'Failed to add in group!'
                     })
-                    
+
                 };
             }
         }
-    } catch (error){
+    } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while adding user to whatsapp group`,
             stackTrace: JSON.stringify([...error.stack].join('\n')),
