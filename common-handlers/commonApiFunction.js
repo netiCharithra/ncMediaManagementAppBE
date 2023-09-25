@@ -218,7 +218,6 @@ const publishNews = async (req, res) => {
                         task: task
                     });
                 } else if (body.type === 'approve') {
-                    console.log(body)
                     let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
                         {
                             approved: true,
@@ -984,8 +983,7 @@ const fetchDashboard = async (req, res) => {
                         overallApprovedNewsCount: { $arrayElemAt: ['$overallApprovedNews.count', 0] }
                     }
                 }
-            ])
-            console.log(newsInfo)
+            ]);
 
             responseData.dashboardCount.employees = dtEmployeeInfo[0].totalEmployees || 0;
             responseData.dashboardCount.activeEmployees = dtEmployeeInfo[0].approvedEmployees || 0;
@@ -1066,8 +1064,7 @@ const fetchDashboard = async (req, res) => {
                         overallApprovedNewsCount: { $arrayElemAt: ['$overallApprovedNews.count', 0] }
                     }
                 }
-            ])
-            console.log(newsInfo)
+            ]);
             responseData.dashboardCount.todaysNews = newsInfo[0].todaysAllNewsCount || 0;
             responseData.dashboardCount.todaysNewsApproved = newsInfo[0].todaysApprovedNewsCount || 0;
             responseData.dashboardCount.totalNews = newsInfo[0].overallNewsCount || 0;
@@ -1368,8 +1365,7 @@ const addSubscribers = async (req, res) => {
             } else {
                 // PERFROM ADDING HERE
                 // console.log(req.body.data)
-                const subscriberData = await subscriberDataSchema.findOne().where({ mobile: req.body.data.mobile })
-                console.log(subscriberData)
+                const subscriberData = await subscriberDataSchema.findOne().where({ mobile: req.body.data.mobile });
                 if (subscriberData) {
                     res.status(200).json({
                         status: "failed",
@@ -1382,8 +1378,7 @@ const addSubscribers = async (req, res) => {
                         msg: 'Contacts added to list...!',
                         data: addSubscriber
                     });
-                }
-                console.log(subscriberData);
+                };  
 
             }
         }
