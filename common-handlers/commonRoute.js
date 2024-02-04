@@ -1,8 +1,8 @@
 const express = require('express')
 const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboard, addSubscribers, getSubscribers, getEmployeesData, manipulateEmployee,getEmployeeData,
-    getNewsInfo,
+    getNewsInfo, deleteS3Images,
     getNewsList, getAllEmployees, addSubscriberToGroup} = require('./commonApiFunction')
-const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, setFCMToken } = require('./publicApiFunction')
+const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck } = require('./publicApiFunction')
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
@@ -28,8 +28,12 @@ router.route('/getNewsInfo').post(getNewsInfo);
 router.route('/getAllEmployees').post(getAllEmployees);
 
 
+router.route('/deleteUploadedImagess3').post(deleteS3Images)
 
-
+router.route('/public/employeeTracing').post(employeeTracing);
+router.route('/public/employeeTracingManagement').post(employeeTracingManagement);
+router.route('/public/employeeTracingListing').post(employeeTracingListing);
+router.route('/public/employeeTraceCheck').post(employeeTraceCheck);
 router.route('/public/getHomeData').post(getHomeData);
 router.route('/public/getNewsInfo').post(getIndividualNewsInfo);
 router.route('/public/getCategoryNews').post(getCategoryNewsPaginated);

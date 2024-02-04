@@ -349,6 +349,99 @@ const getNewsInfo = async (req, res) => {
         })
     }
 }
+
+const dotenv = require('dotenv');
+const { DeleteObjectCommand, S3, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+dotenv.config()
+
+const BUCKET_NAME = process.env.BUCKET_NAME
+const BUCKET_REGION = process.env.BUCKET_REGION
+const POLICY_NAME = process.env.POLICY_NAME
+
+const ACCESS_KEY = process.env.ACCESS_KEY
+const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY
+
+
+const s3 = new S3Client({
+    credentials: {
+        accessKeyId: ACCESS_KEY,
+        secretAccessKey: SECRET_ACCESS_KEY
+    },
+    region: BUCKET_REGION
+})
+const deleteS3Images = async (req, res) => {
+    try {
+        let body = JSON.parse(JSON.stringify(req.body));
+        let employee = await reporterSchema.findOne({
+            employeeId: body.employeeId
+        });
+        if (!employee) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Cannot publish, contact your superior!'
+            });
+        } else {
+            if (employee.disabledUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Forbidden Access!'
+                });
+            } else if (!employee.activeUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
+                });
+            } else {
+                
+                const params = {
+                    Bucket:BUCKET_NAME, 
+                    Key: body.fileName
+                }
+                
+                const command = new DeleteObjectCommand(params)
+                await s3.send(command)
+                return res.status(200).json({
+                    status: "success",
+                    msg: 'Deleted Successfully',
+                    
+                });
+            }
+        }
+    } catch (error) {
+        // const obj = await errorLogBookSchema.create({
+        //     message: `Error while Fetching  News Info`,
+        //     stackTrace: JSON.stringify([...error.stack].join('\n')),
+        //     page: 'Fetch News Info ',
+        //     functionality: 'To Fetch News Info Publish',
+        //     employeeId: req.body.employeeId || '',
+        //     errorMessage: `${JSON.stringify(error) || ''}`
+        // })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while publishing..! ',
+            error: error
+        })
+    }
+}
+
+
+async function getFileTempUrls3(fileName) {
+    // GETTING IMAGE URL
+    const url = await getSignedUrl(
+        s3,
+        new GetObjectCommand({
+            Bucket: BUCKET_NAME,
+
+            Key: fileName
+            // ContentType: file.mimetype
+        }),
+        { expiresIn: 3600 }// 60 seconds
+    );
+    return url
+}
+
+
 const getNewsList = async (req, res) => {
     try {
         let body = JSON.parse(JSON.stringify(req.body));
@@ -774,7 +867,23 @@ const getAllEmployees = async (req, res) => {
                 });
             } else {
 
-                let allEmployees = await reporterSchema.find().select('-password -__v -passwordCopy -_id').where('activeUser').equals(true);
+                // let allEmployees = await reporterSchema.find().select('-password -__v -passwordCopy -_id').where('activeUser').equals(true);
+                let allEmployees = await reporterSchema.aggregate([
+                    {
+                        $match: {
+                            activeUser: true,
+                            identityVerificationStatus: "approved"
+                        }
+                    },
+                    {
+                        $project: {
+                            password: 0,
+                            __v: 0,
+                            passwordCopy: 0,
+                            _id: 0
+                        }
+                    }
+                ]);
                 let responseData = await stateDistrictMapping(allEmployees, [], ['_id', 'password', 'passwordCopy', 'createdOn', 'activeUser', 'disabledUser', '__v', 'disabledBy', 'disabledOn', 'lastUpdatedBy', 'lastUpdatedOn'])
                 res.status(200).json({
                     status: "success",
@@ -1911,6 +2020,7 @@ const manipulateEmployee = async (req, res) => {
                             state: data.data.state,
                             district: data.data.district,
                             mandal: data.data.mandal,
+                            constituency: data.data.constituency,
                             role: data.data.role,
                             lastUpdatedOn: new Date().getTime(),
                             lastUpdatedBy: data.employeeId,
@@ -1964,15 +2074,25 @@ const getEmployeeData = async (req, res) => {
         const userData = await reporterSchema.findOne({
             employeeId: data.data.employeeId
         })
+        var userInfo = JSON.parse(JSON.stringify(userData))
         let deleteElements = ['_id', 'password', '__v', 'createdDate'];
         deleteElements.forEach(element => {
-            if (userData[element] || userData[element] === 0) {
-                delete userData[element]
+            if (userInfo[element] || userInfo[element] === 0) {
+                delete userInfo[element]
             }
         })
+
+        if (userInfo?.['identityProof']?.fileName){
+            const url = await getFileTempUrls3(userInfo['identityProof'].fileName)
+            userInfo['identityProof']['tempURL'] = url;
+        }
+        if (userInfo?.['profilePicture']?.fileName){
+            const url = await getFileTempUrls3(userInfo['profilePicture'].fileName)
+            userInfo['profilePicture']['tempURL'] = url;
+        }
         res.status(200).json({
             status: "success",
-            data: userData
+            data: userInfo
         });
     } catch (error) {
         const obj = await errorLogBookSchema.create({
@@ -2247,7 +2367,7 @@ module.exports = {
     reporterLogin,
     getMetaData,
     publishNews,
-    fetchDashboard,
+    fetchDashboard, deleteS3Images, getFileTempUrls3,
     addSubscribers,
     getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getNewsInfo, addSubscriberToGroup
 }

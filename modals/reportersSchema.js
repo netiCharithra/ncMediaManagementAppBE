@@ -37,6 +37,11 @@ const dataSchema = {
         type: String,
         required: [true, 'please provide district']
     },
+    constituency: {
+        type: String,
+        required: [true, 'please provide district'],
+        default: ""
+    },
     role: {
         type: String,
         default: ""
@@ -72,11 +77,26 @@ const dataSchema = {
         default: false
     },
     disabledOn: {},
-    profilePicture:{
-        type:String
+    profilePicture: {
+        ContentType: {
+            type: String,
+            default: "image/jpeg" // You can set a default value or modify as needed
+        },
+        fileName: {
+            type: String,
+            default: "" // You can set a default value or modify as needed
+        }
     },
+    
     identityProof: {
-        type: String
+        ContentType: {
+            type: String,
+            default: "image/jpeg" // You can set a default value or modify as needed
+        },
+        fileName: {
+            type: String,
+            default: "" // You can set a default value or modify as needed
+        }
     },
     identityVerificationStatus: {
         type: String,

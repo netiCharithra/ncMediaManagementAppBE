@@ -103,7 +103,6 @@
 
     const formElem = document.querySelector('form');
     formElem.addEventListener('submit', async (e) => {
-        console.log("form submitting")
         e.preventDefault();
         await fetch('/api/upload/uploadFiles', {
             method: 'POST',
@@ -113,7 +112,6 @@
             document.getElementById("myButton").style.backgroundColor = "green"
             document.getElementById('fileInputLabel').textContent = "Select Files";
             document.querySelector('p').style.display = 'block';
-            console.log(response);
         }).catch(error => {
             document.querySelector('p').textContent = "Was not uploaded" + error;
             document.querySelector('p').style.display = 'block';
