@@ -495,6 +495,13 @@ const employeeTracingListing = async (req, res) => {
                                 key: "edit",
                                 class: "btn btn-success"
                             },
+                            {
+                                type: "button",
+                                tooltip: "Copy QR Code",
+                                icon: "qr_code_2",
+                                key: "qrCode",
+                                class: "btn btn-dark"
+                            },
                             // {
                             //     type: "button",
                             //     tooltip: "In Active",
