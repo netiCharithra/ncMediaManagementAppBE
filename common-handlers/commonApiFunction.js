@@ -2097,6 +2097,8 @@ const manipulateEmployee = async (req, res) => {
                             mandal: data.data.mandal,
                             constituency: data.data.constituency,
                             aadharNumber: data.data.aadharNumber || 0,
+                            identityProof: data.data.identityProof || null,
+                            profilePicture: data.data.profilePicture || null,
                             bloodGroup: data.data.bloodGroup || '',
                             role: data.data.role,
                             lastUpdatedOn: new Date().getTime(),
