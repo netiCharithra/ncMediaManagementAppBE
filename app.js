@@ -43,8 +43,7 @@ const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY
 
 const s3 = new S3Client({
     credentials: {
-        // accessKeyId: "AKIAU6GDWITEOHFEADLU",
-        // secretAccessKey: "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"
+    
         accessKeyId: ACCESS_KEY,
         secretAccessKey: SECRET_ACCESS_KEY
     },
