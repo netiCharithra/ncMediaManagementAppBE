@@ -87,7 +87,14 @@ const dataSchema = {
             default: "" // You can set a default value or modify as needed
         }
     },
-    
+    aadharNumber: {
+        type: Number,
+        default: 0 
+    },
+    bloodGroup: {
+        type: String,
+        default: ''
+    },
     identityProof: {
         ContentType: {
             type: String,

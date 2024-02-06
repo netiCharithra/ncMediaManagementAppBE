@@ -92,7 +92,7 @@ const reporterLogin = async (req, res) => {
             } else {
                 let userDataCopy = JSON.parse(JSON.stringify(userData));
                 let tokesns = await metaDataSchema.findOne({ type: "FCM_TOKENS" });
-                
+
 
 
 
@@ -138,12 +138,18 @@ const reporterLogin = async (req, res) => {
 
 const getMetaData = async (req, res) => {
     try {
+        const data = req.body;
         let metaData = {}
         for (let index = 0; index < req.body.metaList.length; index++) {
             let value = await metaDataSchema.findOne({
                 type: req.body.metaList[index]
             })
             metaData[req.body.metaList[index]] = value['data'];
+        }
+        if (data.employeeId !== 'NC-AP-1' && metaData['ROLE']) {
+            var removeKeys = ['INCHARGE DIRECTOR', 'CEO']
+            metaData['ROLE'] = metaData['ROLE'].filter(role => !removeKeys.includes(role));
+
         }
         if (req.body.metaList.length === Object.keys(metaData).length) {
             res.status(200).json({
@@ -230,7 +236,7 @@ const publishNews = async (req, res) => {
                             rejectedBy: ''
                         }
                     );
-                   
+
                     res.status(200).json({
                         status: "success",
                         msg: 'Approved..!',
@@ -393,18 +399,18 @@ const deleteS3Images = async (req, res) => {
                     msg: 'Employement not yet approved..! Kindly Contact your Superior.'
                 });
             } else {
-                
+
                 const params = {
-                    Bucket:BUCKET_NAME, 
+                    Bucket: BUCKET_NAME,
                     Key: body.fileName
                 }
-                
+
                 const command = new DeleteObjectCommand(params)
                 await s3.send(command)
                 return res.status(200).json({
                     status: "success",
                     msg: 'Deleted Successfully',
-                    
+
                 });
             }
         }
@@ -873,6 +879,74 @@ const getAllEmployees = async (req, res) => {
                         $match: {
                             activeUser: true,
                             identityVerificationStatus: "approved"
+                        }
+                    },
+                    {
+                        $project: {
+                            password: 0,
+                            __v: 0,
+                            passwordCopy: 0,
+                            _id: 0
+                        }
+                    }
+                ]);
+                let responseData = await stateDistrictMapping(allEmployees, [], ['_id', 'password', 'passwordCopy', 'createdOn', 'activeUser', 'disabledUser', '__v', 'disabledBy', 'disabledOn', 'lastUpdatedBy', 'lastUpdatedOn'])
+                res.status(200).json({
+                    status: "success",
+                    msg: 'Listed',
+                    data: responseData
+                });
+
+
+            }
+        }
+    } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Listing all Employees`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Employees List ',
+            functionality: 'To List All Employees',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while publishing..! ',
+            error: error
+        })
+    }
+}
+const getAllEmployeesV2 = async (req, res) => {
+    try {
+        let body = JSON.parse(JSON.stringify(req.body));
+        let employee = await reporterSchema.findOne({
+            employeeId: body.employeeId
+        });
+        if (!employee) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Cannot publish, contact your superior!'
+            });
+        } else {
+            if (employee.disabledUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Forbidden Access!'
+                });
+            } else if (!employee.activeUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
+                });
+            } else {
+
+                // let allEmployees = await reporterSchema.find().select('-password -__v -passwordCopy -_id').where('activeUser').equals(true);
+                let allEmployees = await reporterSchema.aggregate([
+                    {
+                        $match: {
+                            activeUser: true,
+                            identityVerificationStatus: "approved",
+                            role: body?.role === "CEO" ? { $exists: true } : { $nin: ["CEO", "INCHARGE DIRECTOR"] }
                         }
                     },
                     {
@@ -1487,7 +1561,7 @@ const addSubscribers = async (req, res) => {
                         msg: 'Contacts added to list...!',
                         data: addSubscriber
                     });
-                };  
+                };
 
             }
         }
@@ -2021,6 +2095,8 @@ const manipulateEmployee = async (req, res) => {
                             district: data.data.district,
                             mandal: data.data.mandal,
                             constituency: data.data.constituency,
+                            aadharNumber: data.data.aadharNumber || 0,
+                            bloodGroup: data.data.bloodGroup || '',
                             role: data.data.role,
                             lastUpdatedOn: new Date().getTime(),
                             lastUpdatedBy: data.employeeId,
@@ -2082,11 +2158,11 @@ const getEmployeeData = async (req, res) => {
             }
         })
 
-        if (userInfo?.['identityProof']?.fileName){
+        if (userInfo?.['identityProof']?.fileName) {
             const url = await getFileTempUrls3(userInfo['identityProof'].fileName)
             userInfo['identityProof']['tempURL'] = url;
         }
-        if (userInfo?.['profilePicture']?.fileName){
+        if (userInfo?.['profilePicture']?.fileName) {
             const url = await getFileTempUrls3(userInfo['profilePicture'].fileName)
             userInfo['profilePicture']['tempURL'] = url;
         }
@@ -2369,5 +2445,5 @@ module.exports = {
     publishNews,
     fetchDashboard, deleteS3Images, getFileTempUrls3,
     addSubscribers,
-    getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getNewsInfo, addSubscriberToGroup
+    getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getAllEmployeesV2, getNewsInfo, addSubscriberToGroup
 }

@@ -493,14 +493,22 @@ const employeeTracingListing = async (req, res) => {
                                 tooltip: "Edit",
                                 icon: "edit",
                                 key: "edit",
-                                class: "btn btn-success"
+                                class: "btn btn-success",
+                                disable: {
+                                    role: req.body.role === 'CEO' ? [] : req.body.role === 'INCHARGE DIRECTOR' ? ['CEO', 'INCHARGE DIRECTOR'] : ['CEO', 'INCHARGE DIRECTOR', 'DISTRICT MANAGER', 'ADVERTISEMENT MANAGER']
+                            
+                                }
                             },
                             {
                                 type: "button",
                                 tooltip: "Copy QR Code",
                                 icon: "qr_code_2",
                                 key: "qrCode",
-                                class: "btn btn-dark"
+                                class: "btn btn-dark",
+                                disable: {
+                                    role: req.body.role === 'CEO' ? [] : req.body.role === 'INCHARGE DIRECTOR' ? ['CEO', 'INCHARGE DIRECTOR'] : ['CEO', 'INCHARGE DIRECTOR', 'DISTRICT MANAGER', 'ADVERTISEMENT MANAGER']
+
+                                }
                             },
                             // {
                             //     type: "button",
