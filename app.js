@@ -14,7 +14,7 @@ app.use(cors({
         }
     }
 }));
-const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const dotenv = require('dotenv');
@@ -43,6 +43,8 @@ const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY
 
 const s3 = new S3Client({
     credentials: {
+        // accessKeyId: "AKIAU6GDWITEOHFEADLU",
+        // secretAccessKey: "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"
         accessKeyId: ACCESS_KEY,
         secretAccessKey: SECRET_ACCESS_KEY
     },
@@ -86,6 +88,55 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
             data: uploadedImages
 
         });
+    } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while uploading files to drive`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: (req.body && req.body.uploadType) ? req.body.uploadType + " uploading" : 'Uploading News Image',
+            functionality: (req.body && req.body.uploadType) ? req.body.uploadType + " uploading" : 'Uploading News Image',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+
+        console.error(error)
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+
+});
+// BELWO ENDPOINT IS ONLY FOR TESTING
+app.post('/api/v2/deleteS3', async (req, res) => {
+
+    try {
+        var filename = req.body.data.fileName
+        // const params = {
+        //     Bucket: BUCKET_NAME,
+        //     Key: body.data.fileName
+        // }
+
+        // console.log(params)
+
+
+        const uploadParams = {
+            Bucket: BUCKET_NAME,
+            // Body: req.files[index].buffer,
+            Key: filename,
+            // ContentType: req.files[index].mimetype
+        }
+
+        // Send the upload to S3
+        await s3.send(new DeleteObjectCommand(uploadParams));
+
+
+
+        return res.status(200).json({
+            status: "success",
+            msg: 'Deleted Successfully',
+
+        });
+    
     } catch (error) {
         // const obj = await errorLogBookSchema.create({
         //     message: `Error while uploading files to drive`,

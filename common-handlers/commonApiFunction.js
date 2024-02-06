@@ -371,8 +371,10 @@ const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY
 
 const s3 = new S3Client({
     credentials: {
-        accessKeyId: ACCESS_KEY,
-        secretAccessKey: SECRET_ACCESS_KEY
+        accessKeyId: "AKIAU6GDWITEOHFEADLU",
+        secretAccessKey: "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"
+        // accessKeyId: ACCESS_KEY,
+        // secretAccessKey: SECRET_ACCESS_KEY
     },
     region: BUCKET_REGION
 })
@@ -402,9 +404,10 @@ const deleteS3Images = async (req, res) => {
 
                 const params = {
                     Bucket: BUCKET_NAME,
-                    Key: body.fileName
+                    Key: body.data.fileName
                 }
 
+                console.log(params)
                 const command = new DeleteObjectCommand(params)
                 await s3.send(command)
                 return res.status(200).json({
