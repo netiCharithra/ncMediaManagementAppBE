@@ -1994,15 +1994,30 @@ const manipulateEmployee = async (req, res) => {
                     if (!checkMail) {
                         let users = await reporterSchema.find({
                             'state': data.data['state']
-                        })
-                        data.data['employeeId'] = 'NC-' + data.data['state'] + '-' + (users.length ? users.length + 1 : 1);
-                        data.data.createdBy = data.employeeId;
+                        });
+                        
+                        // Find the maximum sequence number for the given state
+                        let maxSequenceNumber = 0;
+                        if (users.length > 0) {
+                            const maxEmployeeId = users.reduce((max, user) => {
+                                const [, , sequence] = user.employeeId.split('-');
+                                const num = parseInt(sequence);
+                                if (num > max) {
+                                    max = num;
+                                }
+                                return max;
+                            }, 0);
+                            maxSequenceNumber = maxEmployeeId;
+                        }
+                        
+                        // Generate the new employeeId with the incremented sequence number
+                        const newStateEmployeeId = 'NC-' + data.data['state'] + '-' + (maxSequenceNumber + 1);
+                        data.data['employeeId'] = newStateEmployeeId;
+                        data.data.createdBy = newStateEmployeeId;
                         data['createdDate'] = new Date().getTime();
-
-                        let task = await reporterSchema.create(data.data)
-
-
-
+                        
+                        let task = await reporterSchema.create(data.data);
+                        
                         res.status(200).json({
                             status: "success",
                             msg: 'Employee Added...!',
@@ -2140,6 +2155,7 @@ const manipulateEmployee = async (req, res) => {
             employeeId: req.body.employeeId || '',
             errorMessage: `${JSON.stringify(error) || ''}`
         })
+        // console.log(error)
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..!'
