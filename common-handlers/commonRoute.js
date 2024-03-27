@@ -2,13 +2,13 @@ const express = require('express')
 const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboard, addSubscribers, getSubscribers, getEmployeesData, manipulateEmployee,getEmployeeData,
     getNewsInfo, deleteS3Images,
     getNewsList, getAllEmployees, addSubscriberToGroup, getAllEmployeesV2} = require('./commonApiFunction')
-const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck } = require('./publicApiFunction')
+const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck, getAllNewsList } = require('./publicApiFunction')
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
 const auth = require('./auth')
 
-
+console.log("ROUTE TRIGGERED")
 // router.route('/register').post(register);
 router.route('/registerEmployee').post(registerReporter);
 router.route('/reporterLogin').post(reporterLogin);
@@ -39,6 +39,7 @@ router.route('/public/getHomeData').post(getHomeData);
 router.route('/public/getNewsInfo').post(getIndividualNewsInfo);
 router.route('/public/getCategoryNews').post(getCategoryNewsPaginated);
 router.route('/public/setFCMToken').post(setFCMToken);
+router.route('/public/getNewsList').post(getAllNewsList);
 // router.route('/uploadFiles').post('uploadFiles');
 
 module.exports = router

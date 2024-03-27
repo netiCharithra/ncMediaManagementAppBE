@@ -10,10 +10,7 @@ const getHomeData = async (req, res) => {
     try {
 
 
-        let viewersData = await metaDataSchema.updateOne(
-            { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
-            { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
-        )
+
         let mostRecentRecords = await newsDataSchema.aggregate([
             {
                 $match: {
@@ -103,6 +100,26 @@ const getHomeData = async (req, res) => {
 
         ])
 
+        const fetchTempUrls = async (records) => {
+            return await Promise.all(records.map(async (record) => {
+                console.log("recordrecordrecord", record)
+                await Promise.all(record.images.map(async (elementImg) => {
+                    elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+                }));
+
+                // const fileURLTemp = await getFileTempUrls3(record.fileName);
+                // return { ...record, tempURL: fileURLTemp };
+                return record;
+            }));
+        };
+        mostRecentRecords = await fetchTempUrls(mostRecentRecords);
+        // Fetch temporary URLs for categoryWiseRecentRecords
+        for (const categoryRecord of categoryWiseRecentRecords[0].categorizedRecords) {
+            categoryRecord.records = await fetchTempUrls(categoryRecord.records);
+        }
+
+        // Fetch temporary URLs for moreRecentRecords
+        moreRecentRecords = await fetchTempUrls(moreRecentRecords);
         res.status(200).json({
             status: "success",
             msg: 'Success',
@@ -496,7 +513,7 @@ const employeeTracingListing = async (req, res) => {
                                 class: "btn btn-success",
                                 disable: {
                                     role: req.body.role === 'CEO' ? [] : req.body.role === 'INCHARGE DIRECTOR' ? ['CEO', 'INCHARGE DIRECTOR'] : ['CEO', 'INCHARGE DIRECTOR', 'DISTRICT MANAGER', 'ADVERTISEMENT MANAGER']
-                            
+
                                 }
                             },
                             {
@@ -574,7 +591,7 @@ const employeeTraceCheck = async (req, res) => {
             },
             {
                 $project: {
-             
+
                     activeTraceId: 1,
                     employeeId: 1,
                     startDate: 1,
@@ -618,7 +635,7 @@ const employeeTraceCheck = async (req, res) => {
             }
         ]);
         if (result.length === 0) {
-          
+
             res.status(200).json({
                 "status": "invalid",
                 "msg": "Not a Neti Charithra Employee",
@@ -650,23 +667,23 @@ const employeeTraceCheck = async (req, res) => {
                         let allSt = await metaDataSchema.findOne({
                             type: "STATES"
                         })
-                        const index=allSt?.data?.findIndex(element => element.value === record.employeeInfo.state);
-                        if(index>-1){
-                            record.employeeInfo.stateName=allSt.data[index].label;
+                        const index = allSt?.data?.findIndex(element => element.value === record.employeeInfo.state);
+                        if (index > -1) {
+                            record.employeeInfo.stateName = allSt.data[index].label;
                         };
 
                         const dt = await metaDataSchema.findOne({
                             type: record.employeeInfo.state + "_DISTRICTS"
                         })
-                        if (dt?.data?.length > 0 && record?.employeeInfo?.district){
+                        if (dt?.data?.length > 0 && record?.employeeInfo?.district) {
                             const dtIndex = dt.data.findIndex(ele => ele.value === record?.employeeInfo?.district)
-                            if(dtIndex>-1){
+                            if (dtIndex > -1) {
                                 record.employeeInfo.districtName = dt.data[dtIndex]?.label
                             }
                         }
                     }
-                    
-                 
+
+
                 }
             }
 
@@ -758,6 +775,65 @@ const getCategoryNewsPaginated = async (req, res) => {
     }
 }
 
+const getAllNewsList = async (req, res) => {
+    const recordsPerPage = req?.body?.count || 10;
+    const pageNumber = req?.body?.page || 1; // Adjusted page number to start from 1
+    const skipRecords = (pageNumber - 1) * recordsPerPage;
+
+    const aggregationPipeline = [
+        {
+            $facet: {
+                records: [
+                    {
+                        $match: {
+                            approvedOn: { $gt: 0 }, // Filtering for approved records
+                            // category: req.body.category // Match the specific category
+                        }
+                    },
+                    {
+                        $sort: { createdDate: -1 } // Sorting by createdDate in descending order
+                    },
+                    {
+                        $skip: skipRecords // Skipping records based on page number
+                    },
+                    {
+                        $limit: recordsPerPage // Limiting records per page
+                    }
+                ],
+                totalCount: [
+                    {
+                        $count: "total" // Counting the total number of records
+                    }
+                ]
+            }
+        }
+    ];
+
+    try {
+        const result = await newsDataSchema.aggregate(aggregationPipeline);
+        const records = result[0].records;
+        const totalCount = result[0].totalCount.length > 0 ? result[0].totalCount[0].total : 0;
+
+        // Calculate endOfRecords based on the current page and total count
+        const endOfRecords = (pageNumber * recordsPerPage) >= totalCount;
+
+        // Fetch temporary URLs for images
+        await Promise.all(records.map(async (record) => {
+            await Promise.all(record.images.map(async (elementImg) => {
+                elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+            }));
+        }));
+
+        res.status(200).json({
+            status: "success",
+            data: { records: records, endOfRecords: endOfRecords }
+        });
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
+
 const setFCMToken = async (req, res) => {
     try {
         ;
@@ -794,5 +870,5 @@ const setFCMToken = async (req, res) => {
     }
 }
 module.exports = {
-    getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing
+    getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList
 }

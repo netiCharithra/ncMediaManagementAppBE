@@ -3,13 +3,16 @@ require('express-async-errors');
 const app = express();
 const cors = require("cors");
 app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
-const allowedOrigins = ['http://localhost:4201', 'https://neticharithra-ncmedia.web.app']; // Add more origins if needed
+const allowedOrigins = ['http://localhost:8081','http://localhost:4201', 'https://neticharithra-ncmedia.web.app','*']; // Add more origins if needed
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {
+            console.log("AAL")
             callback(null, true);
         } else {
+            console.log("CORS")
             callback(new Error('Not allowed by CORS'));
         }
     }
@@ -31,6 +34,7 @@ const storage = multer.memoryStorage()
 
 const upload = multer({ storage: storage })
 const stream = require('stream');
+const errorLogBookSchema = require('./modals/errorLogBookSchema');
 
 
 const BUCKET_NAME = process.env.BUCKET_NAME
@@ -56,12 +60,10 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
 
         let uploadedImages = []
 
-        // const file = req.file
-
 
         if (req?.files?.length > 0) {
             for (let index = 0; index < req.files.length; index++) {
-                const fileName =  "FileNew" + new Date().getTime() + '_0';
+                const fileName = req?.body?.fileName === "original" ? req.files[index].originalname :  "FileNew" + new Date().getTime() + '_0';
                 const uploadParams = {
                     Bucket: BUCKET_NAME,
                     Body: req.files[index].buffer,
@@ -156,7 +158,10 @@ app.post('/api/v2/deleteS3', async (req, res) => {
 });
 
 
-
+app.get('', (req,res)=>{
+    console.log(req,res,"REQUEST RECIVED")
+    res.send("HIIII")
+})
 async function getFileTempUrls3(fileName) {
     // GETTING IMAGE URL
     const url = await getSignedUrl(

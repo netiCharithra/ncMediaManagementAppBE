@@ -138,6 +138,7 @@ const reporterLogin = async (req, res) => {
 
 const getMetaData = async (req, res) => {
     try {
+        console.log("GO2")
         const data = req.body;
         let metaData = {}
         for (let index = 0; index < req.body.metaList.length; index++) {
@@ -160,12 +161,13 @@ const getMetaData = async (req, res) => {
         } else {
             res.status(200).json({
                 status: "failed",
-                msg: 'Error while processing!'
+                msg: 'Error while processing! 3'
             })
 
         }
 
     } catch (error) {
+        console.error(error)
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching Metadata`,
             stackTrace: JSON.stringify([...error.stack].join('\n')),
@@ -175,7 +177,7 @@ const getMetaData = async (req, res) => {
         })
         res.status(200).json({
             status: "failed",
-            msg: 'Error while loading!'
+            msg: 'Error while loading! 2'
         })
 
     }
@@ -331,6 +333,13 @@ const getNewsInfo = async (req, res) => {
             } else {
 
                 let newsContent = await newsDataSchema.findOne().where('newsId').equals(body.newsId);
+                console.log(newsContent)
+                for (const elementImg of newsContent?.images || []) {
+                    console.log(elementImg)
+                    if (elementImg?.fileName) {
+                        elementImg['tempURL'] = await getFileTempUrls3(elementImg?.fileName);
+                    }
+                }
                 res.status(200).json({
                     status: "success",
                     msg: 'News Fetched successfully..!',
@@ -400,9 +409,10 @@ const deleteS3Images = async (req, res) => {
                 });
             } else {
 
+                console.log(body)
                 const params = {
                     Bucket: BUCKET_NAME,
-                    Key: body.data.fileName
+                    Key: body?.data?.fileName || body?.fileName
                 }
 
                 console.log(params)
@@ -416,6 +426,7 @@ const deleteS3Images = async (req, res) => {
             }
         }
     } catch (error) {
+        console.log(error)
         // const obj = await errorLogBookSchema.create({
         //     message: `Error while Fetching  News Info`,
         //     stackTrace: JSON.stringify([...error.stack].join('\n')),
@@ -435,6 +446,7 @@ const deleteS3Images = async (req, res) => {
 
 async function getFileTempUrls3(fileName) {
     // GETTING IMAGE URL
+    console.log(fileName)
     const url = await getSignedUrl(
         s3,
         new GetObjectCommand({
