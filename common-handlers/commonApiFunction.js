@@ -211,6 +211,7 @@ const publishNews = async (req, res) => {
 
                     const existingNews = await newsDataSchema.find();
                     const existingNews_2 = await newsDataSchema.findOne().sort({ newsId: -1 });
+
                     if (existingNews && existingNews.length > 0) {
                         body['data']['newsId'] = (existingNews_2.newsId + 1);
                     } else {
@@ -328,31 +329,35 @@ const getNewsInfo = async (req, res) => {
             } else if (!employee.activeUser) {
                 return res.status(200).json({
                     status: "failed",
-                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
+                    msg: 'Employment not yet approved..! Kindly Contact your Superior.'
                 });
             } else {
+                let newsContent = await newsDataSchema.findOne({ newsId: body.newsId });
 
-                let newsContent = await newsDataSchema.findOne().where('newsId').equals(body.newsId);
-                console.log(newsContent)
-                for (const elementImg of newsContent?.images || []) {
-                    console.log(elementImg)
+                let news=JSON.parse(JSON.stringify(newsContent))
+                // Fetching tempURL for each image in newsContent using promises
+                let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
                         elementImg['tempURL'] = await getFileTempUrls3(elementImg?.fileName);
                     }
-                }
+                    return elementImg; // Returning updated image object
+                }));
+
+                // Updating images array in newsContent with imagesWithTempURL
+                news.images = imagesWithTempURL;
+
                 res.status(200).json({
                     status: "success",
                     msg: 'News Fetched successfully..!',
-                    data: newsContent
-                })
-
+                    data: news
+                });
             }
         }
     } catch (error) {
         const obj = await errorLogBookSchema.create({
-            message: `Error while Fetching  News Info`,
+            message: `Error while Fetching News Info`,
             stackTrace: JSON.stringify([...error.stack].join('\n')),
-            page: 'Fetch News Info ',
+            page: 'Fetch News Info',
             functionality: 'To Fetch News Info Publish',
             employeeId: req.body.employeeId || '',
             errorMessage: `${JSON.stringify(error) || ''}`
@@ -364,6 +369,7 @@ const getNewsInfo = async (req, res) => {
         })
     }
 }
+
 
 const dotenv = require('dotenv');
 const { DeleteObjectCommand, S3, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
@@ -457,6 +463,7 @@ async function getFileTempUrls3(fileName) {
         }),
         { expiresIn: 3600 }// 60 seconds
     );
+    console.log(url)
     return url
 }
 

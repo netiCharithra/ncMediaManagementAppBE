@@ -166,7 +166,6 @@ const getIndividualNewsInfo = async (req, res) => {
                 ],
                 specificRecord: [
                     {
-                        // $match: { body } // Match specific newsId
                         $match: { newsId: req.body.newsId } // Match specific newsId
                     },
                     {
@@ -175,21 +174,39 @@ const getIndividualNewsInfo = async (req, res) => {
                 ]
             }
         },
+    ]);
 
-    ])
-    let value = await metaDataSchema.findOne({
-        type: 'NEWS_CATEGORIES'
-    })
+    // Fetching tempURL for each image in recentRecords and specificRecord
+    let recentRecordsWithTempURL = await Promise.all(newsInfo[0].recentRecords.map(async record => {
+        let imagesWithTempURL = await Promise.all(record.images.map(async image => {
+            let tempURL = await getFileTempUrls3(image.fileName);
+            return { ...image, tempURL };
+        }));
+        return { ...record, images: imagesWithTempURL };
+    }));
 
-    let responseData = {};
+    let specificRecordWithTempURL = await Promise.all(newsInfo[0].specificRecord.map(async record => {
+        let imagesWithTempURL = await Promise.all(record.images.map(async image => {
+            let tempURL = await getFileTempUrls3(image.fileName);
+            return { ...image, tempURL };
+        }));
+        return { ...record, images: imagesWithTempURL };
+    }));
 
-    responseData = { ...responseData, ...newsInfo[0], ...{ categories: value.data } }
+    let value = await metaDataSchema.findOne({ type: 'NEWS_CATEGORIES' });
+
+    let responseData = {
+        recentRecords: recentRecordsWithTempURL,
+        specificRecord: specificRecordWithTempURL,
+        categories: value.data
+    };
 
     res.status(200).json({
         status: "success",
         data: responseData
     });
 }
+
 
 const employeeTracing = async (req, res) => {
     let viewersData = await tracingSchema.updateOne(

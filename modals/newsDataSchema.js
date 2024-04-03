@@ -22,7 +22,10 @@ const dataSchema = {
         type: String,
         required: [false, 'Sub Title']
     },
-    images: [],
+    images: [{
+        fileName: String,
+        ContentType: String
+    }],
     employeeId: {
         type: String,
         required: [true, 'Employee Id']
