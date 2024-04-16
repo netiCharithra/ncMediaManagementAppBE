@@ -4,7 +4,6 @@ const metaDataSchema = require('../modals/metaDataSchema');
 const newsDataSchema = require('../modals/newsDataSchema');
 const subscriberDataSchema = require('../modals/subscriberDataSchema');
 const errorLogBookSchema = require('../modals/errorLogBookSchema');
-const user = require('../modals/userSchema')
 const admin = require('firebase-admin');
 const serviceAccount = require('./../ncmedianewsportal-v2-firebase-adminsdk-zr4hr-b428a7eb9b.json');
 // const admin = require("firebase-admin/messaging")
@@ -96,21 +95,6 @@ const reporterLogin = async (req, res) => {
 
 
 
-                // const message = {
-                //     data: {
-                //         title: "Notif",
-                //         body: 'This is a Test Notification'
-                //     },
-                //     tokens: tokesns.data,
-                // };
-                // console.log("HII")
-
-                // msgingAdmin.getMessaging()
-                //     .sendMulticast(message)
-                //     .then((response) => {
-
-                //         console.log("Successfully sent message:", response);
-                //     })
 
 
                 res.status(200).json({
@@ -138,7 +122,6 @@ const reporterLogin = async (req, res) => {
 
 const getMetaData = async (req, res) => {
     try {
-        console.log("GO2")
         const data = req.body;
         let metaData = {}
         for (let index = 0; index < req.body.metaList.length; index++) {
@@ -335,7 +318,7 @@ const getNewsInfo = async (req, res) => {
                 let newsContent = await newsDataSchema.findOne({ newsId: body.newsId });
 
                 let news=JSON.parse(JSON.stringify(newsContent))
-                // Fetching tempURL for each image in newsContent using promises
+                // Fetching tempURL for each image in newsContent using promises    
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
                         elementImg['tempURL'] = await getFileTempUrls3(elementImg?.fileName);
@@ -415,13 +398,11 @@ const deleteS3Images = async (req, res) => {
                 });
             } else {
 
-                console.log(body)
                 const params = {
                     Bucket: BUCKET_NAME,
                     Key: body?.data?.fileName || body?.fileName
                 }
 
-                console.log(params)
                 const command = new DeleteObjectCommand(params)
                 await s3.send(command)
                 return res.status(200).json({
@@ -432,7 +413,6 @@ const deleteS3Images = async (req, res) => {
             }
         }
     } catch (error) {
-        console.log(error)
         // const obj = await errorLogBookSchema.create({
         //     message: `Error while Fetching  News Info`,
         //     stackTrace: JSON.stringify([...error.stack].join('\n')),
@@ -452,7 +432,6 @@ const deleteS3Images = async (req, res) => {
 
 async function getFileTempUrls3(fileName) {
     // GETTING IMAGE URL
-    console.log(fileName)
     const url = await getSignedUrl(
         s3,
         new GetObjectCommand({
@@ -463,7 +442,6 @@ async function getFileTempUrls3(fileName) {
         }),
         { expiresIn: 3600 }// 60 seconds
     );
-    console.log(url)
     return url
 }
 
@@ -1567,7 +1545,6 @@ const addSubscribers = async (req, res) => {
                 });
             } else {
                 // PERFROM ADDING HERE
-                // console.log(req.body.data)
                 const subscriberData = await subscriberDataSchema.findOne().where({ mobile: req.body.data.mobile });
                 if (subscriberData) {
                     res.status(200).json({
@@ -2174,7 +2151,6 @@ const manipulateEmployee = async (req, res) => {
             employeeId: req.body.employeeId || '',
             errorMessage: `${JSON.stringify(error) || ''}`
         })
-        // console.log(error)
         res.status(200).json({
             status: "failed",
             msg: 'Error while processing..!'

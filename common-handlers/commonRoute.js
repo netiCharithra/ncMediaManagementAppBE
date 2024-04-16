@@ -2,13 +2,12 @@ const express = require('express')
 const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboard, addSubscribers, getSubscribers, getEmployeesData, manipulateEmployee,getEmployeeData,
     getNewsInfo, deleteS3Images,
     getNewsList, getAllEmployees, addSubscriberToGroup, getAllEmployeesV2} = require('./commonApiFunction')
-const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck, getAllNewsList } = require('./publicApiFunction')
+const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated,getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck, getAllNewsList,getDistrictNewsPaginated , getAllNews,requestPublicOTP, validateUserOTP, addPublicUser} = require('./publicApiFunction')
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
 const auth = require('./auth')
 
-console.log("ROUTE TRIGGERED")
 // router.route('/register').post(register);
 router.route('/registerEmployee').post(registerReporter);
 router.route('/reporterLogin').post(reporterLogin);
@@ -38,8 +37,14 @@ router.route('/public/employeeTraceCheck').post(employeeTraceCheck);
 router.route('/public/getHomeData').post(getHomeData);
 router.route('/public/getNewsInfo').post(getIndividualNewsInfo);
 router.route('/public/getCategoryNews').post(getCategoryNewsPaginated);
+router.route('/public/getCategoryNewsOnly').post(getCategoryNewsPaginatedOnly);
 router.route('/public/setFCMToken').post(setFCMToken);
 router.route('/public/getNewsList').post(getAllNewsList);
+router.route('/public/getDistrictNewsList').post(getDistrictNewsPaginated);
+router.route('/public/getAllNews').post(getAllNews);
+router.route('/public/requestPublicOTP').post(requestPublicOTP);
+router.route('/public/validateUserOTP').post(validateUserOTP);
+router.route('/public/addPublicUser').post(addPublicUser);
 // router.route('/uploadFiles').post('uploadFiles');
 
 module.exports = router

@@ -5,6 +5,8 @@ const metaDataSchema = require('../modals/metaDataSchema');
 const EmployeeTracing = require('../modals/employeeTracing')
 const reporterSchema = require('../modals/reportersSchema');
 const { getFileTempUrls3 } = require('./commonApiFunction');
+const publicUserSchema = require('../modals/publicUserSchema');
+const otpTrackingSchema = require('../modals/otpTrackingSchema');
 
 const getHomeData = async (req, res) => {
     try {
@@ -102,7 +104,6 @@ const getHomeData = async (req, res) => {
 
         const fetchTempUrls = async (records) => {
             return await Promise.all(records.map(async (record) => {
-                console.log("recordrecordrecord", record)
                 await Promise.all(record.images.map(async (elementImg) => {
                     elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
                 }));
@@ -711,7 +712,6 @@ const employeeTraceCheck = async (req, res) => {
             });
         }
 
-        // console.log(result);
 
 
     } catch (error) {
@@ -729,15 +729,14 @@ const employeeTraceCheck = async (req, res) => {
 
 
 const getCategoryNewsPaginated = async (req, res) => {
-    // let page stars from zero;
+    // let page starts from zero;
     let viewersData = await metaDataSchema.updateOne(
         { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
         { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
     )
     const recordsPerPage = req?.body?.count || 10;
     const pageNumber = req?.body?.page || 0;
-    const skipRecords = (pageNumber - 1) * recordsPerPage;
-
+    const skipRecords = pageNumber * recordsPerPage;
     const aggregationPipeline = [
         {
             $facet: {
@@ -745,11 +744,12 @@ const getCategoryNewsPaginated = async (req, res) => {
                     {
                         $match: {
                             approvedOn: { $gt: 0 }, // Filtering for approved records
-                            category: req.body.category // Match the specific category
+                            category: req.body.category, // Match the specific category,
+                            language: req.body.language
                         }
                     },
                     {
-                        $sort: { createdDate: -1 } // Sorting by createdDate in descending order
+                        $sort: { newsId: -1 } // Sorting by createdDate in descending order
                     },
                     {
                         $skip: skipRecords // Skipping records based on page number
@@ -777,14 +777,158 @@ const getCategoryNewsPaginated = async (req, res) => {
     ];
 
     try {
-        const records = await newsDataSchema.aggregate(aggregationPipeline);
-        const endOfRecords = records[0].records.length === 0; // Set endOfRecords to true if no records are fetched
+        const newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
+        const endOfRecords = newsInfo[0].records.length === 0; // Set endOfRecords to true if no records are fetched
+
+        // Fetching categories from metadata
         let value = await metaDataSchema.findOne({
             type: 'NEWS_CATEGORIES'
-        })
+        });
+
+        // Update recent records with temporary URLs for images
+        let recentRecordsWithTempURL = await Promise.all(newsInfo[0].recentNews.map(async record => {
+            let imagesWithTempURL = await Promise.all(record.images.map(async image => {
+                let tempURL = await getFileTempUrls3(image.fileName);
+                return { ...image, tempURL };
+            }));
+            return { ...record, images: imagesWithTempURL };
+        }));
+
+        // Update specific record with temporary URLs for images
+        let specificRecordWithTempURL = await Promise.all(newsInfo[0].records.map(async record => {
+            let imagesWithTempURL = await Promise.all(record.images.map(async image => {
+                let tempURL = await getFileTempUrls3(image.fileName);
+                return { ...image, tempURL };
+            }));
+            return { ...record, images: imagesWithTempURL };
+        }));
+
         res.status(200).json({
             status: "success",
-            data: { records: records[0].records, recentRecords: records[0].recentNews, endOfRecords: endOfRecords, categories: value.data }
+            data: {
+                records: specificRecordWithTempURL,
+                recentRecords: recentRecordsWithTempURL,
+                endOfRecords: endOfRecords,
+                categories: value.data
+            }
+        });
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
+
+
+const getCategoryNewsPaginatedOnly = async (req, res) => {
+    // let page starts from zero;
+    let viewersData = await metaDataSchema.updateOne(
+        { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
+        { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
+    )
+    const recordsPerPage = req?.body?.count || 10;
+    const pageNumber = req?.body?.page || 1;
+    const skipRecords = (pageNumber - 1) * recordsPerPage;
+    const aggregationPipeline = [
+        {
+            $facet: {
+                records: [
+                    {
+                        $match: {
+                            // approvedOn: { $gt: 0 }, // Filtering for approved records
+                            category: req.body.category, // Match the specific category,
+                            // language:req.body.language
+                        }
+                    },
+                    {
+                        $sort: { newsId: -1 } // Sorting by createdDate in descending order
+                    },
+                    {
+                        $skip: skipRecords // Skipping records based on page number
+                    },
+                    {
+                        $limit: recordsPerPage // Limiting records per page
+                    }
+                ],
+
+            }
+        }
+    ];
+
+    try {
+        const newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
+        const endOfRecords = newsInfo[0].records.length === 0; // Set endOfRecords to true if no records are fetched
+
+
+        // Update specific record with temporary URLs for images
+        let specificRecordWithTempURL = await Promise.all(newsInfo[0].records.map(async record => {
+            let imagesWithTempURL = await Promise.all(record.images.map(async image => {
+                let tempURL = await getFileTempUrls3(image.fileName);
+                return { ...image, tempURL };
+            }));
+            return { ...record, images: imagesWithTempURL };
+        }));
+
+        res.status(200).json({
+            status: "success",
+            data: {
+                records: specificRecordWithTempURL,
+                endOfRecords: endOfRecords,
+            }
+        });
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
+
+
+const getDistrictNewsPaginated = async (req, res) => {
+    // let page stars from zero;
+    let viewersData = await metaDataSchema.updateOne(
+        { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
+        { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
+    )
+    const recordsPerPage = req?.body?.count || 10;
+    const pageNumber = req?.body?.page || 0;
+    const skipRecords = (pageNumber - 1) * recordsPerPage;
+
+    const aggregationPipeline = [
+        {
+            $facet: {
+                records: [
+                    {
+                        $match: {
+                            approvedOn: { $gt: 0 }, // Filtering for approved records
+                            district: req.body.district.value // Match the specific category
+                        }
+                    },
+                    {
+                        $sort: { newsId: -1 } // Sorting by newsId in descending order
+                    },
+                    {
+                        $skip: skipRecords // Skipping records based on page number
+                    },
+                    {
+                        $limit: recordsPerPage // Limiting records per page
+                    }
+                ]
+            }
+        }
+    ];
+
+    try {
+        const records = await newsDataSchema.aggregate(aggregationPipeline);
+        let newRecords = JSON.parse(JSON.stringify(records?.[0].records)) || [];
+        const endOfRecords = newRecords.length === 0; // Set endOfRecords to true if no records are fetched
+        await Promise.all(newRecords.map(async (record) => {
+            await Promise.all(record.images.map(async (elementImg) => {
+                elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+            }));
+        }));
+
+        res.status(200).json({
+            status: "success",
+            data: { records: newRecords, endOfRecords: endOfRecords }
         });
     } catch (error) {
         console.error(error);
@@ -877,7 +1021,6 @@ const setFCMToken = async (req, res) => {
         res.status(200).json({
             status: "success"
         });
-        //        console.log("set fcm token");
     }
     catch (err) {
         res.status(200).json({
@@ -886,6 +1029,229 @@ const setFCMToken = async (req, res) => {
         });
     }
 }
+const getAllNews = async (req, res) => {
+    const recordsPerPage = req?.body?.count || 10;
+    const pageNumber = req?.body?.page || 1; // Adjusted page number to start from 1
+    const skipRecords = (pageNumber - 1) * recordsPerPage;
+
+    const aggregationPipeline = [
+        {
+            $facet: {
+                records: [
+                    {
+                        $match: {
+                            approvedOn: { $gt: 0 }, // Filtering for approved records
+                            // language: req?.body?.language || "te"
+                            // category: req.body.category // Match the specific category
+                        }
+                    },
+                    {
+                        $sort: { newsId: -1 } // Sorting by newsId in descending order
+                    },
+                    {
+                        $skip: skipRecords // Skipping records based on page number
+                    },
+                    {
+                        $limit: recordsPerPage // Limiting records per page
+                    }
+                ]
+            }
+        }
+    ];
+
+    try {
+        const result = await newsDataSchema.aggregate(aggregationPipeline);
+        const records = result[0].records;
+        // Calculate endOfRecords based on the current page and total count
+        const endOfRecords = records.length < recordsPerPage;
+
+        // Fetch temporary URLs for images
+        await Promise.all(records.map(async (record) => {
+            await Promise.all(record.images.map(async (elementImg) => {
+                elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+            }));
+        }));
+
+        res.status(200).json({
+            status: "success",
+            data: { records: records, endOfRecords: endOfRecords }
+        });
+    } catch (error) {
+        res.status(200).json({
+            status: "failed",
+            message: "Something went wrong try after sometime.."
+        });
+        console.error(error);
+        throw error;
+    }
+}
+
+const client = require('twilio')(process.env.TWILIO_accountSid, process.env.TWILIO_authToken);
+
+const requestPublicOTP = async (req, res) => {
+    try {
+
+        // {
+        //     "mobileNumber": 8317513201,
+        //     "countryCode":"+91"
+        // }
+        let obj = {
+            otp: generateOTP(6),
+            mobileNumber: req.body.mobileNumber
+        }
+        let resp = await otpTrackingSchema.create(obj);
+
+        client.messages
+            .create({
+                body: `${obj.otp} is your OTP to validate in NC Media mobile App \n OTP Expires in 10 minutes. \n Team - NC Media`,
+                from: '+1 251 572 1321', // Replace with your alphanumeric sender ID
+                to: req.body.countryCode + req.body.mobileNumber
+            })
+            .then(message => {
+
+                res.status(200).json({
+                    status: "success",
+                    step: "otp",
+                    message: `OTP Sent to your mobile.. Validate with OTP`,
+                    msg: message
+                })
+            })
+            .catch(error => {
+                res.status(200).json({
+                    status: "failed",
+
+                    message: `Something went wrong`,
+                })
+            });
+
+
+
+
+
+    } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while OTP GENERATION User`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'OTP GENERATION User',
+            functionality: 'To OTP GENERATION User',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+}
+
+const validateUserOTP = async (req, res) => {
+    try {
+
+        const data = JSON.parse(JSON.stringify(req.body));
+        const otp = req.body.otp;
+
+        otpTrackingSchema.aggregate([
+            { $match: { mobileNumber: data.mobileNumber } },
+            { $sort: { createdDate: -1 } },
+            { $limit: 1 }
+        ]).then(result => {
+            if (result.length === 0) {
+                return res.status(200).json({ message: 'No record found for the provided mobile number' });
+            }
+
+            const latestRecord = result[0];
+            const currentTime = new Date();
+
+            // Check if the OTP matches
+            if (latestRecord.otp !== otp) {
+                return res.status(200).json({ message: 'Invalid OTP' });
+            }
+
+            // Check if the OTP has expired
+            if (latestRecord.expiryDate < currentTime) {
+                return res.status(200).json({ message: 'OTP has expired' });
+            }
+
+            // If OTP is valid, delete other records for the same mobile number
+            return otpTrackingSchema.deleteMany({ mobileNumber: data.mobileNumber, _id: { $ne: latestRecord._id } });
+        }).then(deleted => {
+            // Check if the mobile number and details exist in the publicUserSchema
+            return publicUserSchema.findOne({ mobileNumber: data.mobileNumber });
+        }).then(user => {
+            if (!user) {
+                // If the user doesn't exist, request for name
+                return res.status(200).json({ message: 'Please provide your name to proceed', nameCode: 1 });
+            } else {
+                // If the user exists, send a custom code stating okay to proceed
+                return res.status(200).json({ message: 'Okay to proceed', nameCode: 0 });
+            }
+        }).catch(err => {
+            console.error(err);
+            return res.status(200).json({ message: 'Internal Server Error' });
+        });
+
+
+    } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while OTP GENERATION User`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'OTP GENERATION User',
+            functionality: 'To OTP GENERATION User',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+}
+const addPublicUser = async (req, res) => {
+    try {
+
+        // Find the maximum value of publicUserId
+        const maxUserId = await publicUserSchema.findOne({}, { publicUserId: 1 }).sort({ publicUserId: -1 });
+        let newUserId;
+        if (maxUserId) {
+            const maxNumber = parseInt(maxUserId.publicUserId.split('_')[1]);
+            newUserId = `publicUser_${maxNumber + 1}`;
+        } else {
+            // If no existing records, start with publicUser_1
+            newUserId = 'publicUser_1';
+        }
+
+        // Add the new user record with the constructed identifier
+        const newData = { ...req.body, publicUserId: newUserId }; // Assuming your schema has a field named "publicUserId"
+
+        let data = await publicUserSchema.create(newData);
+        res.status(200).json({ data: data });
+
+    } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while adding public user`,
+            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            page: 'Adding Public User',
+            functionality: 'Add Public User',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        });
+        res.status(500).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+        });
+    }
+};
+
+
+function generateOTP(length) {
+    const chars = '0123456789';
+    let otp = '';
+    for (let i = 0; i < length; i++) {
+        otp += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return otp;
+}
+
 module.exports = {
-    getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList
+    getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList,
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser
 }

@@ -9,10 +9,8 @@ const allowedOrigins = ['http://localhost:8081','http://localhost:4201', 'https:
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {
-            console.log("AAL")
             callback(null, true);
         } else {
-            console.log("CORS")
             callback(new Error('Not allowed by CORS'));
         }
     }
@@ -117,7 +115,6 @@ app.post('/api/v2/deleteS3', async (req, res) => {
         //     Key: body.data.fileName
         // }
 
-        // console.log(params)
 
 
         const uploadParams = {
@@ -159,7 +156,6 @@ app.post('/api/v2/deleteS3', async (req, res) => {
 
 
 app.get('', (req,res)=>{
-    console.log(req,res,"REQUEST RECIVED")
     res.send("HIIII")
 })
 async function getFileTempUrls3(fileName) {

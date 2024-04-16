@@ -6,7 +6,6 @@ const auth = (req, res, next) => { //if token coming in cookie
     const token = req.headers.cookie;
     if(token){
         const checkToken = token.split('tokens=')[1]
-        // console.log(process.env.AUTHENTICATION_KEY, 'res1')
         try {
             const verifyToken = jwt.verify(checkToken,process.env.AUTHENTICATION_KEY)
             const { name, mail } = verifyToken;

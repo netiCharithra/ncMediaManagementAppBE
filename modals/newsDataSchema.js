@@ -35,6 +35,10 @@ const dataSchema = {
         default:"Regional",
         required: [true, 'News Type']
     },
+    language:{
+        type:String,
+        default:'te'
+    },
     state: {
         type: String
     },
