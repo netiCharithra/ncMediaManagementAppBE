@@ -3,11 +3,11 @@ const mongoose = require('mongoose')
 const otpTrackingSchema =  new mongoose.Schema({
     otp:{
         type:Number,
-        required :[false,'name should be specified']
+        required :[false,'OTP should be specified']
     },
     mobileNumber:{
         type:Number,
-        required :[true,'Country Code should be specified']
+        required :[true,'Mobile Number should be specified']
     }, 
     expiry:{
         type: Number,

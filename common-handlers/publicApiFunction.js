@@ -1097,7 +1097,8 @@ const requestPublicOTP = async (req, res) => {
         // }
         let obj = {
             otp: generateOTP(6),
-            mobileNumber: req.body.mobileNumber
+            mobileNumber: req.body.phoneNumber,
+            countryCode:req.body.countryCode
         }
         let resp = await otpTrackingSchema.create(obj);
 
@@ -1105,7 +1106,7 @@ const requestPublicOTP = async (req, res) => {
             .create({
                 body: `${obj.otp} is your OTP to validate in NC Media mobile App \n OTP Expires in 10 minutes. \n Team - NC Media`,
                 from: '+1 251 572 1321', // Replace with your alphanumeric sender ID
-                to: req.body.countryCode + req.body.mobileNumber
+                to: req.body.countryCode + req.body.phoneNumber
             })
             .then(message => {
 
@@ -1117,6 +1118,7 @@ const requestPublicOTP = async (req, res) => {
                 })
             })
             .catch(error => {
+                console.log(error)
                 res.status(200).json({
                     status: "failed",
 
@@ -1129,6 +1131,8 @@ const requestPublicOTP = async (req, res) => {
 
 
     } catch (error) {
+        console.log(error)
+
         const obj = await errorLogBookSchema.create({
             message: `Error while OTP GENERATION User`,
             stackTrace: JSON.stringify([...error.stack].join('\n')),
@@ -1143,69 +1147,68 @@ const requestPublicOTP = async (req, res) => {
         });
     }
 }
-
 const validateUserOTP = async (req, res) => {
     try {
-
         const data = JSON.parse(JSON.stringify(req.body));
-        const otp = req.body.otp;
+        data.mobileNumber = parseInt(data.mobileNumber)
+        const otp = parseInt(req.body.otp);
 
-        otpTrackingSchema.aggregate([
+        const result = await otpTrackingSchema.aggregate([
             { $match: { mobileNumber: data.mobileNumber } },
             { $sort: { createdDate: -1 } },
             { $limit: 1 }
-        ]).then(result => {
-            if (result.length === 0) {
-                return res.status(200).json({ message: 'No record found for the provided mobile number' });
-            }
+        ]);
 
-            const latestRecord = result[0];
-            const currentTime = new Date();
+        if (result.length === 0) {
+            return res.status(200).json({ message: 'No record found for the provided mobile number' });
+        }
 
-            // Check if the OTP matches
-            if (latestRecord.otp !== otp) {
-                return res.status(200).json({ message: 'Invalid OTP' });
-            }
+        const latestRecord = result[0];
+        const currentTime = new Date();
 
-            // Check if the OTP has expired
-            if (latestRecord.expiryDate < currentTime) {
-                return res.status(200).json({ message: 'OTP has expired' });
-            }
+        // Check if the OTP matches
+        if (latestRecord.otp !== otp) {
+            return res.status(200).json({ message: 'Invalid OTP' });
+        }
 
-            // If OTP is valid, delete other records for the same mobile number
-            return otpTrackingSchema.deleteMany({ mobileNumber: data.mobileNumber, _id: { $ne: latestRecord._id } });
-        }).then(deleted => {
-            // Check if the mobile number and details exist in the publicUserSchema
-            return publicUserSchema.findOne({ mobileNumber: data.mobileNumber });
-        }).then(user => {
-            if (!user) {
-                // If the user doesn't exist, request for name
-                return res.status(200).json({ message: 'Please provide your name to proceed', nameCode: 1 });
-            } else {
-                // If the user exists, send a custom code stating okay to proceed
-                return res.status(200).json({ message: 'Okay to proceed', nameCode: 0 });
-            }
-        }).catch(err => {
-            console.error(err);
-            return res.status(200).json({ message: 'Internal Server Error' });
-        });
+        // Check if the OTP has expired
+        if (latestRecord.expiryDate < currentTime) {
+            return res.status(200).json({ message: 'OTP has expired' });
+        }
 
+        // If OTP is valid, delete other records for the same mobile number
+        await otpTrackingSchema.deleteMany({ mobileNumber: data.mobileNumber, _id: { $ne: latestRecord._id } });
 
+        // Check if the mobile number and details exist in the publicUserSchema
+        const user = await publicUserSchema.findOne({ mobileNumber: data.mobileNumber });
+
+        if (!user) {
+            // If the user doesn't exist, request for name
+            return res.status(200).json({"status":"success", message: 'Please provide your name to proceed', nameCode: 1 });
+        } else {
+            // If the user exists, send a custom code stating okay to proceed
+            return res.status(200).json({"status":"success", message: 'Okay to proceed', nameCode: 0 });
+        }
     } catch (error) {
-        const obj = await errorLogBookSchema.create({
+        console.error(error);
+
+        // Log the error
+        await errorLogBookSchema.create({
             message: `Error while OTP GENERATION User`,
             stackTrace: JSON.stringify([...error.stack].join('\n')),
             page: 'OTP GENERATION User',
             functionality: 'To OTP GENERATION User',
             errorMessage: `${JSON.stringify(error) || ''}`
-        })
-        res.status(200).json({
-            status: "failed",
-            msg: 'Failed to while processing..',
+        });
 
+        // Send a generic error response
+        res.status(500).json({
+            status: "failed",
+            msg: 'Failed while processing..',
         });
     }
 }
+
 const addPublicUser = async (req, res) => {
     try {
 
@@ -1224,9 +1227,11 @@ const addPublicUser = async (req, res) => {
         const newData = { ...req.body, publicUserId: newUserId }; // Assuming your schema has a field named "publicUserId"
 
         let data = await publicUserSchema.create(newData);
-        res.status(200).json({ data: data });
+        console.log("data", data)
+        res.status(200).json({ "status":"success", data:data});
 
     } catch (error) {
+        console.log(error)
         const obj = await errorLogBookSchema.create({
             message: `Error while adding public user`,
             stackTrace: JSON.stringify([...error.stack].join('\n')),
@@ -1240,6 +1245,8 @@ const addPublicUser = async (req, res) => {
         });
     }
 };
+
+
 
 
 function generateOTP(length) {
