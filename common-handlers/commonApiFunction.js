@@ -43,7 +43,7 @@ const registerReporter = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Registring Employee`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Employee Adding User',
             functionality: 'To Register a employee',
             errorMessage: `${JSON.stringify(error) || ''}`
@@ -107,7 +107,7 @@ const reporterLogin = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Loging Employee`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Employee Login Page',
             functionality: 'To Login User',
             errorMessage: `${JSON.stringify(error) || ''}`
@@ -153,7 +153,7 @@ const getMetaData = async (req, res) => {
         console.error(error)
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching Metadata`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'MetaDAta',
             functionality: 'To Fetch Metadata',
             errorMessage: `${JSON.stringify(error) || ''}`
@@ -276,7 +276,7 @@ const publishNews = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Publishing News`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'News Publish',
             functionality: 'Add news for approval',
             employeeId: req.body.employeeId || '',
@@ -339,7 +339,7 @@ const getNewsInfo = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching News Info`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Fetch News Info',
             functionality: 'To Fetch News Info Publish',
             employeeId: req.body.employeeId || '',
@@ -415,7 +415,7 @@ const deleteS3Images = async (req, res) => {
     } catch (error) {
         // const obj = await errorLogBookSchema.create({
         //     message: `Error while Fetching  News Info`,
-        //     stackTrace: JSON.stringify([...error.stack].join('\n')),
+        //     stackTrace: JSON.stringify([...error.stack].join('/n')),
         //     page: 'Fetch News Info ',
         //     functionality: 'To Fetch News Info Publish',
         //     employeeId: req.body.employeeId || '',
@@ -833,7 +833,7 @@ const getNewsList = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching News List`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Fetch News List ',
             functionality: 'To Fetch News List ',
             employeeId: req.body.employeeId || '',
@@ -901,7 +901,7 @@ const getAllEmployees = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Listing all Employees`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Employees List ',
             functionality: 'To List All Employees',
             employeeId: req.body.employeeId || '',
@@ -969,7 +969,7 @@ const getAllEmployeesV2 = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Listing all Employees`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Employees List ',
             functionality: 'To List All Employees',
             employeeId: req.body.employeeId || '',
@@ -1413,7 +1413,7 @@ const fetchDashboard = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching Dashboard`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Fetch Dashboard ',
             functionality: 'To Fetch Dashboard ',
             employeeId: req.body.employeeId || '',
@@ -1566,7 +1566,7 @@ const addSubscribers = async (req, res) => {
         console.error(error)
         // const obj = await errorLogBookSchema.create({
         //     message: `Error while Adding Subscribers`,
-        //     stackTrace: JSON.stringify([...error.stack].join('\n')),
+        //     stackTrace: JSON.stringify([...error.stack].join('/n')),
         //     page: 'Adding Subscribers ',
         //     functionality: 'To Fetch Dashboard ',
         //     employeeId: req.body.employeeId || '',
@@ -1941,7 +1941,7 @@ const getEmployeesData = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Listing Employees Data`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Fetch Employees Data ',
             functionality: 'To Fetch Employees Data ',
             employeeId: req.body.employeeId || '',
@@ -2145,7 +2145,7 @@ const manipulateEmployee = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Manipulating Employees`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Manipulate Employee Data ',
             functionality: 'To Manipulate Employee Data ',
             employeeId: req.body.employeeId || '',
@@ -2187,7 +2187,7 @@ const getEmployeeData = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching Individual Employee Data`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Fetch Individual Employee Data ',
             functionality: 'To Fetch Individual Employee Data ',
             employeeId: req.body.employeeId || '',
@@ -2307,7 +2307,7 @@ const getSubscribers = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching All Subscribers`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Fetch All Subscribers ',
             functionality: 'To Fetch All Subscribers ',
             employeeId: req.body.employeeId || '',
@@ -2371,7 +2371,7 @@ const addSubscriberToGroup = async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while adding user to whatsapp group`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Subscribers',
             functionality: 'Adding Subscriber to group,',
             employeeId: req.body.employeeId || '',

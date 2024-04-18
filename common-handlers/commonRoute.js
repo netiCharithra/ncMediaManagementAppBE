@@ -2,7 +2,7 @@ const express = require('express')
 const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboard, addSubscribers, getSubscribers, getEmployeesData, manipulateEmployee,getEmployeeData,
     getNewsInfo, deleteS3Images,
     getNewsList, getAllEmployees, addSubscriberToGroup, getAllEmployeesV2} = require('./commonApiFunction')
-const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated,getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck, getAllNewsList,getDistrictNewsPaginated , getAllNews,requestPublicOTP, validateUserOTP, addPublicUser} = require('./publicApiFunction')
+const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated,getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck, getAllNewsList,getDistrictNewsPaginated , getAllNews,requestPublicOTP, validateUserOTP, addPublicUser,addPublicUserNews} = require('./publicApiFunction')
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
@@ -45,6 +45,7 @@ router.route('/public/getAllNews').post(getAllNews);
 router.route('/public/requestPublicOTP').post(requestPublicOTP);
 router.route('/public/validateUserOTP').post(validateUserOTP);
 router.route('/public/addPublicUser').post(addPublicUser);
+router.route('/public/addPublicUserNews').post(addPublicUserNews);
 // router.route('/uploadFiles').post('uploadFiles');
 
 module.exports = router

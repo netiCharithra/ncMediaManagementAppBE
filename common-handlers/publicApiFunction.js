@@ -131,7 +131,7 @@ const getHomeData = async (req, res) => {
         console.error(error)
         await errorLogBookSchema.create({
             message: `Error while Fetching Home Data`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Employee Fetching Home Data',
             functionality: 'Error while Fetching Home Data',
             errorMessage: `${JSON.stringify(error) || ''}`
@@ -899,7 +899,8 @@ const getDistrictNewsPaginated = async (req, res) => {
                     {
                         $match: {
                             approvedOn: { $gt: 0 }, // Filtering for approved records
-                            district: req.body.district.value // Match the specific category
+                            district: req.body.district.value, // Match the specific category
+                            delete: { $ne: true } 
                         }
                     },
                     {
@@ -1041,6 +1042,7 @@ const getAllNews = async (req, res) => {
                     {
                         $match: {
                             approvedOn: { $gt: 0 }, // Filtering for approved records
+                            delete: { $ne: true } 
                             // language: req?.body?.language || "te"
                             // category: req.body.category // Match the specific category
                         }
@@ -1098,7 +1100,7 @@ const requestPublicOTP = async (req, res) => {
         let obj = {
             otp: generateOTP(6),
             mobileNumber: req.body.phoneNumber,
-            countryCode:req.body.countryCode
+            countryCode: req.body.countryCode
         }
         let resp = await otpTrackingSchema.create(obj);
 
@@ -1135,7 +1137,7 @@ const requestPublicOTP = async (req, res) => {
 
         const obj = await errorLogBookSchema.create({
             message: `Error while OTP GENERATION User`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'OTP GENERATION User',
             functionality: 'To OTP GENERATION User',
             errorMessage: `${JSON.stringify(error) || ''}`
@@ -1184,10 +1186,10 @@ const validateUserOTP = async (req, res) => {
 
         if (!user) {
             // If the user doesn't exist, request for name
-            return res.status(200).json({"status":"success", message: 'Please provide your name to proceed', nameCode: 1 });
+            return res.status(200).json({ "status": "success", message: 'Please provide your name to proceed', nameCode: 1 });
         } else {
             // If the user exists, send a custom code stating okay to proceed
-            return res.status(200).json({"status":"success", message: 'Okay to proceed', nameCode: 0 });
+            return res.status(200).json({ "status": "success", message: 'Okay to proceed', nameCode: 0 });
         }
     } catch (error) {
         console.error(error);
@@ -1195,14 +1197,14 @@ const validateUserOTP = async (req, res) => {
         // Log the error
         await errorLogBookSchema.create({
             message: `Error while OTP GENERATION User`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'OTP GENERATION User',
             functionality: 'To OTP GENERATION User',
             errorMessage: `${JSON.stringify(error) || ''}`
         });
 
         // Send a generic error response
-        res.status(500).json({
+        res.status(200).json({
             status: "failed",
             msg: 'Failed while processing..',
         });
@@ -1224,22 +1226,22 @@ const addPublicUser = async (req, res) => {
         }
 
         // Add the new user record with the constructed identifier
-        const newData = { ...req.body, publicUserId: newUserId }; // Assuming your schema has a field named "publicUserId"
-
+        let newData = { ...req.body, publicUserId: newUserId }; // Assuming your schema has a field named "publicUserId"
+        newData['mobileNumber'] = parseInt(newData['mobileNumber'])
         let data = await publicUserSchema.create(newData);
         console.log("data", data)
-        res.status(200).json({ "status":"success", data:data});
+        res.status(200).json({ "status": "success", data: data });
 
     } catch (error) {
         console.log(error)
         const obj = await errorLogBookSchema.create({
             message: `Error while adding public user`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: 'Adding Public User',
             functionality: 'Add Public User',
             errorMessage: `${JSON.stringify(error) || ''}`
         });
-        res.status(500).json({
+        res.status(200).json({
             status: "failed",
             msg: 'Failed to process the request.',
         });
@@ -1247,6 +1249,81 @@ const addPublicUser = async (req, res) => {
 };
 
 
+const addPublicUserNews = async (req, res) => {
+    try {
+
+        const body = JSON.parse(JSON.stringify(req.body))
+
+        if(!body?.employeeId){
+            res.status(200).json({
+                status: "failed",
+                msg: 'Unable to proceed... Contact Technical Support',
+            });
+        } else {
+
+            if (body.type === 'create') {
+
+                const existingNews = await newsDataSchema.find();
+                const existingNews_2 = await newsDataSchema.findOne().sort({ newsId: -1 });
+
+                if (existingNews && existingNews.length > 0) {
+                    body['data']['newsId'] = (existingNews_2.newsId + 1);
+                } else {
+                    body['data']['newsId'] = 1;
+                };
+                body['data']['employeeId'] = body.employeeId;
+                body['data']['publicUserId'] = body.employeeId;
+                const task = await newsDataSchema.create({
+                    ...body.data
+                });
+                res.status(200).json({
+                    status: "success",
+                    msg: 'News sent for approval..!',
+                    task: task
+                });
+            } if (body.type === 'update') {
+                let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
+                    {
+                        approved: false,
+                        approvedBy: '',
+                        approvedOn: '',
+                        rejected: false,
+                        rejectedOn: '',
+                        rejectedReason: '',
+                        rejectedBy: '',
+                        lastUpdatedBy: body.employeeId,
+                        lastUpdatedOn: new Date().getTime(),
+                        title: body.data.title,
+                        sub_title: body.data.sub_title,
+                        description: body.data.description,
+                        images: body.data.images,
+                        category: body.data.category || 'General',
+                        newsType: body.data.newsType || 'Local'
+                    }
+                )
+                res.status(200).json({
+                    status: "success",
+                    msg: 'Updates..!',
+                    data: task
+                });
+            }
+
+        }
+    } catch (error) {
+        console.log(error)
+        // const obj = await errorLogBookSchema.create({
+        //     message: `Error while adding public user news`,
+        //     stackTrace: JSON.stringify([...error.stack].join('/n')),
+        //     page: 'Adding Public User news',
+        //     functionality: 'Add Public User news',
+        //     errorMessage: `${JSON.stringify(error) || ''}`
+        // });
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+        });
+    }
+}
 
 
 function generateOTP(length) {
@@ -1260,5 +1337,5 @@ function generateOTP(length) {
 
 module.exports = {
     getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser,addPublicUserNews
 }

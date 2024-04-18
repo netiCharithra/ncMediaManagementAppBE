@@ -90,7 +90,7 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while uploading files to drive`,
-            stackTrace: JSON.stringify([...error.stack].join('\n')),
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
             page: (req.body && req.body.uploadType) ? req.body.uploadType + " uploading" : 'Uploading News Image',
             functionality: (req.body && req.body.uploadType) ? req.body.uploadType + " uploading" : 'Uploading News Image',
             errorMessage: `${JSON.stringify(error) || ''}`
@@ -138,7 +138,7 @@ app.post('/api/v2/deleteS3', async (req, res) => {
     } catch (error) {
         // const obj = await errorLogBookSchema.create({
         //     message: `Error while uploading files to drive`,
-        //     stackTrace: JSON.stringify([...error.stack].join('\n')),
+        //     stackTrace: JSON.stringify([...error.stack].join('/n')),
         //     page: (req.body && req.body.uploadType) ? req.body.uploadType + " uploading" : 'Uploading News Image',
         //     functionality: (req.body && req.body.uploadType) ? req.body.uploadType + " uploading" : 'Uploading News Image',
         //     errorMessage: `${JSON.stringify(error) || ''}`

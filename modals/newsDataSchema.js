@@ -87,6 +87,23 @@ const dataSchema = {
     viewCount:{
         type:Number,
         default:0
+    },
+    publicUserId:{
+        type:String, 
+        default:''
+    },
+    deleted:{
+        type:Boolean,
+        default:false,
+    },
+    deletedBy:{
+        type:String,
+    },
+    deletedOn:{
+        type:String,
+    },
+    deletedComments:{
+        type:String,
     }
 }
 const newsDataSchema = new mongoose.Schema(dataSchema)
