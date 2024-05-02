@@ -16,7 +16,7 @@ const getHomeData = async (req, res) => {
         let mostRecentRecords = await newsDataSchema.aggregate([
             {
                 $match: {
-                    approvedOn: { $gt: 0 }
+                    approved: { $gt: 0 }
                 }
             },
             {
@@ -900,7 +900,7 @@ const getDistrictNewsPaginated = async (req, res) => {
                         $match: {
                             approvedOn: { $gt: 0 }, // Filtering for approved records
                             district: req.body.district.value, // Match the specific category
-                            delete: { $ne: true } 
+                            delete: { $ne: true }
                         }
                     },
                     {
@@ -1042,7 +1042,7 @@ const getAllNews = async (req, res) => {
                     {
                         $match: {
                             approvedOn: { $gt: 0 }, // Filtering for approved records
-                            delete: { $ne: true } 
+                            delete: { $ne: true }
                             // language: req?.body?.language || "te"
                             // category: req.body.category // Match the specific category
                         }
@@ -1184,12 +1184,13 @@ const validateUserOTP = async (req, res) => {
         // Check if the mobile number and details exist in the publicUserSchema
         const user = await publicUserSchema.findOne({ mobileNumber: data.mobileNumber });
 
+        console.log(user)
         if (!user) {
             // If the user doesn't exist, request for name
             return res.status(200).json({ "status": "success", message: 'Please provide your name to proceed', nameCode: 1 });
         } else {
             // If the user exists, send a custom code stating okay to proceed
-            return res.status(200).json({ "status": "success", message: 'Okay to proceed', nameCode: 0 });
+            return res.status(200).json({ "status": "success", message: 'Okay to proceed', userData: user });
         }
     } catch (error) {
         console.error(error);
@@ -1254,7 +1255,7 @@ const addPublicUserNews = async (req, res) => {
 
         const body = JSON.parse(JSON.stringify(req.body))
 
-        if(!body?.employeeId){
+        if (!body?.employeeId) {
             res.status(200).json({
                 status: "failed",
                 msg: 'Unable to proceed... Contact Technical Support',
@@ -1278,7 +1279,8 @@ const addPublicUserNews = async (req, res) => {
                 });
                 res.status(200).json({
                     status: "success",
-                    msg: 'News sent for approval..!',
+                    msg: 'success',
+                    message: 'News sent for approval..!',
                     task: task
                 });
             } if (body.type === 'update') {
@@ -1324,6 +1326,124 @@ const addPublicUserNews = async (req, res) => {
         });
     }
 }
+const listPublicUserNews = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
+
+        if (!body?.employeeId) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Unable to proceed... Contact Technical Support',
+            });
+        }
+
+        const recordsPerPage = req?.body?.count || 10;
+        const pageNumber = req?.body?.page || 1; // Adjusted page number to start from 1
+        const skipRecords = (pageNumber - 1) * recordsPerPage;
+
+        let matchStage = {
+            $match: {
+                // delete: { $ne: true },
+                employeeId: body?.employeeId,
+                language: body?.language || 'te'
+            }
+        };
+
+        if (body.status === "approved") {
+            matchStage.$match.approved = true;
+        } else if (body.status === "rejected") {
+            matchStage.$match.rejected = true;
+        } else if (body.status === "pending") {
+            matchStage.$match.approved = false;
+            matchStage.$match.rejected = false;
+        }
+
+        const aggregationPipeline = [
+            {
+                $facet: {
+                    records: [
+                        matchStage,
+                        {
+                            $sort: { newsId: -1 } // Sorting by newsId in descending order
+                        },
+                        {
+                            $skip: skipRecords // Skipping records based on page number
+                        },
+                        {
+                            $limit: recordsPerPage // Limiting records per page
+                        }
+                    ],
+                    approvedCount: [
+                        {
+                            $match: {
+                                employeeId: body.employeeId,
+                                approved: true
+                            }
+                        },
+                        {
+                            $count: "approvedCount"
+                        }
+                    ],
+                    rejectedCount: [
+                        {
+                            $match: {
+                                employeeId: body.employeeId,
+                                rejected: true
+                            }
+                        },
+                        {
+                            $count: "rejectedCount"
+                        }
+                    ],
+                    pendingCount: [
+                        {
+                            $match: {
+                                employeeId: body.employeeId,
+                                approved: false,
+                                rejected: false
+                            }
+                        },
+                        {
+                            $count: "pendingCount"
+                        }
+                    ]
+                }
+            }
+        ];
+
+        const result = await newsDataSchema.aggregate(aggregationPipeline);
+        const records = result[0].records;
+        const counts = {
+            approvedCount: result[0].approvedCount[0]?.approvedCount || 0,
+            rejectedCount: result[0].rejectedCount[0]?.rejectedCount || 0,
+            pendingCount: result[0].pendingCount[0]?.pendingCount || 0
+        };
+
+        // Calculate endOfRecords based on the current page and total count
+        const endOfRecords = records.length < recordsPerPage;
+
+        // Fetch temporary URLs for images
+        await Promise.all(records.map(async (record) => {
+            await Promise.all(record.images.map(async (elementImg) => {
+                elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+            }));
+        }));
+
+        res.status(200).json({
+            status: "success",
+            data: { records: records, counts: counts, endOfRecords: endOfRecords }
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+        });
+    }
+}
+
+
+
 
 
 function generateOTP(length) {
@@ -1337,5 +1457,5 @@ function generateOTP(length) {
 
 module.exports = {
     getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser,addPublicUserNews
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews
 }

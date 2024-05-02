@@ -57,7 +57,7 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
     try {
 
         let uploadedImages = []
-
+console.log(req.files.length)
 
         if (req?.files?.length > 0) {
             for (let index = 0; index < req.files.length; index++) {

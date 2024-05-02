@@ -247,24 +247,25 @@ const publishNews = async (req, res) => {
                     });
                 } else if (body.type === 'update') {
                     let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
-                        {
-                            approved: false,
-                            approvedBy: '',
-                            approvedOn: '',
-                            rejected: false,
-                            rejectedOn: '',
-                            rejectedReason: '',
-                            rejectedBy: '',
-                            lastUpdatedBy: body.employeeId,
-                            lastUpdatedOn: new Date().getTime(),
-                            title: body.data.title,
-                            sub_title: body.data.sub_title,
-                            description: body.data.description,
-                            images: body.data.images,
-                            category: body.data.category || 'General',
-                            newsType: body.data.newsType || 'Local'
-                        }
+                       {...body.data, ... {
+                        approved: false,
+                        approvedBy: '',
+                        approvedOn: '',
+                        rejected: false,
+                        rejectedOn: '',
+                        rejectedReason: '',
+                        rejectedBy: '',
+                        lastUpdatedBy: body.employeeId,
+                        lastUpdatedOn: new Date().getTime(),
+                        title: body.data.title,
+                        sub_title: body.data.sub_title,
+                        description: body.data.description,
+                        images: body.data.images,
+                        category: body.data.category || 'General',
+                        newsType: body.data.newsType || 'Local'
+                    }}
                     )
+                    console.log(task)
                     res.status(200).json({
                         status: "success",
                         msg: 'Updates..!',
@@ -298,6 +299,7 @@ const getNewsInfo = async (req, res) => {
         let employee = await reporterSchema.findOne({
             employeeId: body.employeeId
         });
+        console.log(employee)
         if (!employee) {
             res.status(200).json({
                 status: "failed",
