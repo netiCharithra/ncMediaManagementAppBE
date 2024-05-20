@@ -1441,9 +1441,121 @@ const listPublicUserNews = async (req, res) => {
         });
     }
 }
+const updateUserInfo = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
+
+        console.log(body)
+        if (!body?.publicUserId) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Unable to proceed... Contact Technical Support',
+            });
+        }
+        const { __v, _id, ...updateData } = body;
+
+        const result = await publicUserSchema.updateOne(
+            { publicUserId: body?.publicUserId },
+            updateData
+        );
+
+        let updatedDocument = await publicUserSchema.findOne({ publicUserId: body.publicUserId });
+
+        // Exclude __v and _id from the updated document
+        updatedDocument = updatedDocument.toObject();
+        delete updatedDocument.__v;
+        delete updatedDocument._id;
+
+        const counts = await newsDataSchema.aggregate([
+            {
+                $match: { employeeId: body?.publicUserId } // Match documents based on employeeId
+            },
+            {
+                $group: {
+                    _id: null,
+                    approved: {
+                        $sum: { $cond: [{ $eq: ["$approved", true] }, 1, 0] } // Count approved news
+                    },
+                    rejected: {
+                        $sum: { $cond: [{ $eq: ["$rejected", true] }, 1, 0] } // Count rejected news
+                    },
+                    pending: {
+                        $sum: { $cond: [{ $and: [{ $eq: ["$approved", false] }, { $eq: ["$rejected", false] }] }, 1, 0] } // Count pending news
+                    }
+                }
+            }
+        ]);
+
+        // Extract counts from the result
+        const countResult = counts.length > 0 ? counts[0] : { approved: 0, rejected: 0, pending: 0 };
+
+        console.log("COUNT", countResult)
+
+        res.status(200).json({
+            status: "success",
+            data: updatedDocument,
+            newsCount: countResult
+            // data: { records: records, counts: counts, endOfRecords: endOfRecords }
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+        });
+    }
+}
 
 
+const getUserNewsCount = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
 
+        console.log(body)
+        if (!body?.publicUserId) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Unable to proceed... Contact Technical Support',
+            });
+        }
+
+        const counts = await newsDataSchema.aggregate([
+            {
+                $match: { employeeId: body?.publicUserId } // Match documents based on employeeId
+            },
+            {
+                $group: {
+                    _id: null,
+                    approved: {
+                        $sum: { $cond: [{ $eq: ["$approved", true] }, 1, 0] } // Count approved news
+                    },
+                    rejected: {
+                        $sum: { $cond: [{ $eq: ["$rejected", true] }, 1, 0] } // Count rejected news
+                    },
+                    pending: {
+                        $sum: { $cond: [{ $and: [{ $eq: ["$approved", false] }, { $eq: ["$rejected", false] }] }, 1, 0] } // Count pending news
+                    }
+                }
+            }
+        ]);
+
+        // Extract counts from the result
+        const countResult = counts.length > 0 ? counts[0] : { approved: 0, rejected: 0, pending: 0 };
+
+
+        res.status(200).json({
+            status: "success",
+            newsCount: countResult
+            // data: { records: records, counts: counts, endOfRecords: endOfRecords }
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+        });
+    }
+}
 
 
 function generateOTP(length) {
@@ -1457,5 +1569,5 @@ function generateOTP(length) {
 
 module.exports = {
     getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount
 }
