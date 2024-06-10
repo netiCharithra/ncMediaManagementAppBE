@@ -5,7 +5,7 @@ const cors = require("cors");
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
-const allowedOrigins = ['http://localhost:8081','http://localhost:4201', 'https://neticharithra-ncmedia.web.app','*']; // Add more origins if needed
+const allowedOrigins = ['http://localhost:8081', 'http://localhost:4201', 'https://neticharithra-ncmedia.web.app', '*']; // Add more origins if needed
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {
@@ -25,6 +25,7 @@ const router = require('./common-handlers/commonRoute');
 app.use('/api/v2', router);
 require('dotenv').config();
 const bodyParser = require('body-parser');
+// const admin.initi
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 const multer = require('multer');
@@ -33,7 +34,12 @@ const storage = multer.memoryStorage()
 const upload = multer({ storage: storage })
 const stream = require('stream');
 const errorLogBookSchema = require('./modals/errorLogBookSchema');
+const admin = require('firebase-admin');
 
+const serviceAccount = require('./FireBaseConfig.json');
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
 
 const BUCKET_NAME = process.env.BUCKET_NAME
 const BUCKET_REGION = process.env.BUCKET_REGION
@@ -45,11 +51,30 @@ const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY
 
 const s3 = new S3Client({
     credentials: {
-    
+
         accessKeyId: ACCESS_KEY,
         secretAccessKey: SECRET_ACCESS_KEY
     },
     region: BUCKET_REGION
+})
+
+app.post('/api/v2/sendNotifications', async (req, res) => {
+
+    const message = {
+        notification: {
+          title: 'Hello',
+          body: 'World'
+        },
+        token: 'recipient-device-token'
+      };
+      
+      admin.messaging().send(message)
+        .then((response) => {
+          console.log('Successfully sent message:', response);
+        })
+        .catch((error) => {
+          console.log('Error sending message:', error);
+        });
 })
 
 app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
@@ -57,11 +82,11 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
     try {
 
         let uploadedImages = []
-console.log(req.files.length)
+        console.log(req.files.length)
 
         if (req?.files?.length > 0) {
             for (let index = 0; index < req.files.length; index++) {
-                const fileName = req?.body?.fileName === "original" ? req.files[index].originalname :  "FileNew" + new Date().getTime() + '_0';
+                const fileName = req?.body?.fileName === "original" ? req.files[index].originalname : "FileNew" + new Date().getTime() + '_0';
                 const uploadParams = {
                     Bucket: BUCKET_NAME,
                     Body: req.files[index].buffer,
@@ -134,7 +159,7 @@ app.post('/api/v2/deleteS3', async (req, res) => {
             msg: 'Deleted Successfully',
 
         });
-    
+
     } catch (error) {
         // const obj = await errorLogBookSchema.create({
         //     message: `Error while uploading files to drive`,
@@ -155,7 +180,7 @@ app.post('/api/v2/deleteS3', async (req, res) => {
 });
 
 
-app.get('', (req,res)=>{
+app.get('', (req, res) => {
     res.send("HIIII")
 })
 async function getFileTempUrls3(fileName) {

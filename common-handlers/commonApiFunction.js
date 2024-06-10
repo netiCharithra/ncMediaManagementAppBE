@@ -5,11 +5,11 @@ const newsDataSchema = require('../modals/newsDataSchema');
 const subscriberDataSchema = require('../modals/subscriberDataSchema');
 const errorLogBookSchema = require('../modals/errorLogBookSchema');
 const admin = require('firebase-admin');
-const serviceAccount = require('./../ncmedianewsportal-v2-firebase-adminsdk-zr4hr-b428a7eb9b.json');
-// const admin = require("firebase-admin/messaging")
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-});
+// const serviceAccount = require('./../ncmedianewsportal-v2-firebase-adminsdk-zr4hr-b428a7eb9b.json');
+// // const admin = require("firebase-admin/messaging")
+// admin.initializeApp({
+//     credential: admin.credential.cert(serviceAccount),
+// });
 const msgingAdmin = require('firebase-admin/messaging');
 
 

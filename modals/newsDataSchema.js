@@ -104,6 +104,10 @@ const dataSchema = {
     },
     deletedComments:{
         type:String,
+    },
+    priorityIndex:{
+        type:Number,
+        default:null
     }
 }
 const newsDataSchema = new mongoose.Schema(dataSchema)

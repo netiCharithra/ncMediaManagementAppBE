@@ -1557,6 +1557,141 @@ const getUserNewsCount = async (req, res) => {
     }
 }
 
+const getNewsInfoV2 = async (req, res) => {
+    try {
+
+        let aggregationPipeline = [
+            // Match stage to filter records
+            {
+                $match: {
+                    approvedOn: { $gt: 0 }, // approvedOn should be greater than zero
+                    language: req?.body?.language || 'en',
+                    // deletedOn: { $exists: false } // deletedOn should not exist
+                    rejected: false
+                }
+            },
+            // Sort stage to sort by priorityIndex and newsId
+            {
+                $sort: {
+                    priorityIndex: -1, // Sort by priorityIndex in descending order (higher priority first)
+                    newsId: -1 // Sort by newsId in descending order (latest news first)
+                }
+            },
+            // Limit stage to get top 5 records
+            { $limit: 5 }
+        ]
+
+        if(req?.body?.category){
+            aggregationPipeline[0]['$match']['category']=req.body.category
+        }
+        let data = await newsDataSchema.aggregate(aggregationPipeline)
+
+     
+
+
+        // // Fetch temporary URLs for images
+        await Promise.all(data.map(async (record) => {
+            await Promise.all(record.images.map(async (elementImg) => {
+                elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+            }));
+        }));
+        res.status(200).json({
+            status: "success",
+            data: data
+        });
+
+
+    } catch (error) {
+        console.log(error);
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+        });
+    }
+
+}
+const getLatestNewsV2 = async (req, res) => {
+    try {
+
+
+
+        // let page starts from zero;
+        let viewersData = await metaDataSchema.updateOne(
+            { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
+            { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
+        )
+        const recordsPerPage = req?.body?.count || 10;
+        const pageNumber = req?.body?.page || 0;
+        const skipRecords = pageNumber * recordsPerPage;
+        console.log("recordsPerPage",recordsPerPage, req?.body?.count) 
+        console.log("pageNumber",pageNumber)
+        let aggregationPipeline = [
+            // Match stage to filter records
+            {
+                $match: {
+                    approvedOn: { $gt: 0 }, // Filtering for approved records
+                    // category: req.body.category, // Match the specific category
+                    language: req.body.language // Match the specific language
+                }
+            },
+            // Sort stage to sort by newsId in descending order
+            {
+                $sort: { newsId: -1 }
+            },
+            // Skip stage to skip records based on page number
+            {
+                $skip: skipRecords
+            },
+            // Limit stage to limit records per page
+            {
+                $limit: recordsPerPage
+            }
+        ];
+        if(req?.body?.category){
+            aggregationPipeline[0]['$match']['category']=req.body.category
+        }
+
+
+        try {
+            const newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
+            const endOfRecords = newsInfo.length === 0; // Set endOfRecords to true if no records are fetched
+            // Fetch temporary URLs for images
+            await Promise.all(newsInfo.map(async (record) => {
+                await Promise.all(record.images.map(async (elementImg) => {
+                    elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+                }));
+            }));
+
+
+            res.status(200).json({
+                status: "success",
+                // newsInfo
+                data: newsInfo,
+                endOfRecords: endOfRecords
+
+            });
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
+
+
+
+        // res.status(200).json({
+        //     status: "success",
+        //     data: data
+        // });
+
+
+    } catch (error) {
+        console.log(error);
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+        });
+    }
+
+}
 
 function generateOTP(length) {
     const chars = '0123456789';
@@ -1569,5 +1704,5 @@ function generateOTP(length) {
 
 module.exports = {
     getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2
 }

@@ -3,7 +3,7 @@ const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboar
     getNewsInfo, deleteS3Images,
     getNewsList, getAllEmployees, addSubscriberToGroup, getAllEmployeesV2 } = require('./commonApiFunction')
 const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount } = require('./publicApiFunction')
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount , getNewsInfoV2, getLatestNewsV2} = require('./publicApiFunction')
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
@@ -51,6 +51,8 @@ router.route('/public/listPublicUserNews').post(listPublicUserNews);
 router.route('/public/addPublicUserNews').post(addPublicUserNews);
 router.route('/public/updateUserInfo').post(updateUserInfo);
 router.route('/public/getUserNewsCount').post(getUserNewsCount);
+router.route('/public/getNewsInfoV2').post(getNewsInfoV2);
+router.route('/public/getLatestNewsV2').post(getLatestNewsV2);
 // router.route('/uploadFiles').post('uploadFiles');
 
 module.exports = router
