@@ -36,10 +36,10 @@ const stream = require('stream');
 const errorLogBookSchema = require('./modals/errorLogBookSchema');
 const admin = require('firebase-admin');
 
-const serviceAccount = require('./FireBaseConfig.json');
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
+// const serviceAccount = require('./FireBaseConfig.json');
+// admin.initializeApp({
+//     credential: admin.credential.cert(serviceAccount)
+//   });
 
 const BUCKET_NAME = process.env.BUCKET_NAME
 const BUCKET_REGION = process.env.BUCKET_REGION
@@ -62,18 +62,18 @@ app.post('/api/v2/sendNotifications', async (req, res) => {
 
     const message = {
         notification: {
-          title: 'Hello',
-          body: 'World'
+            title: 'Hello',
+            body: 'World'
         },
         token: 'recipient-device-token'
-      };
-      
-      admin.messaging().send(message)
+    };
+
+    admin.messaging().send(message)
         .then((response) => {
-          console.log('Successfully sent message:', response);
+            console.log('Successfully sent message:', response);
         })
         .catch((error) => {
-          console.log('Error sending message:', error);
+            console.log('Error sending message:', error);
         });
 })
 
