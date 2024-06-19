@@ -128,7 +128,7 @@ const getMetaData = async (req, res) => {
             let value = await metaDataSchema.findOne({
                 type: req.body.metaList[index]
             })
-            metaData[req.body.metaList[index]] = value['data'];
+            metaData[req.body.metaList[index]] = value?.['data'] || null;
         }
         if (data.employeeId !== 'NC-AP-1' && metaData['ROLE']) {
             var removeKeys = ['INCHARGE DIRECTOR', 'CEO']
@@ -247,23 +247,25 @@ const publishNews = async (req, res) => {
                     });
                 } else if (body.type === 'update') {
                     let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
-                       {...body.data, ... {
-                        approved: false,
-                        approvedBy: '',
-                        approvedOn: '',
-                        rejected: false,
-                        rejectedOn: '',
-                        rejectedReason: '',
-                        rejectedBy: '',
-                        lastUpdatedBy: body.employeeId,
-                        lastUpdatedOn: new Date().getTime(),
-                        title: body.data.title,
-                        sub_title: body.data.sub_title,
-                        description: body.data.description,
-                        images: body.data.images,
-                        category: body.data.category || 'General',
-                        newsType: body.data.newsType || 'Local'
-                    }}
+                        {
+                            ...body.data, ... {
+                                approved: false,
+                                approvedBy: '',
+                                approvedOn: '',
+                                rejected: false,
+                                rejectedOn: '',
+                                rejectedReason: '',
+                                rejectedBy: '',
+                                lastUpdatedBy: body.employeeId,
+                                lastUpdatedOn: new Date().getTime(),
+                                title: body.data.title,
+                                sub_title: body.data.sub_title,
+                                description: body.data.description,
+                                images: body.data.images,
+                                category: body.data.category || 'General',
+                                newsType: body.data.newsType || 'Local'
+                            }
+                        }
                     )
                     console.log(task)
                     res.status(200).json({
@@ -319,7 +321,7 @@ const getNewsInfo = async (req, res) => {
             } else {
                 let newsContent = await newsDataSchema.findOne({ newsId: body.newsId });
 
-                let news=JSON.parse(JSON.stringify(newsContent))
+                let news = JSON.parse(JSON.stringify(newsContent))
                 // Fetching tempURL for each image in newsContent using promises    
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
@@ -1993,7 +1995,7 @@ const manipulateEmployee = async (req, res) => {
                         let users = await reporterSchema.find({
                             'state': data.data['state']
                         });
-                        
+
                         // Find the maximum sequence number for the given state
                         let maxSequenceNumber = 0;
                         if (users.length > 0) {
@@ -2007,15 +2009,15 @@ const manipulateEmployee = async (req, res) => {
                             }, 0);
                             maxSequenceNumber = maxEmployeeId;
                         }
-                        
+
                         // Generate the new employeeId with the incremented sequence number
                         const newStateEmployeeId = 'NC-' + data.data['state'] + '-' + (maxSequenceNumber + 1);
                         data.data['employeeId'] = newStateEmployeeId;
                         data.data.createdBy = newStateEmployeeId;
                         data['createdDate'] = new Date().getTime();
-                        
+
                         let task = await reporterSchema.create(data.data);
-                        
+
                         res.status(200).json({
                             status: "success",
                             msg: 'Employee Added...!',

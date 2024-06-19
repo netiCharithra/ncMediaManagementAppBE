@@ -3,7 +3,7 @@ const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboar
     getNewsInfo, deleteS3Images,
     getNewsList, getAllEmployees, addSubscriberToGroup, getAllEmployeesV2 } = require('./commonApiFunction')
 const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount , getNewsInfoV2, getLatestNewsV2, searchNewsV2} = require('./publicApiFunction')
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2, searchNewsV2, getHomeDataV2, getHomeDataV2_NEWSTYPE, getHomeDataV2CategoryWise, getDistrictNews } = require('./publicApiFunction')
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
@@ -36,6 +36,10 @@ router.route('/public/employeeTracingManagement').post(employeeTracingManagement
 router.route('/public/employeeTracingListing').post(employeeTracingListing);
 router.route('/public/employeeTraceCheck').post(employeeTraceCheck);
 router.route('/public/getHomeData').post(getHomeData);
+router.route('/public/getHomeDataV2').post(getHomeDataV2);
+router.route('/public/getHomeDataV2_NEWSTYPE').post(getHomeDataV2_NEWSTYPE);
+router.route('/public/getHomeDataV2CategoryWise').post(getHomeDataV2CategoryWise);
+router.route('/public/getDistrictNews').post(getDistrictNews);
 router.route('/public/getNewsInfo').post(getIndividualNewsInfo);
 router.route('/public/getCategoryNews').post(getCategoryNewsPaginated);
 router.route('/public/getCategoryNewsOnly').post(getCategoryNewsPaginatedOnly);

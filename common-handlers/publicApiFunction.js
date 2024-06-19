@@ -16,14 +16,23 @@ const getHomeData = async (req, res) => {
         let mostRecentRecords = await newsDataSchema.aggregate([
             {
                 $match: {
-                    approved: { $gt: 0 }
+                    approvedOn: { $gt: 0 },
+                    language: req?.body?.language || 'te',
+                    // deletedOn: { $exists: false } // deletedOn should not exist
+                    rejected: false
                 }
             },
+
             {
-                $sort: { createdDate: -1 }
+                $sort: {
+                    priorityIndex: -1, // Then sort by priorityIndex in descending order (higher priority first)
+                    // newsId: -1 // Sort by newsId in descending order (latest news first)
+                }
             },
+
+
             {
-                $limit: 5
+                $limit: 7
             }
         ])
         mostRecentRecords = mostRecentRecords.sort((a, b) => b.newsId - a.newsId);
@@ -34,11 +43,14 @@ const getHomeData = async (req, res) => {
         let categoryWiseRecentRecords = await newsDataSchema.aggregate([
             {
                 $match: {
-                    approvedOn: { $gt: 0 }
+                    approvedOn: { $gt: 0 },
+                    language: req?.body?.language || 'te',
+                    // deletedOn: { $exists: false } // deletedOn should not exist
+                    rejected: false
                 }
             },
             {
-                $sort: { createdDate: -1 }
+                $sort: { newsId: -1 }
             },
             {
                 $group: {
@@ -49,7 +61,7 @@ const getHomeData = async (req, res) => {
             {
                 $addFields: {
                     sortedRecords: {
-                        $slice: ['$records', 4] // Take the most recent 4 records
+                        $slice: ['$records', 5] // Take the most recent 4 records
                     }
                 }
             },
@@ -82,25 +94,25 @@ const getHomeData = async (req, res) => {
             }
         ])
 
-        let moreRecentRecords = await newsDataSchema.aggregate([
-            {
-                $match: {
-                    approvedOn: { $gt: 0 }
-                }
-            },
-            {
-                $sort: { createdDate: -1 }
-            },
-            {
-                $skip: 5 // Skip the first 5 records
-            },
-            {
-                $limit: 6 // Take the next 6 records
-            }, {
-                $sort: { newsId: -1 } // Sort by newsId within the 6 to 11 records
-            }
+        // let moreRecentRecords = await newsDataSchema.aggregate([
+        //     {
+        //         $match: {
+        //             approvedOn: { $gt: 0 }
+        //         }
+        //     },
+        //     {
+        //         $sort: { createdDate: -1 }
+        //     },
+        //     {
+        //         $skip: 5 // Skip the first 5 records
+        //     },
+        //     {
+        //         $limit: 6 // Take the next 6 records
+        //     }, {
+        //         $sort: { newsId: -1 } // Sort by newsId within the 6 to 11 records
+        //     }
 
-        ])
+        // ])
 
         const fetchTempUrls = async (records) => {
             return await Promise.all(records.map(async (record) => {
@@ -120,11 +132,11 @@ const getHomeData = async (req, res) => {
         }
 
         // Fetch temporary URLs for moreRecentRecords
-        moreRecentRecords = await fetchTempUrls(moreRecentRecords);
+        // moreRecentRecords = await fetchTempUrls(moreRecentRecords);
         res.status(200).json({
             status: "success",
             msg: 'Success',
-            data: { mostRecentRecords: mostRecentRecords, categoryWiseRecentRecords: categoryWiseRecentRecords[0].categorizedRecords, moreRecentRecords: moreRecentRecords }
+            data: { mostRecentRecords: mostRecentRecords, categoryWiseRecentRecords: categoryWiseRecentRecords[0].categorizedRecords }
 
         });
     } catch (error) {
@@ -143,6 +155,387 @@ const getHomeData = async (req, res) => {
         });
     }
 }
+const getHomeDataV2 = async (req, res) => {
+    try {
+
+
+        const language = req?.body?.language || 'te';
+
+        const aggregateQuery = [
+            {
+                $match: {
+                    approvedOn: { $gt: 0 },
+                    language: language,
+                    rejected: false
+                }
+            },
+            {
+                $facet: {
+                    latestRecords: [
+                        { $sort: { newsId: -1 } },
+                        { $limit: 10 }
+                    ],
+                    prioritizedRecords: [
+                        { $sort: { priorityIndex: -1 } },
+                        { $limit: 5 }
+                    ],
+                    // categorizedRecords: [
+                    //     { $sort: { newsId: -1 } },
+                    //     // {
+                    //     //     $group: {
+                    //     //         _id: "$category",
+                    //     //         records: { $push: "$$ROOT" }
+                    //     //     }
+                    //     // },
+                    //     // {
+                    //     //     $project: {
+                    //     //         _id: 1,
+                    //     //         records: { $slice: ["$records", 2, { $size: "$records" }] }
+                    //     //     }
+                    //     // }
+                    // ],
+                    latestNineRecords: [
+                        { $sort: { newsId: -1 } },
+                        { $limit: 9 }
+                    ]
+                }
+            },
+            {
+                $project: {
+                    latestRecords: 1,
+                    prioritizedRecords: 1,
+                    // categorizedRecords: {
+                    //     $reduce: {
+                    //         input: "$categorizedRecords",
+                    //         initialValue: [],
+                    //         in: { $concatArrays: ["$$value", "$$this.records"] }
+                    //     }
+                    // },
+                    latestNineRecords: 1
+                }
+            },
+            // {
+            //     $project: {
+            //         latestRecords: 1,
+            //         prioritizedRecords: 1,
+            //         categorizedRecords: { $slice: ["$categorizedRecords", 12] },
+            //         latestNineRecords: 1
+            //     }
+            // }
+        ];
+
+
+
+        let result = await newsDataSchema.aggregate(aggregateQuery)
+
+
+
+        const fetchTempUrls = async (records) => {
+            return await Promise.all(records.map(async (record) => {
+                await Promise.all(record.images.map(async (elementImg) => {
+                    elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+                }));
+
+                // const fileURLTemp = await getFileTempUrls3(record.fileName);
+                // return { ...record, tempURL: fileURLTemp };
+                return record;
+            }));
+        };
+        result[0].prioritizedRecords = await fetchTempUrls(result[0].prioritizedRecords);
+        result[0].latestNineRecords = await fetchTempUrls(result[0].latestNineRecords);
+        // // Fetch temporary URLs for categoryWiseRecentRecords
+        // for (const categoryRecord of categoryWiseRecentRecords[0].categorizedRecords) {
+        //     categoryRecord.records = await fetchTempUrls(categoryRecord.records);
+        // }
+
+        // Fetch temporary URLs for moreRecentRecords
+        // moreRecentRecords = await fetchTempUrls(moreRecentRecords);
+        res.status(200).json({
+            status: "success",
+            msg: 'Success',
+            data: result
+
+        });
+    } catch (error) {
+        console.error(error)
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Home Data`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Employee Fetching Home Data',
+            functionality: 'Error while Fetching Home Data',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+}
+
+
+const fetchTempUrls = async (records) => {
+    return await Promise.all(records.map(async (record) => {
+        await Promise.all(record.images.map(async (elementImg) => {
+            elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+        }));
+
+        // const fileURLTemp = await getFileTempUrls3(record.fileName);
+        // return { ...record, tempURL: fileURLTemp };
+        return record;
+    }));
+};
+
+const getHomeDataV2_NEWSTYPE = async (req, res) => {
+    try {
+
+        const language = req?.body?.language || 'te';
+
+
+        let newsTypesList = await metaDataSchema.findOne({ type: 'NEWS_TYPE_REGIONAL' });
+
+        newsTypes = newsTypesList?.data || []
+
+        const aggregateQuery = [
+            {
+                $facet: {
+                    regionalNews: [
+                        {
+                            $match: {
+                                newsType: 'Regional',
+                                approvedOn: { $gt: 0 },
+                                language: language,
+                                rejected: false
+                            }
+                        },
+                        { $sort: { newsId: -1 } },
+
+                        { $limit: 5 }
+                    ],
+                    nationalNews: [
+                        {
+                            $match: {
+                                newsType: 'National',
+                                approvedOn: { $gt: 0 },
+                                language: language,
+                                rejected: false
+                            }
+                        },
+                        { $sort: { newsId: -1 } },
+
+                        { $limit: 5 }
+                    ],
+                    internationalNews: [
+                        {
+                            $match: {
+                                newsType: 'International',
+                                approvedOn: { $gt: 0 },
+                                language: language,
+                                rejected: false
+                            }
+                        },
+                        { $sort: { newsId: -1 } },
+
+                        { $limit: 5 }
+                    ]
+                }
+            },
+            {
+                $project: {
+                    types: {
+                        $map: {
+                            input: newsTypes,
+                            as: "type",
+                            in: {
+                                type: "$$type",
+                                records: {
+                                    $cond: {
+                                        if: { $eq: ["$$type.value", "Regional"] },
+                                        then: "$regionalNews",
+                                        else: {
+                                            $cond: {
+                                                if: { $eq: ["$$type.value", "National"] },
+                                                then: "$nationalNews",
+                                                else: "$internationalNews"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ];
+        let result = await newsDataSchema.aggregate(aggregateQuery)
+
+        for (let index = 0; index < result?.[0]?.['types'].length; index++) {
+
+            result[0]['types'][index]['records'] = await fetchTempUrls(result[0]['types'][index]['records'])
+
+            // const element = array[index];
+
+        }
+
+
+        res.status(200).json({
+            status: "success",
+            msg: 'Success',
+            data: result
+
+        });
+    } catch (error) {
+        console.error(error)
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Home Data`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Employee Fetching Home Data',
+            functionality: 'Error while Fetching Home Data',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+}
+const getHomeDataV2CategoryWise = async (req, res) => {
+    try {
+
+
+        const language = req?.body?.language || 'te';
+
+        const aggregateQuery = [{
+            $match: {
+                approvedOn: { $gt: 0 },
+                language: language,
+                rejected: false
+            }
+        },
+        {
+            $sort: { newsId: -1 }
+        },
+        {
+            $group: {
+                _id: "$category",
+                news: { $push: "$$ROOT" }
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+                category: "$_id",
+                news: { $slice: ["$news", 5] }
+            }
+        }]
+        let result = await newsDataSchema.aggregate(aggregateQuery)
+
+        for (let index = 0; index < result?.length; index++) {
+            result[index]['news'] = await fetchTempUrls(result[index]['news'])
+        }
+        res.status(200).json({
+            status: "success",
+            msg: 'Success',
+            data: result
+
+        });
+    } catch (error) {
+        console.error(error)
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Home Data`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Employee Fetching Home Data',
+            functionality: 'Error while Fetching Home Data',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+}
+
+
+const getDistrictNews = async (req, res) => {
+    try {
+
+        console.log(req.body)
+
+        if (!req?.body?.district || !req?.body?.state) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Failed to while processing..',
+
+            });
+            return
+        }
+        const language = req?.body?.language || 'te';
+
+
+        const recordsPerPage = req?.body?.count || 10;
+        const pageNumber = req?.body?.page || 0;
+        const skipRecords = pageNumber * recordsPerPage;
+
+
+        const aggregateQuery = [
+
+            {
+                $match: {
+                    approvedOn: { $gt: 0 },
+                    language: language,
+                    rejected: false,
+                    district: req?.body?.district,
+                    state: req?.body?.state
+                }
+            },
+            {
+                $sort: { newsId: -1 }
+            },
+            {
+                $skip: skipRecords // Skipping records based on page number
+            },
+            {
+                $limit: recordsPerPage // Limiting records per page
+            }
+
+        ]
+        let result = await newsDataSchema.aggregate(aggregateQuery)
+
+
+        result = await fetchTempUrls(result)
+        const endOfRecords = result.length === 0; // Set endOfRecords to true if no records are fetched
+
+
+        // for (let index = 0; index < result?.length; index++) {
+        //     result[index]['news'] = await fetchTempUrls(result[index]['news'])
+        // }
+        res.status(200).json({
+            status: "success",
+            msg: 'Success',
+            data: result,
+            endOfRecords: endOfRecords
+
+        });
+    } catch (error) {
+        console.error(error)
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Home Data`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Employee Fetching Home Data',
+            functionality: 'Error while Fetching Home Data',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+}
+
+
 
 const getIndividualNewsInfo = async (req, res) => {
     let viewersData = await metaDataSchema.updateOne(
@@ -734,7 +1127,7 @@ const getCategoryNewsPaginated = async (req, res) => {
         { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
         { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
     )
-    const recordsPerPage = req?.body?.count || 10;
+    const recordsPerPage = req?.body?.count || 9;
     const pageNumber = req?.body?.page || 0;
     const skipRecords = pageNumber * recordsPerPage;
     const aggregationPipeline = [
@@ -745,7 +1138,7 @@ const getCategoryNewsPaginated = async (req, res) => {
                         $match: {
                             approvedOn: { $gt: 0 }, // Filtering for approved records
                             category: req.body.category, // Match the specific category,
-                            language: req.body.language
+                            language: req?.body?.language || 'te'
                         }
                     },
                     {
@@ -1622,6 +2015,8 @@ const getLatestNewsV2 = async (req, res) => {
         )
         const recordsPerPage = req?.body?.count || 10;
         const pageNumber = req?.body?.page || 0;
+        const skipRecords = pageNumber * recordsPerPage;
+
         let aggregationPipeline = [
             // Match stage to filter records
             {
@@ -1764,5 +2159,5 @@ function generateOTP(length) {
 
 module.exports = {
     getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2, searchNewsV2
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2, searchNewsV2, getHomeDataV2, getHomeDataV2_NEWSTYPE, getHomeDataV2CategoryWise, getDistrictNews
 }

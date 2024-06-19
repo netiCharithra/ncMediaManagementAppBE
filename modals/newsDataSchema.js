@@ -1,18 +1,18 @@
 const mongoose = require('mongoose')
 
 const dataSchema = {
-    newsId:{
-        type:Number,
-        unique:[true,'News already exists with this id. Please try again!']
+    newsId: {
+        type: Number,
+        unique: [true, 'News already exists with this id. Please try again!']
     },
     title: {
         type: String,
         required: [true, 'Title Requried']
     },
-    category:{
-        type:String,
-        requried:true,
-        default:"General"
+    category: {
+        type: String,
+        requried: true,
+        default: "General"
     },
     sub_title: {
         type: String,
@@ -32,12 +32,12 @@ const dataSchema = {
     },
     newsType: {
         type: String,
-        default:"Regional",
+        default: "Regional",
         required: [true, 'News Type']
     },
-    language:{
-        type:String,
-        default:'te'
+    language: {
+        type: String,
+        default: 'te'
     },
     state: {
         type: String
@@ -48,13 +48,13 @@ const dataSchema = {
     mandal: {
         type: String
     },
-    approved:{
-        type:Boolean,
-        default : false
+    approved: {
+        type: Boolean,
+        default: false
     },
-    approvedBy:{
-        type:String,
-        default:''
+    approvedBy: {
+        type: String,
+        default: ''
     },
     approvedOn: {
         type: Number,
@@ -64,50 +64,59 @@ const dataSchema = {
         type: Number,
         default: new Date().getTime()
     },
-    rejected:{
-        type:Boolean,
-        default:false
+    rejected: {
+        type: Boolean,
+        default: false
     },
-    rejectedOn:{
-        type:Number
+    rejectedOn: {
+        type: Number
     },
-    rejectedReason:{
+    rejectedReason: {
         type: String
     },
-    rejectedBy:{
+    rejectedBy: {
         type: String,
-        default:''
+        default: ''
     },
-    lastUpdatedBy:{
-        type:String
+    lastUpdatedBy: {
+        type: String
     },
     lastUpdatedOn: {
         type: Number
     },
-    viewCount:{
-        type:Number,
-        default:0
+    viewCount: {
+        type: Number,
+        default: 0
     },
-    publicUserId:{
-        type:String, 
-        default:''
+    publicUserId: {
+        type: String,
+        default: ''
     },
-    deleted:{
-        type:Boolean,
-        default:false,
+    deleted: {
+        type: Boolean,
+        default: false,
     },
-    deletedBy:{
-        type:String,
+    deletedBy: {
+        type: String,
     },
-    deletedOn:{
-        type:String,
+    deletedOn: {
+        type: String,
     },
-    deletedComments:{
-        type:String,
+    deletedComments: {
+        type: String,
     },
-    priorityIndex:{
-        type:Number,
-        default:null
+    priorityIndex: {
+        type: Number,
+        default: null
+    },
+    credits: {
+        type: String,
+        required: true,
+        default: "Neti Charithra"
+    },
+    author: {
+        type: String,
+        default: null
     }
 }
 const newsDataSchema = new mongoose.Schema(dataSchema)
