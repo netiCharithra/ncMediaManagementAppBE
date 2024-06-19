@@ -534,6 +534,81 @@ const getDistrictNews = async (req, res) => {
         });
     }
 }
+const getNewsNewsType = async (req, res) => {
+    try {
+
+        console.log(req.body)
+
+        if (!req?.body?.newsType) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Failed to while processing..',
+
+            });
+            return
+        }
+        const language = req?.body?.language || 'te';
+
+
+        const recordsPerPage = req?.body?.count || 10;
+        const pageNumber = req?.body?.page || 0;
+        const skipRecords = pageNumber * recordsPerPage;
+
+
+        const aggregateQuery = [
+
+            {
+                $match: {
+                    approvedOn: { $gt: 0 },
+                    language: language,
+                    rejected: false,
+                    newsType: req?.body?.newsType
+                }
+            },
+            {
+                $sort: { newsId: -1 }
+            },
+            {
+                $skip: skipRecords // Skipping records based on page number
+            },
+            {
+                $limit: recordsPerPage // Limiting records per page
+            }
+
+        ]
+        let result = await newsDataSchema.aggregate(aggregateQuery)
+
+
+        result = await fetchTempUrls(result)
+        const endOfRecords = result.length === 0; // Set endOfRecords to true if no records are fetched
+
+
+        // for (let index = 0; index < result?.length; index++) {
+        //     result[index]['news'] = await fetchTempUrls(result[index]['news'])
+        // }
+        res.status(200).json({
+            status: "success",
+            msg: 'Success',
+            data: result,
+            endOfRecords: endOfRecords
+
+        });
+    } catch (error) {
+        console.error(error)
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Home Data`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Employee Fetching Home Data',
+            functionality: 'Error while Fetching Home Data',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+}
 
 
 
@@ -547,12 +622,20 @@ const getIndividualNewsInfo = async (req, res) => {
         { $inc: { viewCount: 1 } }, // Increment the viewCount by 1
         { new: true } // Return the updated document
     )
+    let language = req?.body?.language || 'te'
     let newsInfo = await newsDataSchema.aggregate([
         {
             $facet: {
                 recentRecords: [
                     {
-                        $sort: { createdDate: -1 } // Sort by createdDate in descending order
+                        $match: {
+                            approvedOn: { $gt: 0 },
+                            language: language,
+                            rejected: false
+                        }
+                    },
+                    {
+                        $sort: { newsId: -1 } // Sort by createdDate in descending order
                     },
                     {
                         $limit: 5 // Limit to 5 records
@@ -560,7 +643,7 @@ const getIndividualNewsInfo = async (req, res) => {
                 ],
                 specificRecord: [
                     {
-                        $match: { newsId: req.body.newsId } // Match specific newsId
+                        $match: { newsId: parseInt(req?.body?.newsId) } // Match specific newsId
                     },
                     {
                         $limit: 1 // Limit to 1 record
@@ -587,12 +670,12 @@ const getIndividualNewsInfo = async (req, res) => {
         return { ...record, images: imagesWithTempURL };
     }));
 
-    let value = await metaDataSchema.findOne({ type: 'NEWS_CATEGORIES' });
+    // let value = await metaDataSchema.findOne({ type: 'NEWS_CATEGORIES' });
 
     let responseData = {
         recentRecords: recentRecordsWithTempURL,
         specificRecord: specificRecordWithTempURL,
-        categories: value.data
+        // categories: value.data
     };
 
     res.status(200).json({
@@ -2159,5 +2242,5 @@ function generateOTP(length) {
 
 module.exports = {
     getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2, searchNewsV2, getHomeDataV2, getHomeDataV2_NEWSTYPE, getHomeDataV2CategoryWise, getDistrictNews
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2, searchNewsV2, getHomeDataV2, getHomeDataV2_NEWSTYPE, getHomeDataV2CategoryWise, getDistrictNews, getNewsNewsType
 }
