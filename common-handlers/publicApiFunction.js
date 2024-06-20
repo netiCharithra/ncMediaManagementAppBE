@@ -7,6 +7,8 @@ const reporterSchema = require('../modals/reportersSchema');
 const { getFileTempUrls3 } = require('./commonApiFunction');
 const publicUserSchema = require('../modals/publicUserSchema');
 const otpTrackingSchema = require('../modals/otpTrackingSchema');
+require('dotenv').config();
+
 
 const getHomeData = async (req, res) => {
     try {
@@ -1564,7 +1566,7 @@ const getAllNews = async (req, res) => {
     }
 }
 
-const client = require('twilio')(process.env.TWILIO_accountSid, process.env.TWILIO_authToken);
+const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const requestPublicOTP = async (req, res) => {
     try {

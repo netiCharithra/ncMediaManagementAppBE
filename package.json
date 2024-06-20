@@ -2,15 +2,16 @@
   "name": "ncmedia_endpoints_uploader",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "index.js",
   "scripts": {
-    "test": "nodemon app.js",
-    "start": "node app.js"
+    "test": "nodemon index.js",
+    "start": "nodemon index.js",
+    "deploy": "firebase deploy --only functions:api"
   },
   "author": "Shaik Mohammad Muzmil",
   "license": "ISC",
   "engines": {
-    "node": ">=14.20.1"
+    "node": "18"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.502.0",
@@ -23,6 +24,7 @@
     "express": "^4.18.2",
     "express-async-errors": "^3.1.1",
     "firebase-admin": "^11.11.1",
+    "firebase-functions": "^5.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "7.2.4",
     "mongoose-sequence": "^6.0.1",

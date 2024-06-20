@@ -4,18 +4,20 @@ const app = express();
 const cors = require("cors");
 app.use(express.json());
 
+const functions = require("firebase-functions")
 app.use(express.urlencoded({ extended: true }));
 const allowedOrigins = ['http://localhost:8081', 'http://localhost:4201', 'https://neticharithra-ncmedia.web.app', '*']; // Add more origins if needed
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            console.log("origin", origin)
-            callback(new Error('Not allowed by CORS'));
-        }
-    }
-}));
+// app.use(cors({
+//     origin: function (origin, callback) {
+//         if (!origin || allowedOrigins.includes(origin)) {
+//             callback(null, true);
+//         } else {
+//             console.log("origin", origin)
+//             callback(new Error('Not allowed by CORS'));
+//         }
+//     }
+// }));
+app.use(cors())
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
@@ -77,6 +79,7 @@ app.post('/api/v2/sendNotifications', async (req, res) => {
             console.log('Error sending message:', error);
         });
 })
+connect(process.env.MONGO_DB_URL)
 
 app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
 
@@ -214,3 +217,15 @@ const start = async () => {
 }
 
 start();
+
+
+// exports.api = functions.https.onRequest(app)
+
+
+// SETUP FOR DEPLOYMENT
+// 1. Uncomment exports.api
+// 2. Comment start()
+
+// SETUP FOR LOCAL RUN
+// 1. Comment exports.api
+// 2. Uncomment start() 
