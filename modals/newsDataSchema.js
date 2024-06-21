@@ -109,7 +109,7 @@ const dataSchema = {
         type: Number,
         default: null
     },
-    credits: {
+    source: {
         type: String,
         required: true,
         default: "Neti Charithra"
