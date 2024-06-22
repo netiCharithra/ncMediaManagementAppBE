@@ -201,6 +201,29 @@ const publishNews = async (req, res) => {
                         body['data']['newsId'] = 1;
                     };
                     body['data']['employeeId'] = body.employeeId;
+                    // console.log(body)
+                    if(body['data']['priorityIndex']){
+                        let respppPriority = await newsDataSchema.findOne().sort({ priorityIndex: -1 })
+                        // console.log("R", respppPriority)
+                        if(!respppPriority){
+                            body['data']['priorityIndex'] = 1;
+                        } else {
+                            body['data']['priorityIndex'] = respppPriority['priorityIndex']+1;
+                        }
+                    } else {
+                        body['data']['priorityIndex'] = null
+                    }
+
+                    if(!body['data']['reportedBy']){
+
+                        body['data']['reportedBy']={
+                            name:body['name'],
+                            profilePicture:body['profilePicture'],
+                            role:body['role'],
+                            employeeId:body['employeeId']
+                        }
+                    }
+                    console.log(body['data'])
                     const task = await newsDataSchema.create({
                         ...body.data
                     });
@@ -246,29 +269,54 @@ const publishNews = async (req, res) => {
                         data: task
                     });
                 } else if (body.type === 'update') {
-                    let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
-                        {
-                            ...body.data, ... {
-                                approved: false,
-                                approvedBy: '',
-                                approvedOn: '',
-                                rejected: false,
-                                rejectedOn: '',
-                                rejectedReason: '',
-                                rejectedBy: '',
-                                lastUpdatedBy: body.employeeId,
-                                lastUpdatedOn: new Date().getTime(),
-                                title: body.data.title,
-                                sub_title: body.data.sub_title,
-                                description: body.data.description,
-                                images: body.data.images,
-                                category: body.data.category || 'General',
-                                newsType: body.data.newsType || 'Local'
-                            }
+console.log("UPDATE TRIGEER")
+                    let updateJSON=  {
+                        ...body.data, ... {
+                            approved: false,
+                            approvedBy: '',
+                            approvedOn: '',
+                            rejected: false,
+                            rejectedOn: '',
+                            rejectedReason: '',
+                            rejectedBy: '',
+                            lastUpdatedBy: body.employeeId,
+                            lastUpdatedOn: new Date().getTime(),
+                            title: body.data.title,
+                            sub_title: body.data.sub_title,
+                            description: body.data.description,
+                            images: body.data.images,
+                            category: body.data.category || 'General',
+                            newsType: body.data.newsType || 'Local',
+                            source:body.data.source,
+                            sourceLink:body.data.sourceLink,
+                            reportedBy:body.data.reportedBy
+                            
                         }
+                    }
+                    if(updateJSON){
+                        let initalData = JSON.parse(JSON.stringify(updateJSON.initalDataCopy));
+
+                        if(initalData['priorityIndex'] !== updateJSON['priorityIndex']){
+                            if(updateJSON['priorityIndex']){
+                                let respppPriority = await newsDataSchema.findOne().sort({ priorityIndex: -1 })
+                                // console.log("R", respppPriority)
+                                if(!respppPriority){
+                                    updateJSON['priorityIndex'] = 1;
+                                } else {
+                                    updateJSON['priorityIndex'] = respppPriority['priorityIndex']+1;
+                                }
+                            } else {
+                                updateJSON['priorityIndex'] = null
+                            }
+        
+                        }
+                    }
+                    let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
+                        updateJSON
                     )
-                    console.log(task)
+                    // console.log(updateJSON)
                     res.status(200).json({
+                        // status: "failed",
                         status: "success",
                         msg: 'Updates..!',
                         data: task
@@ -285,9 +333,10 @@ const publishNews = async (req, res) => {
             employeeId: req.body.employeeId || '',
             errorMessage: `${JSON.stringify(error) || ''}`
         })
+        console.log(error)
         res.status(200).json({
             status: "failed",
-            msg: 'Error while publishing..! ',
+            msg: 'Error while publishing.. 2! ',
             error: error
         })
     }
@@ -322,7 +371,7 @@ const getNewsInfo = async (req, res) => {
                 let newsContent = await newsDataSchema.findOne({ newsId: body.newsId });
 
                 let news = JSON.parse(JSON.stringify(newsContent))
-                // Fetching tempURL for each image in newsContent using promises    
+                // Fetching tempURL for each image in newsContent using promises  
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
                         elementImg['tempURL'] = await getFileTempUrls3(elementImg?.fileName);

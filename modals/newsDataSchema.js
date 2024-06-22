@@ -24,8 +24,13 @@ const dataSchema = {
     },
     images: [{
         fileName: String,
-        ContentType: String
+        ContentType: String,
+        externalURL:{
+            type:String,
+            default:null
+        }
     }],
+    
     employeeId: {
         type: String,
         required: [true, 'Employee Id']
@@ -114,9 +119,14 @@ const dataSchema = {
         required: true,
         default: "Neti Charithra"
     },
-    author: {
+    sourceLink: {
         type: String,
+        required: false,
         default: null
+    },
+    reportedBy: {
+        type: Object,
+        default: {}
     }
 }
 const newsDataSchema = new mongoose.Schema(dataSchema)

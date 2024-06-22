@@ -116,17 +116,7 @@ const getHomeData = async (req, res) => {
 
         // ])
 
-        const fetchTempUrls = async (records) => {
-            return await Promise.all(records.map(async (record) => {
-                await Promise.all(record.images.map(async (elementImg) => {
-                    elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
-                }));
 
-                // const fileURLTemp = await getFileTempUrls3(record.fileName);
-                // return { ...record, tempURL: fileURLTemp };
-                return record;
-            }));
-        };
         mostRecentRecords = await fetchTempUrls(mostRecentRecords);
         // Fetch temporary URLs for categoryWiseRecentRecords
         for (const categoryRecord of categoryWiseRecentRecords[0].categorizedRecords) {
@@ -232,17 +222,6 @@ const getHomeDataV2 = async (req, res) => {
 
 
 
-        const fetchTempUrls = async (records) => {
-            return await Promise.all(records.map(async (record) => {
-                await Promise.all(record.images.map(async (elementImg) => {
-                    elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
-                }));
-
-                // const fileURLTemp = await getFileTempUrls3(record.fileName);
-                // return { ...record, tempURL: fileURLTemp };
-                return record;
-            }));
-        };
         result[0].prioritizedRecords = await fetchTempUrls(result[0].prioritizedRecords);
         result[0].latestNineRecords = await fetchTempUrls(result[0].latestNineRecords);
         // // Fetch temporary URLs for categoryWiseRecentRecords
@@ -279,7 +258,10 @@ const getHomeDataV2 = async (req, res) => {
 const fetchTempUrls = async (records) => {
     return await Promise.all(records.map(async (record) => {
         await Promise.all(record.images.map(async (elementImg) => {
-            elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+            if (elementImg?.fileName || elementImg?.name) {
+
+                elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+            }
         }));
 
         // const fileURLTemp = await getFileTempUrls3(record.fileName);
@@ -463,7 +445,7 @@ const getHomeDataV2CategoryWise = async (req, res) => {
 const getDistrictNews = async (req, res) => {
     try {
 
-        console.log(req.body)
+
 
         if (!req?.body?.district || !req?.body?.state) {
             res.status(200).json({
@@ -539,7 +521,6 @@ const getDistrictNews = async (req, res) => {
 const getNewsNewsType = async (req, res) => {
     try {
 
-        console.log(req.body)
 
         if (!req?.body?.newsType) {
             res.status(200).json({
@@ -656,21 +637,15 @@ const getIndividualNewsInfo = async (req, res) => {
     ]);
 
     // Fetching tempURL for each image in recentRecords and specificRecord
-    let recentRecordsWithTempURL = await Promise.all(newsInfo[0].recentRecords.map(async record => {
-        let imagesWithTempURL = await Promise.all(record.images.map(async image => {
-            let tempURL = await getFileTempUrls3(image.fileName);
-            return { ...image, tempURL };
-        }));
-        return { ...record, images: imagesWithTempURL };
-    }));
 
-    let specificRecordWithTempURL = await Promise.all(newsInfo[0].specificRecord.map(async record => {
-        let imagesWithTempURL = await Promise.all(record.images.map(async image => {
-            let tempURL = await getFileTempUrls3(image.fileName);
-            return { ...image, tempURL };
-        }));
-        return { ...record, images: imagesWithTempURL };
-    }));
+    let recentRecordsWithTempURL = await fetchTempUrls(newsInfo[0].recentRecords)
+    let specificRecordWithTempURL = await fetchTempUrls(newsInfo[0].specificRecord)
+
+    if (specificRecordWithTempURL?.[0]?.['reportedBy']?.['profilePicture']?.['fileName']) {
+        specificRecordWithTempURL[0]['reportedBy']['profilePicture']['tempURL'] = await getFileTempUrls3(specificRecordWithTempURL[0]['reportedBy']['profilePicture']['fileName']);
+    }
+
+
 
     // let value = await metaDataSchema.findOne({ type: 'NEWS_CATEGORIES' });
 
@@ -1264,22 +1239,8 @@ const getCategoryNewsPaginated = async (req, res) => {
         });
 
         // Update recent records with temporary URLs for images
-        let recentRecordsWithTempURL = await Promise.all(newsInfo[0].recentNews.map(async record => {
-            let imagesWithTempURL = await Promise.all(record.images.map(async image => {
-                let tempURL = await getFileTempUrls3(image.fileName);
-                return { ...image, tempURL };
-            }));
-            return { ...record, images: imagesWithTempURL };
-        }));
-
-        // Update specific record with temporary URLs for images
-        let specificRecordWithTempURL = await Promise.all(newsInfo[0].records.map(async record => {
-            let imagesWithTempURL = await Promise.all(record.images.map(async image => {
-                let tempURL = await getFileTempUrls3(image.fileName);
-                return { ...image, tempURL };
-            }));
-            return { ...record, images: imagesWithTempURL };
-        }));
+        let recentRecordsWithTempURL = await fetchTempUrls(newsInfo[0].recentNews)
+        let specificRecordWithTempURL = await fetchTempUrls(newsInfo[0].records)
 
         res.status(200).json({
             status: "success",
@@ -1662,7 +1623,6 @@ const validateUserOTP = async (req, res) => {
         // Check if the mobile number and details exist in the publicUserSchema
         const user = await publicUserSchema.findOne({ mobileNumber: data.mobileNumber });
 
-        console.log(user)
         if (!user) {
             // If the user doesn't exist, request for name
             return res.status(200).json({ "status": "success", message: 'Please provide your name to proceed', nameCode: 1 });
@@ -1708,7 +1668,6 @@ const addPublicUser = async (req, res) => {
         let newData = { ...req.body, publicUserId: newUserId }; // Assuming your schema has a field named "publicUserId"
         newData['mobileNumber'] = parseInt(newData['mobileNumber'])
         let data = await publicUserSchema.create(newData);
-        console.log("data", data)
         res.status(200).json({ "status": "success", data: data });
 
     } catch (error) {
@@ -1923,7 +1882,6 @@ const updateUserInfo = async (req, res) => {
     try {
         const body = JSON.parse(JSON.stringify(req.body));
 
-        console.log(body)
         if (!body?.publicUserId) {
             return res.status(200).json({
                 status: "failed",
@@ -1967,7 +1925,6 @@ const updateUserInfo = async (req, res) => {
         // Extract counts from the result
         const countResult = counts.length > 0 ? counts[0] : { approved: 0, rejected: 0, pending: 0 };
 
-        console.log("COUNT", countResult)
 
         res.status(200).json({
             status: "success",
@@ -1989,7 +1946,6 @@ const getUserNewsCount = async (req, res) => {
     try {
         const body = JSON.parse(JSON.stringify(req.body));
 
-        console.log(body)
         if (!body?.publicUserId) {
             return res.status(200).json({
                 status: "failed",
@@ -2035,8 +1991,54 @@ const getUserNewsCount = async (req, res) => {
     }
 }
 
+const getHelpTeam = async (req, res) => {
+    try {
+        console.log("CALL FROM MBILE")
+        console.log(req.body)
+        let teamRoles = req?.body?.roles || ["CEO", "INCHARGE DIRECTOR", "MANAGEMENT LEAD"];
+        var users = await reporterSchema.find({ role: { $in: teamRoles } }).select('profilePicture name mail role');
+
+        var dataCopy = users.map(user => ({
+            ...user.toObject(), // Convert Mongoose Document to a plain JavaScript object
+            // tempURL: null 
+          }));     
+        // Function to update tempURL for each user
+async function updateTempURLs(dataCopy) {
+    // Map over the dataCopy array to create an array of promises
+    const updatedData = await Promise.all(dataCopy.map(async (user) => {
+        console.log(user)
+      const tempURLProfile = await getFileTempUrls3(user.profilePicture.fileName);
+      return { ...user, tempURLProfile }; // Add tempURL to the user object
+    }));
+    return updatedData;
+  }
+  
+  // Call the function and get the updated data
+  dataCopy = await updateTempURLs(dataCopy);
+
+  
+        console.log(dataCopy)
+        // console.log(dataCopy);
+
+        res.status(200).json({
+            status: "success",
+            data: dataCopy
+        });
+
+
+    } catch (error) {
+        console.error(error);
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+        });
+    }
+
+}
 const getNewsInfoV2 = async (req, res) => {
     try {
+        console.log("CALL FROM MBILE")
+        console.log(req.body)
 
         let aggregationPipeline = [
             // Match stage to filter records
@@ -2062,17 +2064,23 @@ const getNewsInfoV2 = async (req, res) => {
         if (req?.body?.category) {
             aggregationPipeline[0]['$match']['category'] = req.body.category
         }
+        if (req?.body?.newsType) {
+            aggregationPipeline[0]['$match']['newsType'] = req.body.newsType
+        }
+
         let data = await newsDataSchema.aggregate(aggregationPipeline)
+        // console.log(data.length)
 
 
+        data = await fetchTempUrls(data)
 
-
+        // console.log(data)
         // // Fetch temporary URLs for images
-        await Promise.all(data.map(async (record) => {
-            await Promise.all(record.images.map(async (elementImg) => {
-                elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
-            }));
-        }));
+        // await Promise.all(data.map(async (record) => {
+        //     await Promise.all(record.images.map(async (elementImg) => {
+        //         elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+        //     }));
+        // }));
         res.status(200).json({
             status: "success",
             data: data
@@ -2127,17 +2135,22 @@ const getLatestNewsV2 = async (req, res) => {
         if (req?.body?.category) {
             aggregationPipeline[0]['$match']['category'] = req.body.category
         }
+        console.log(req?.body)
+        if (req?.body?.newsType) {
+            aggregationPipeline[0]['$match']['newsType'] = req.body.newsType
+        }
 
 
         try {
-            const newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
-            const endOfRecords = newsInfo.length === 0; // Set endOfRecords to true if no records are fetched
+            let newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
+            let endOfRecords = newsInfo.length === 0; // Set endOfRecords to true if no records are fetched
             // Fetch temporary URLs for images
-            await Promise.all(newsInfo.map(async (record) => {
-                await Promise.all(record.images.map(async (elementImg) => {
-                    elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
-                }));
-            }));
+            newsInfo = await fetchTempUrls(newsInfo)
+            // await Promise.all(newsInfo.map(async (record) => {
+            //     await Promise.all(record.images.map(async (elementImg) => {
+            //         elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
+            //     }));
+            // }));
 
 
             res.status(200).json({
@@ -2165,6 +2178,7 @@ const getLatestNewsV2 = async (req, res) => {
         res.status(200).json({
             status: "failed",
             msg: 'Failed to process the request.',
+            error: error
         });
     }
 
@@ -2178,13 +2192,13 @@ const searchNewsV2 = async (req, res) => {
         const skipRecords = pageNumber * recordsPerPage;
 
         let searchString = req?.body?.search;
-        if (!searchString) {
-            res.status(200).json({
-                status: "failed",
-                msg: 'Search is required',
-            });
-            return
-        }
+        // if (!searchString) {
+        //     res.status(200).json({
+        //         status: "failed",
+        //         msg: 'Search is required',
+        //     });
+        //     return
+        // }
         let aggregationPipeline = [
             {
                 $match: {
@@ -2244,5 +2258,6 @@ function generateOTP(length) {
 
 module.exports = {
     getHomeData, getIndividualNewsInfo, employeeTraceCheck, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, getAllNewsList,
-    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2, searchNewsV2, getHomeDataV2, getHomeDataV2_NEWSTYPE, getHomeDataV2CategoryWise, getDistrictNews, getNewsNewsType
+    getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2, searchNewsV2, getHomeDataV2, getHomeDataV2_NEWSTYPE, getHomeDataV2CategoryWise, getDistrictNews, getNewsNewsType,
+    getHelpTeam
 }

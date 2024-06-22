@@ -216,10 +216,10 @@ const start = async () => {
     }
 }
 
-start();
+// start();
 
 
-// exports.api = functions.https.onRequest(app)
+exports.api = functions.https.onRequest(app)
 
 
 // SETUP FOR DEPLOYMENT
