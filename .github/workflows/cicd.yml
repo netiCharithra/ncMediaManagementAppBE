@@ -27,4 +27,3 @@ jobs:
           environment_name: NcMediaManagementAppBE-env
           version_label: ${{github.sha}}
           region: ap-south-1
-          deployment_package: nodejs-app-build.zip
