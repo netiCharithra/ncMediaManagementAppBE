@@ -14,7 +14,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-      - name: Install Dependendcies
+      - name: Install Dependencies
         run: npm install
       - name: Generate Deployment Packages
         run: zip -r nodejs-app-build.zip .
@@ -27,3 +27,5 @@ jobs:
           environment_name: NcMediaManagementAppBE-env
           version_label: ${{github.sha}}
           region: ap-south-1
+          deployment_package: nodejs-app-build.zip
+          use_existing_version_if_available: true
