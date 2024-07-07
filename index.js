@@ -34,7 +34,9 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 const multer = require('multer');
 const storage = multer.memoryStorage()
 
-const upload = multer({ storage: storage })
+// const upload = multer({ storage: storage })
+const upload = multer({ storage: multer.memoryStorage() });
+
 const stream = require('stream');
 const errorLogBookSchema = require('./modals/errorLogBookSchema');
 const admin = require('firebase-admin');
@@ -82,57 +84,54 @@ app.post('/api/v2/sendNotifications', async (req, res) => {
 connect(process.env.MONGO_DB_URL)
 
 app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
-
     try {
+        let uploadedImages = [];
+        console.log(`Number of files received: ${req.files.length}`);
 
-        let uploadedImages = []
-        console.log(req.files.length)
-
-        if (req?.files?.length > 0) {
+        if (req.files && req.files.length > 0) {
             for (let index = 0; index < req.files.length; index++) {
-                const fileName = req?.body?.fileName === "original" ? req.files[index].originalname : "FileNew" + new Date().getTime() + '_0';
+                const fileName = req.body.fileName === "original" ? req.files[index].originalname : "FileNew" + new Date().getTime() + '_0';
                 const uploadParams = {
                     Bucket: BUCKET_NAME,
                     Body: req.files[index].buffer,
                     Key: fileName,
                     ContentType: req.files[index].mimetype
-                }
+                };
 
-                // Send the upload to S3
+                console.log(`Uploading file: ${fileName}`);
                 await s3.send(new PutObjectCommand(uploadParams));
-                const fileURLTemp = await getFileTempUrls3(fileName)
+                const fileURLTemp = await getFileTempUrls3(fileName);
                 uploadedImages.push({
                     fileName: fileName,
                     tempURL: fileURLTemp,
                     ContentType: req.files[index].mimetype
-                })
-
+                });
+                console.log(`Uploaded file: ${fileName}`);
             }
+        } else {
+            console.log('No files received.');
         }
 
         res.status(200).json({
             status: "success",
-            msg: 'Uploaded Succesfully',
+            msg: 'Uploaded Successfully',
             data: uploadedImages
-
         });
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while uploading files to drive`,
-            stackTrace: JSON.stringify([...error.stack].join('/n')),
-            page: (req.body && req.body.uploadType) ? req.body.uploadType + " uploading" : 'Uploading News Image',
-            functionality: (req.body && req.body.uploadType) ? req.body.uploadType + " uploading" : 'Uploading News Image',
-            errorMessage: `${JSON.stringify(error) || ''}`
-        })
+            stackTrace: JSON.stringify(error.stack.split('\n')),
+            page: req.body?.uploadType ? `${req.body.uploadType} uploading` : 'Uploading News Image',
+            functionality: req.body?.uploadType ? `${req.body.uploadType} uploading` : 'Uploading News Image',
+            errorMessage: JSON.stringify(error)
+        });
 
-        console.error(error)
-        res.status(200).json({
+        console.error(error);
+        res.status(500).json({
             status: "failed",
-            msg: 'Failed to while processing..',
-
+            msg: 'Failed while processing..',
         });
     }
-
 });
 // BELWO ENDPOINT IS ONLY FOR TESTING
 app.post('/api/v2/deleteS3', async (req, res) => {
@@ -216,10 +215,10 @@ const start = async () => {
     }
 }
 
-// start();
+start();
 
 
-exports.api = functions.https.onRequest(app)
+// exports.api = functions.https.onRequest(app)
 
 
 // SETUP FOR DEPLOYMENT

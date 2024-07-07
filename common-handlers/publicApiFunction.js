@@ -7,6 +7,7 @@ const reporterSchema = require('../modals/reportersSchema');
 const { getFileTempUrls3 } = require('./commonApiFunction');
 const publicUserSchema = require('../modals/publicUserSchema');
 const otpTrackingSchema = require('../modals/otpTrackingSchema');
+const fcmTokenSchema = require('../modals/fcmTokenSchema');
 require('dotenv').config();
 
 
@@ -273,6 +274,7 @@ const fetchTempUrls = async (records) => {
 const getHomeDataV2_NEWSTYPE = async (req, res) => {
     try {
 
+        console.log("i")
         const language = req?.body?.language || 'te';
 
 
@@ -1437,30 +1439,52 @@ const getAllNewsList = async (req, res) => {
 
 const setFCMToken = async (req, res) => {
     try {
-        ;
+        const { token, language, device } = req.body;
 
-        const query = {
-            type: 'FCM_TOKENS',
-        };
+        try {
+            console.log("TRIGGER FCM TOKEN")
+            console.log(token, language, device)
+            // Check if the token already exists
+            let existingRecord = await fcmTokenSchema.findOne({ token });
+    
+            if (existingRecord) {
+                // Update the existing record
+                existingRecord.language = language;
+                existingRecord.device = device;
+                await existingRecord.save();
+                res.status(200).json({ message: 'Record updated successfully', record: existingRecord });
+            } else {
+                // Insert new record
+                let newRecord = new FcmToken({ token, language, device });
+                await newRecord.save();
+                res.status(200).json({ message: 'Record inserted successfully', record: newRecord });
+            }
+        } catch (error) {
+            res.status(500).json({ message: 'An error occurred', error: error.message });
+        }
+
+        // const query = {
+        //     type: 'FCM_TOKENS',
+        // };
 
 
-        const update = {
-            $addToSet: {
-                data: req.body.token,
-            },
-        };
+        // const update = {
+        //     $addToSet: {
+        //         data: req.body.token,
+        //     },
+        // };
 
-        const options = {
-            upsert: true, // Create a new document if it doesn't exist
-            new: true, // Return the updated document
-        };
+        // const options = {
+        //     upsert: true, // Create a new document if it doesn't exist
+        //     new: true, // Return the updated document
+        // };
 
 
-        let data = await metaDataSchema.findOneAndUpdate(query, update, options);
+        // let data = await metaDataSchema.findOneAndUpdate(query, update, options);
 
-        res.status(200).json({
-            status: "success"
-        });
+        // res.status(200).json({
+        //     status: "success"
+        // });
     }
     catch (err) {
         res.status(200).json({

@@ -716,6 +716,16 @@ const getNewsList = async (req, res) => {
                                 icon: "visibility",
                                 key: "view",
                                 class: "btn btn-info"
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Update",
+                                key: "update",
+                                class: "btn btn-info",
+                                icon: "edit_square",
+                                // disable: {
+                                //     role: ['REPORTER']
+                                // }
                             }
                         ]
                     }
