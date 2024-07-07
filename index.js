@@ -2,136 +2,164 @@ const express = require('express');
 require('express-async-errors');
 const app = express();
 const cors = require("cors");
-app.use(express.json());
-
-const functions = require("firebase-functions")
-app.use(express.urlencoded({ extended: true }));
-const allowedOrigins = ['http://localhost:8081', 'http://localhost:4201', 'https://neticharithra-ncmedia.web.app', '*']; // Add more origins if needed
-// app.use(cors({
-//     origin: function (origin, callback) {
-//         if (!origin || allowedOrigins.includes(origin)) {
-//             callback(null, true);
-//         } else {
-//             console.log("origin", origin)
-//             callback(new Error('Not allowed by CORS'));
-//         }
-//     }
-// }));
 app.use(cors())
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const functions = require("firebase-functions");
+const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const fs = require('fs');  // Require the fs module
 
 const dotenv = require('dotenv');
-dotenv.config()
+dotenv.config();
 const connect = require('./connectDB/mongoDB');
 const router = require('./common-handlers/commonRoute');
 app.use('/api/v2', router);
-require('dotenv').config();
 const bodyParser = require('body-parser');
-// const admin.initi
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-const multer = require('multer');
-const storage = multer.memoryStorage()
+const util = require('util');
 
-// const upload = multer({ storage: storage })
-const upload = multer({ storage: multer.memoryStorage() });
+const formidable = require('formidable');
 
-const stream = require('stream');
 const errorLogBookSchema = require('./modals/errorLogBookSchema');
-const admin = require('firebase-admin');
 
-// const serviceAccount = require('./FireBaseConfig.json');
-// admin.initializeApp({
-//     credential: admin.credential.cert(serviceAccount)
-//   });
-
-const BUCKET_NAME = process.env.BUCKET_NAME
-const BUCKET_REGION = process.env.BUCKET_REGION
-const POLICY_NAME = process.env.POLICY_NAME
-
-const ACCESS_KEY = process.env.ACCESS_KEY
-const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY
-
+const BUCKET_NAME = process.env.BUCKET_NAME;
+const BUCKET_REGION = process.env.BUCKET_REGION;
+const ACCESS_KEY = process.env.ACCESS_KEY;
+const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY;
 
 const s3 = new S3Client({
     credentials: {
-
         accessKeyId: ACCESS_KEY,
         secretAccessKey: SECRET_ACCESS_KEY
     },
     region: BUCKET_REGION
-})
+});
 
-app.post('/api/v2/sendNotifications', async (req, res) => {
+connect(process.env.MONGO_DB_URL);
 
-    const message = {
-        notification: {
-            title: 'Hello',
-            body: 'World'
-        },
-        token: 'recipient-device-token'
+
+app.post('/api/v2/uploadFiles', (req, res) => {
+    console.log('Request received');
+
+    let responseHasBeenSent = false;
+
+    const sendResponse = (statusCode, responseBody) => {
+        if (!responseHasBeenSent) {
+            responseHasBeenSent = true;
+            res.status(statusCode).json(responseBody);
+            console.log(`Response sent with status ${statusCode}`);
+        } else {
+            console.log('Attempted to send response, but one has already been sent');
+        }
     };
 
-    admin.messaging().send(message)
-        .then((response) => {
-            console.log('Successfully sent message:', response);
-        })
-        .catch((error) => {
-            console.log('Error sending message:', error);
-        });
-})
-connect(process.env.MONGO_DB_URL)
+    const form = new formidable.IncomingForm({
+        multiples: true,
+        maxFileSize: 50 * 1024 * 1024, // 50MB limit
+        uploadDir: './uploadFileTemp',
+        keepExtensions: true
+    });
 
-app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
-    try {
-        let uploadedImages = [];
-        console.log(`Number of files received: ${req.files.length}`);
+    form.parse(req, (err, fields, files) => {
+        console.log('Form parsed');
 
-        if (req.files && req.files.length > 0) {
-            for (let index = 0; index < req.files.length; index++) {
-                const fileName = req.body.fileName === "original" ? req.files[index].originalname : "FileNew" + new Date().getTime() + '_0';
-                const uploadParams = {
-                    Bucket: BUCKET_NAME,
-                    Body: req.files[index].buffer,
-                    Key: fileName,
-                    ContentType: req.files[index].mimetype
-                };
-
-                console.log(`Uploading file: ${fileName}`);
-                await s3.send(new PutObjectCommand(uploadParams));
-                const fileURLTemp = await getFileTempUrls3(fileName);
-                uploadedImages.push({
-                    fileName: fileName,
-                    tempURL: fileURLTemp,
-                    ContentType: req.files[index].mimetype
-                });
-                console.log(`Uploaded file: ${fileName}`);
-            }
-        } else {
-            console.log('No files received.');
+        if (err) {
+            console.error('Error parsing form:', err);
+            return sendResponse(500, {
+                status: "failed",
+                msg: 'Error parsing form data',
+                error: err.message
+            });
         }
 
-        res.status(200).json({
-            status: "success",
-            msg: 'Uploaded Successfully',
-            data: uploadedImages
-        });
-    } catch (error) {
-        const obj = await errorLogBookSchema.create({
-            message: `Error while uploading files to drive`,
-            stackTrace: JSON.stringify(error.stack.split('\n')),
-            page: req.body?.uploadType ? `${req.body.uploadType} uploading` : 'Uploading News Image',
-            functionality: req.body?.uploadType ? `${req.body.uploadType} uploading` : 'Uploading News Image',
-            errorMessage: JSON.stringify(error)
-        });
+        const processFiles = async () => {
+            try {
+                const fileArray = Array.isArray(files.images) ? files.images : [files.images];
 
-        console.error(error);
-        res.status(500).json({
-            status: "failed",
-            msg: 'Failed while processing..',
+                if (!fileArray || fileArray.length === 0) {
+                    console.log('No files received.');
+                    return sendResponse(400, {
+                        status: "failed",
+                        msg: 'No files received.'
+                    });
+                }
+
+                console.log(`Number of files received: ${fileArray.length}`);
+
+                let uploadedImages = [];
+
+                for (let file of fileArray) {
+                    const fileName = fields.fileName === "original" ? file.originalFilename : "FileNew" + new Date().getTime() + '_0';
+                    const fileStream = fs.createReadStream(file.filepath);
+                    const uploadParams = {
+                        Bucket: BUCKET_NAME,
+                        Body: fileStream,
+                        Key: fileName,
+                        ContentType: file.mimetype
+                    };
+
+                    console.log(`Uploading file: ${fileName}`);
+                    await s3.send(new PutObjectCommand(uploadParams));
+                    const fileURLTemp = await getFileTempUrls3(fileName);
+                    uploadedImages.push({
+                        fileName: fileName,
+                        tempURL: fileURLTemp,
+                        ContentType: file.mimetype
+                    });
+                    console.log(`Uploaded file: ${fileName}`);
+
+                    fs.unlinkSync(file.filepath);
+                }
+
+                console.log("All files uploaded successfully");
+                sendResponse(200, {
+                    status: "success",
+                    msg: 'Uploaded Successfully',
+                    data: uploadedImages
+                });
+            } catch (error) {
+                console.error('Error uploading files:', error);
+                
+                await errorLogBookSchema.create({
+                    message: `Error while uploading files to drive`,
+                    stackTrace: JSON.stringify(error.stack.split('\n')),
+                    page: 'Uploading News Image',
+                    functionality: 'Uploading News Image',
+                    errorMessage: JSON.stringify(error)
+                });
+
+                sendResponse(500, {
+                    status: "failed",
+                    msg: 'Failed while processing..',
+                    error: error.message
+                });
+            }
+        };
+
+        processFiles().catch(error => {
+            console.error('Unhandled error in processFiles:', error);
+            sendResponse(500, {
+                status: "failed",
+                msg: 'Unhandled server error',
+                error: error.message
+            });
         });
-    }
+    });
+
+    // Set a timeout to check if the response was sent
+    setTimeout(() => {
+        if (!responseHasBeenSent) {
+            console.log('No response sent after 30 seconds');
+            sendResponse(500, {
+                status: "failed",
+                msg: 'Server timeout'
+            });
+        }
+    }, 30000);
 });
 // BELWO ENDPOINT IS ONLY FOR TESTING
 app.post('/api/v2/deleteS3', async (req, res) => {
@@ -215,10 +243,10 @@ const start = async () => {
     }
 }
 
-start();
+// start();
 
 
-// exports.api = functions.https.onRequest(app)
+exports.api = functions.https.onRequest(app)
 
 
 // SETUP FOR DEPLOYMENT
