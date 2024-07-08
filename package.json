@@ -6,7 +6,6 @@
   "scripts": {
     "test": "nodemon index.js",
     "start": "nodemon index.js",
-    "deploy": "firebase deploy --only functions:api"
   },
   "author": "Shaik Mohammad Muzmil",
   "license": "ISC",
