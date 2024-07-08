@@ -1,6 +1,6 @@
 # Ignore node_modules directory
 node_modules/
-package-lock.json
+# package-lock.json
 .env
 .vercel
 FireBaseConfig.json
