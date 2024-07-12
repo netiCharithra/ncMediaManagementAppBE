@@ -6,17 +6,7 @@ app.use(express.json());
 
 const functions = require("firebase-functions")
 app.use(express.urlencoded({ extended: true }));
-const allowedOrigins = ['http://localhost:8081', 'http://localhost:4201', 'https://neticharithra-ncmedia.web.app', '*']; // Add more origins if needed
-// app.use(cors({
-//     origin: function (origin, callback) {
-//         if (!origin || allowedOrigins.includes(origin)) {
-//             callback(null, true);
-//         } else {
-//             console.log("origin", origin)
-//             callback(new Error('Not allowed by CORS'));
-//         }
-//     }
-// }));
+
 app.use(cors())
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
