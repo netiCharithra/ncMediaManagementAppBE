@@ -67,17 +67,21 @@ const dataSchema = {
     },
     createdDate: {
         type: Number,
-        default: new Date().getTime()
+        default: null
     },
     rejected: {
         type: Boolean,
         default: false
     },
     rejectedOn: {
-        type: Number
+        type: Number,
+        default: null
+
     },
     rejectedReason: {
-        type: String
+        type: String,
+        default: ''
+
     },
     rejectedBy: {
         type: String,

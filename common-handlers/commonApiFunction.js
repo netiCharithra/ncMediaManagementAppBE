@@ -202,28 +202,29 @@ const publishNews = async (req, res) => {
                     };
                     body['data']['employeeId'] = body.employeeId;
                     // console.log(body)
-                    if(body['data']['priorityIndex']){
+                    if (body['data']['priorityIndex']) {
                         let respppPriority = await newsDataSchema.findOne().sort({ priorityIndex: -1 })
                         // console.log("R", respppPriority)
-                        if(!respppPriority){
+                        if (!respppPriority) {
                             body['data']['priorityIndex'] = 1;
                         } else {
-                            body['data']['priorityIndex'] = respppPriority['priorityIndex']+1;
+                            body['data']['priorityIndex'] = respppPriority['priorityIndex'] + 1;
                         }
                     } else {
                         body['data']['priorityIndex'] = null
                     }
 
-                    if(!body['data']['reportedBy']){
+                    if (!body['data']['reportedBy']) {
 
-                        body['data']['reportedBy']={
-                            name:body['name'],
-                            profilePicture:body['profilePicture'],
-                            role:body['role'],
-                            employeeId:body['employeeId']
+                        body['data']['reportedBy'] = {
+                            name: body['name'],
+                            profilePicture: body['profilePicture'],
+                            role: body['role'],
+                            employeeId: body['employeeId']
                         }
                     }
-                    console.log(body['data'])
+                    console.log(body['data']);
+                    body['data']['createdDate'] = body['data']['createdDate'];
                     const task = await newsDataSchema.create({
                         ...body.data
                     });
@@ -237,7 +238,7 @@ const publishNews = async (req, res) => {
                         {
                             approved: true,
                             approvedBy: body.employeeId,
-                            approvedOn: new Date().getTime(),
+                            approvedOn: body?.data?.approvedOn,
                             // lastUpdatedBy: data.employeeId,
                             rejected: false,
                             rejectedOn: '',
@@ -258,7 +259,7 @@ const publishNews = async (req, res) => {
                             approvedBy: '',
                             approvedOn: '',
                             rejected: true,
-                            rejectedOn: new Date().getTime(),
+                            rejectedOn: body?.data?.rejectedOn,
                             rejectedReason: body.data.reason,
                             rejectedBy: body.employeeId
                         }
@@ -269,8 +270,8 @@ const publishNews = async (req, res) => {
                         data: task
                     });
                 } else if (body.type === 'update') {
-console.log("UPDATE TRIGEER")
-                    let updateJSON=  {
+                    console.log("UPDATE TRIGEER")
+                    let updateJSON = {
                         ...body.data, ... {
                             approved: false,
                             approvedBy: '',
@@ -280,35 +281,35 @@ console.log("UPDATE TRIGEER")
                             rejectedReason: '',
                             rejectedBy: '',
                             lastUpdatedBy: body.employeeId,
-                            lastUpdatedOn: new Date().getTime(),
+                            lastUpdatedOn:body.data.lastUpdatedOn,
                             title: body.data.title,
                             sub_title: body.data.sub_title,
                             description: body.data.description,
                             images: body.data.images,
                             category: body.data.category || 'General',
                             newsType: body.data.newsType || 'Local',
-                            source:body.data.source,
-                            sourceLink:body.data.sourceLink,
-                            reportedBy:body.data.reportedBy
-                            
+                            source: body.data.source,
+                            sourceLink: body.data.sourceLink,
+                            reportedBy: body.data.reportedBy
+
                         }
                     }
-                    if(updateJSON){
+                    if (updateJSON) {
                         let initalData = JSON.parse(JSON.stringify(updateJSON.initalDataCopy));
 
-                        if(initalData['priorityIndex'] !== updateJSON['priorityIndex']){
-                            if(updateJSON['priorityIndex']){
+                        if (initalData['priorityIndex'] !== updateJSON['priorityIndex']) {
+                            if (updateJSON['priorityIndex']) {
                                 let respppPriority = await newsDataSchema.findOne().sort({ priorityIndex: -1 })
                                 // console.log("R", respppPriority)
-                                if(!respppPriority){
+                                if (!respppPriority) {
                                     updateJSON['priorityIndex'] = 1;
                                 } else {
-                                    updateJSON['priorityIndex'] = respppPriority['priorityIndex']+1;
+                                    updateJSON['priorityIndex'] = respppPriority['priorityIndex'] + 1;
                                 }
                             } else {
                                 updateJSON['priorityIndex'] = null
                             }
-        
+
                         }
                     }
                     let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
@@ -1491,6 +1492,139 @@ const fetchDashboard = async (req, res) => {
     }
 }
 
+function getPastSevenDays() {
+    const today = new Date();
+    const pastSevenDays = [];
+
+    for (let i = 0; i < 7; i++) {
+        const pastDay = new Date();
+        pastDay.setDate(today.getDate() - i);
+        pastSevenDays.push(pastDay.toISOString().split('T')[0]);
+    }
+
+    return pastSevenDays;
+}
+
+// Example usage:
+
+const fetchDashboardV2 = async (req, res) => {
+
+    try {
+
+        let reqPayloadData = req.body;
+
+
+
+        if (reqPayloadData.data.reportType === 'recent') {
+            // let dates = await getPastSevenDays();
+
+
+
+            // Static list of dates
+            const dates = [
+                "2024-07-12",
+                // "2024-07-11",
+                // "2024-07-10",
+                // "2024-07-09",
+                // "2024-07-08",
+                // "2024-07-07",
+                // "2024-07-06"
+            ];
+
+            // Function to convert Date to start of day and end of day epoch timestamps
+            const getEpochTimeRange = (date) => {
+                const startOfDay = new Date(date);
+                startOfDay.setHours(0, 0, 0, 0); // Set to beginning of day
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999); // Set to end of day
+                return {
+                    start: startOfDay.getTime(),
+                    end: endOfDay.getTime()
+                };
+            };
+            console.log("D!",getEpochTimeRange("2024-07-12"))
+
+            // Build aggregation pipeline for each date
+            const pipelines = dates.map(date => {
+                const { start, end } = getEpochTimeRange(date);
+                return [
+                    {
+                        $match: {
+                            createdDate: { $gte: start, $lte: end }
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            approved: { $sum: { $cond: [{ $ne: ["$approvedOn", null] }, 1, 0] } },
+                            pending: {
+                                $sum: {
+                                    $cond: [
+                                        { $and: [{ $eq: ["$approvedOn", null] }, { $eq: ["$rejectedOn", null] }] },
+                                        1,
+                                        0
+                                    ]
+                                }
+                            },
+                          
+                            rejected: { $sum: { $cond: [{ $ne: ["$rejectedOn", null] }, 1, 0] } }
+                        }
+                    },
+                    {
+                        $project: {
+                            _id: 0,
+                            date: { $toDate: start }, // Use start of day as the date for consistent output
+                            approved: 1,
+                            pending: 1,
+                            rejected: 1
+                        }
+                    }
+                ];
+            });
+
+            // Execute all pipelines concurrently
+            const pipelineResults = await Promise.all(pipelines.map(pipeline =>
+                newsDataSchema.aggregate(pipeline)
+            ));
+
+            // Map results to the correct date and category counts
+            const reports = pipelineResults.map((result, index) => ({
+                date: dates[index],
+                approved: result.length > 0 ? result[0].approved : 0,
+                pending: result.length > 0 ? result[0].pending : 0,
+                rejected: result.length > 0 ? result[0].rejected : 0
+            }));
+
+            // Respond with reports
+            res.status(200).json({
+                status: "success",
+                reports: reports,pipelineResults:pipelineResults
+            });
+          
+        }
+
+        // console.log(reqPayloadData)
+
+    } catch (error) {
+
+        // const obj = await errorLogBookSchema.create({
+        //     message: `Error while Fetching Dashboard`,
+        //     stackTrace: JSON.stringify([...error.stack].join('/n')),
+        //     page: 'Fetch Dashboard ',
+        //     functionality: 'To Fetch Dashboard ',
+        //     employeeId: req.body.employeeId || '',
+        //     errorMessage: `${JSON.stringify(error) || ''}`
+        // })
+        console.log(error)
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while processing..! ',
+            error: error
+        })
+
+    }
+}
+
 const multiBarChart = async (xaxis, yaxisArray) => {
     let chartData = {
         "tooltip": {
@@ -2522,5 +2656,5 @@ module.exports = {
     publishNews,
     fetchDashboard, deleteS3Images, getFileTempUrls3,
     addSubscribers,
-    getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getAllEmployeesV2, getNewsInfo, addSubscriberToGroup
+    getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getAllEmployeesV2, getNewsInfo, addSubscriberToGroup, fetchDashboardV2
 }
