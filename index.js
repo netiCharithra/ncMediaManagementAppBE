@@ -6,17 +6,24 @@ app.use(express.json());
 
 const functions = require("firebase-functions")
 app.use(express.urlencoded({ extended: true }));
-const allowedOrigins = ['*']; // Add more origins if needed
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            console.log("origin", origin)
-            callback(new Error('Not allowed by CORS'));
-        }
-    }
-}));
+app.use(function (req, res, next) {
+    //Enabling CORS
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type,  Accept, x-client-key, x-client-token, x-client-secret, Authorization");
+    next();
+  });
+// const allowedOrigins = ['*']; // Add more origins if needed
+// app.use(cors({
+//     origin: function (origin, callback) {
+//         if (!origin || allowedOrigins.includes(origin)) {
+//             callback(null, true);
+//         } else {
+//             console.log("origin", origin)
+//             callback(new Error('Not allowed by CORS'));
+//         }
+//     }
+// }));
 // app.use(cors())
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
