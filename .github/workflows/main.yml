@@ -15,10 +15,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     # BELOW COMMANDS IS TRAIL TO UPDATE CODE WITHOUT .env
-      with:
-        fetch-depth: 0  # Ensures full history is fetched so that .env is not overwritten
-    - name: Restore .env file
-      run: git checkout HEAD^ .env  # Restore the .env file to its previous state
+      # with:
+      #   fetch-depth: 0  # Ensures full history is fetched so that .env is not overwritten
+    # - name: Restore .env file
+    #   run: git checkout HEAD^ .env  # Restore the .env file to its previous state
     # AOBE COMMANDS IS TRAIL TO UPDATE CODE WITHOUT .env
 
     - name: Use Node.js ${{ matrix.node-version }}
