@@ -1051,7 +1051,7 @@ const employeeTraceCheck = async (req, res) => {
     try {
 
 
-        const currentDate = new Date().toISOString();
+        const currentDate = new Date().getTime();
         const providedTraceId = req.body.activeTraceId;
 
 

@@ -1,7 +1,10 @@
 const express = require('express')
 const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboard, addSubscribers, getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData,
     getNewsInfo, deleteS3Images,
-    getNewsList, getAllEmployees, addSubscriberToGroup, getAllEmployeesV2, fetchDashboardV2 } = require('./commonApiFunction')
+    getNewsList, getAllEmployees, addSubscriberToGroup, getAllEmployeesV2, newsReportChart, 
+    overallNewsReport, getEmployeeActiveCount, fetchNewsListPending,
+    fetchNewsListApproved,
+    fetchNewsListRejected} = require('./commonApiFunction')
 const { getHomeData, getIndividualNewsInfo, getCategoryNewsPaginated, getCategoryNewsPaginatedOnly, setFCMToken, employeeTracing, employeeTracingManagement, employeeTracingListing, employeeTraceCheck, getAllNewsList,
     getDistrictNewsPaginated, getAllNews, requestPublicOTP, validateUserOTP, addPublicUser, addPublicUserNews, listPublicUserNews, updateUserInfo, getUserNewsCount, getNewsInfoV2, getLatestNewsV2, searchNewsV2, getHomeDataV2, getHomeDataV2_NEWSTYPE, getHomeDataV2CategoryWise, getDistrictNews, getNewsNewsType, getHelpTeam } = require('./publicApiFunction')
 
@@ -17,7 +20,16 @@ router.route('/getMetaData').post(getMetaData);
 
 router.route('/manipulateNews').post(publishNews);
 router.route('/fetchDashboard').post(fetchDashboard);
-router.route('/fetchDashboardV2').post(fetchDashboardV2);
+
+
+router.route('/newsReportChart').post(newsReportChart);
+router.route('/overallNewsReport').post(overallNewsReport);
+router.route('/getEmployeeActiveCount').post(getEmployeeActiveCount);
+
+router.route('/fetchNewsListPending').post(fetchNewsListPending);
+router.route('/fetchNewsListApproved').post(fetchNewsListApproved);
+router.route('/fetchNewsListRejected').post(fetchNewsListRejected);
+
 router.route('/addSubscribers').post(addSubscribers);
 router.route('/addSubscriberToGroup').post(addSubscriberToGroup);
 router.route('/getSubscribers').post(getSubscribers);

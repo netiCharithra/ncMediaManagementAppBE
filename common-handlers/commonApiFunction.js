@@ -93,8 +93,10 @@ const reporterLogin = async (req, res) => {
                 let tokesns = await metaDataSchema.findOne({ type: "FCM_TOKENS" });
 
 
-
-
+                if(userDataCopy?.profilePicture?.fileName){
+                   let url = await getFileTempUrls3(userDataCopy?.profilePicture.fileName);
+                   userDataCopy['profilePicture']['tempURL'] = url
+                }
 
 
                 res.status(200).json({
@@ -112,6 +114,7 @@ const reporterLogin = async (req, res) => {
             functionality: 'To Login User',
             errorMessage: `${JSON.stringify(error) || ''}`
         })
+        console.log(error)
         res.status(200).json({
             status: "failed",
             msg: 'Error while logging in! Try after some time.'
@@ -224,7 +227,7 @@ const publishNews = async (req, res) => {
                         }
                     }
                     console.log(body['data']);
-                    body['data']['createdDate'] = body['data']['createdDate'];
+                    body['data']['createdDate'] = body['data']['createdDate'] || new Date().getTime();
                     const task = await newsDataSchema.create({
                         ...body.data
                     });
@@ -234,11 +237,21 @@ const publishNews = async (req, res) => {
                         task: task
                     });
                 } else if (body.type === 'approve') {
+                    console.log(   {
+                        approved: true,
+                        approvedBy: body.employeeId,
+                        approvedOn: body?.data?.approvedOn || new Date().getTime(),
+                        // lastUpdatedBy: data.employeeId,
+                        rejected: false,
+                        rejectedOn: '',
+                        rejectedReason: '',
+                        rejectedBy: ''
+                    })
                     let task = await newsDataSchema.updateOne({ newsId: body.data.newsId },
                         {
                             approved: true,
                             approvedBy: body.employeeId,
-                            approvedOn: body?.data?.approvedOn,
+                            approvedOn: body?.data?.approvedOn || new Date().getTime(),
                             // lastUpdatedBy: data.employeeId,
                             rejected: false,
                             rejectedOn: '',
@@ -259,7 +272,7 @@ const publishNews = async (req, res) => {
                             approvedBy: '',
                             approvedOn: '',
                             rejected: true,
-                            rejectedOn: body?.data?.rejectedOn,
+                            rejectedOn: body?.data?.rejectedOn || new Date().getTime(),
                             rejectedReason: body.data.reason,
                             rejectedBy: body.employeeId
                         }
@@ -281,7 +294,7 @@ const publishNews = async (req, res) => {
                             rejectedReason: '',
                             rejectedBy: '',
                             lastUpdatedBy: body.employeeId,
-                            lastUpdatedOn:body.data.lastUpdatedOn,
+                            lastUpdatedOn: body.data.lastUpdatedOn || new Date().getTime(),
                             title: body.data.title,
                             sub_title: body.data.sub_title,
                             description: body.data.description,
@@ -411,6 +424,8 @@ const getNewsInfo = async (req, res) => {
 const dotenv = require('dotenv');
 const { DeleteObjectCommand, S3, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const reportersSchema = require('../modals/reportersSchema');
+const employeeTracing = require('../modals/employeeTracing');
 dotenv.config()
 
 const BUCKET_NAME = process.env.BUCKET_NAME
@@ -748,7 +763,7 @@ const getNewsList = async (req, res) => {
                                 tooltip: "Reject",
                                 key: "reject",
                                 class: "btn btn-danger",
-                                icon: "dangerous",
+                                icon: "bi bi-x-circle-fill",
                                 disable: {
                                     role: ['REPORTER']
                                 }
@@ -851,7 +866,7 @@ const getNewsList = async (req, res) => {
                                 tooltip: "Reject",
                                 key: "reject",
                                 class: "btn btn-danger",
-                                icon: "dangerous",
+                                icon: "bi bi-x-circle-fill",
                                 disable: {
                                     role: ['REPORTER']
                                 }
@@ -910,6 +925,802 @@ const getNewsList = async (req, res) => {
         })
     }
 }
+
+
+const fetchNewsListPending = async (req, res) => {
+    try {
+        let body = JSON.parse(JSON.stringify(req.body));
+
+        const recordsPerPage = req?.body?.count || 10;
+        const pageNumber = req?.body?.page || 1;
+        const skipRecords = (pageNumber - 1) * recordsPerPage;
+
+        console.log(recordsPerPage, skipRecords)
+
+        let employee = await reporterSchema.findOne({
+            employeeId: body.employeeId
+        });
+        if (!employee) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Cannot publish, contact your superior!'
+            });
+        } else {
+            if (employee.disabledUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Forbidden Access!'
+                });
+            } else if (!employee.activeUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
+                });
+            } else {
+
+                let responseData = {
+
+                    notApprovedNews: {
+                        "tableData": {
+                            "headerContent": [
+                                {
+                                    "label": "Title",
+                                    "key": "title"
+                                },
+                                {
+                                    "label": "Sub Title",
+                                    "key": "sub_title"
+                                }, {
+                                    "label": "State",
+                                    "key": "state"
+                                },
+                                {
+                                    "label": "District",
+                                    "key": "district"
+                                },
+                                {
+                                    "label": "Mandal",
+                                    "key": "mandal"
+                                },
+                                {
+                                    "label": "Created Date",
+                                    "key": "createdDate",
+                                    "type": "dataTimePipe"
+                                },
+                                {
+                                    "label": "Created By",
+                                    "key": "employeeId"
+                                },
+                                {
+                                    "label": "Last Updated On",
+                                    "key": "lastUpdatedOn",
+                                    "type": "dataTimePipe"
+                                },
+                                {
+                                    "label": "Last Updated By",
+                                    "key": "lastUpdatedBy"
+                                }
+                            ]
+                        }
+                    }
+                }
+
+                if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+
+                    console.log("TR")
+                    const ntApprovedLst = await newsDataSchema.find(
+                        {
+                            approved: false,
+                            rejected: false
+                        }
+                    )
+                        .sort({ newsId: -1 })
+                        .skip(skipRecords)
+                        .limit(recordsPerPage);
+                    const totalRecords = await newsDataSchema.countDocuments(
+                        {
+                            approved: false,
+                            rejected: false
+                        }
+                    );
+                    console.log(ntApprovedLst)
+                    responseData.notApprovedNews.tableData['bodyContent'] = await stateDistrictMapping(ntApprovedLst, []);
+                    responseData['notApprovedNews']['metaData'] = {
+                        title: "Pending News",
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "Approve",
+                                icon: "bi bi-check-square-fill text-success fs-4",
+                                key: "approve",
+                                // class: "btn btn-success",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Reject",
+                                key: "reject",
+                                // class: "btn text-danger",
+                                icon: "bi bi-x-circle-fill  text-danger fs-4",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Update",
+                                key: "update",
+                                // class: "btn btn-info",
+                                icon: "bi bi-pencil-square fs-4",
+                                // disable: {
+                                //     role: ['REPORTER']
+                                // }
+                            }
+                        ]
+                    }
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: { ...responseData, ...{ totalRecords: totalRecords } },
+
+                    });
+                }
+                else if (body.role === 'DISTRICT MANAGER') {
+
+
+                    const ntApprovedLst = await newsDataSchema.find(
+                        {
+                            approved: false,
+                            rejected: false,
+                            district: req.body.district
+                        },
+
+                    ).sort({ newsId: -1 }) // Sorting by newsId in descending order
+                        .skip(skipRecords) // Skipping records based on page number
+                        .limit(recordsPerPage); // Limiting records per page
+                    responseData.notApprovedNews.tableData['bodyContent'] = await stateDistrictMapping(ntApprovedLst, []);
+                    responseData['notApprovedNews']['metaData'] = {
+                        title: "Pending News",
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "Approve",
+                                icon: "bi bi-check-square-fill text-success fs-4",
+                                key: "approve",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Reject",
+                                key: "reject",
+                                // class: "btn btn-danger",
+                                icon: "bi bi-x-circle-fill  text-danger fs-4",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Update",
+                                key: "update",
+                                // class: "btn btn-info",
+                                icon: "bi bi-pencil-square fs-4",
+                                // disable: {
+                                //     role: ['REPORTER']
+                                // }
+                            }
+                        ]
+                    }
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: responseData
+                    });
+                } else if (body.role === 'REPORTER') {
+                    const ntApprovedLst = await newsDataSchema.find(
+                        {
+                            approved: false,
+                            rejected: false,
+                            source: "NETI CHARITHRA",
+                            "reportedBy.employeeId": req.body.employeeId// Replace this with the actual employeeId
+
+                        },
+
+                    ).sort({ newsId: -1 }) // Sorting by newsId in descending order
+                        .skip(skipRecords) // Skipping records based on page number
+                        .limit(recordsPerPage); // Limiting records per page
+                    responseData.notApprovedNews.tableData['bodyContent'] = await stateDistrictMapping(ntApprovedLst, []);
+                    responseData['notApprovedNews']['metaData'] = {
+                        title: "Pending News",
+                        "actions": [
+                            // {
+                            //     type: "button",
+                            //     tooltip: "Approve",
+                            //     icon: "bi bi-check-square-fill",
+                            //     key: "approve",
+                            //     class: "btn btn-success",
+                            //     disable: {
+                            //         role: ['REPORTER']
+                            //     }
+                            // },
+                            {
+                                type: "button",
+                                tooltip: "Reject",
+                                key: "reject",
+                                // class: "btn btn-danger",
+                                icon: "bi bi-x-circle-fill  text-danger fs-4",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Update",
+                                key: "update",
+                                // class: "btn btn-info",
+                                icon: "bi bi-pencil-square fs-4",
+                                // disable: {
+                                //     role: ['REPORTER']
+                                // }
+                            }
+                        ]
+                    }
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: responseData
+                    });
+                }
+
+            }
+        }
+    } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching News List`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Fetch News List ',
+            functionality: 'To Fetch News List ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while Processing..! ',
+            error: error
+        })
+    }
+}
+
+const fetchNewsListApproved = async (req, res) => {
+    try {
+        let body = JSON.parse(JSON.stringify(req.body));
+
+        const recordsPerPage = req?.body?.count || 10;
+        const pageNumber = req?.body?.page || 1;
+        const skipRecords = (pageNumber - 1) * recordsPerPage;
+
+        console.log(recordsPerPage, skipRecords)
+
+        let employee = await reporterSchema.findOne({
+            employeeId: body.employeeId
+        });
+        if (!employee) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Cannot publish, contact your superior!'
+            });
+        } else {
+            if (employee.disabledUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Forbidden Access!'
+                });
+            } else if (!employee.activeUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
+                });
+            } else {
+
+                let responseData = {
+
+                    approvedNews: {
+                        "tableData": {
+                            "headerContent": [
+                                {
+                                    "label": "Title",
+                                    "key": "title"
+                                },
+                                {
+                                    "label": "Sub Title",
+                                    "key": "sub_title"
+                                }, {
+                                    "label": "State",
+                                    "key": "state"
+                                },
+                                {
+                                    "label": "District",
+                                    "key": "district"
+                                },
+                                {
+                                    "label": "Mandal",
+                                    "key": "mandal"
+                                },
+                                {
+                                    "label": "Created Date",
+                                    "key": "createdDate",
+                                    "type": "dataTimePipe"
+                                },
+                                {
+                                    "label": "Created By",
+                                    "key": "employeeId"
+                                },
+                                {
+                                    "label": "Last Updated On",
+                                    "key": "lastUpdatedOn",
+                                    "type": "dataTimePipe"
+                                },
+                                {
+                                    "label": "Last Updated By",
+                                    "key": "lastUpdatedBy"
+                                }
+                            ]
+                        }
+                    }
+                }
+
+                if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+
+                    console.log("TR")
+                    const approvedList = await newsDataSchema.find(
+                        {
+                            approved: true,
+                            rejected: false
+                        }
+                    )
+                        .sort({ newsId: -1 })
+                        .skip(skipRecords)
+                        .limit(recordsPerPage);
+                    const totalRecords = await newsDataSchema.countDocuments(
+                        {
+                            approved: true,
+                            rejected: false
+                        }
+                    );
+                    console.log(approvedList)
+                    responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
+                    responseData['approvedNews']['metaData'] = {
+                        title: "Published News",
+                        "createNew": {
+                            type: "createNew",
+                            label: "Add News",
+                            icon: "add_circle",
+                            key: "createNew",
+                        },
+                        "headerExternalActions": [
+                            {
+                                type: "select",
+                                label: "External Link News",
+                                icon: "add_circle",
+                                key: "externalLink",
+                                options: [
+                                    "Andhra Jyothi"
+                                ]
+                            }
+                        ],
+
+                      
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "View",
+                                // icon: "visibility",
+                                key: "view",
+                                icon: "bi bi-eye-fill fs-4 text-secondary"
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Update",
+                                key: "update",
+                                // class: "btn btn-info",
+                                icon: "bi bi-pencil-square fs-4",
+                                // disable: {
+                                //     role: ['REPORTER']
+                                // }
+                            }
+                        ]
+                    }
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: { ...responseData, ...{ totalRecords: totalRecords } },
+
+                    });
+                }
+                else if (body.role === 'DISTRICT MANAGER') {
+
+
+                    const approvedList = await newsDataSchema.find(
+                        {
+                            approved: true,
+                            rejected: false,
+                            district: req.body.district
+                        },
+
+                    ).sort({ newsId: -1 }) // Sorting by newsId in descending order
+                        .skip(skipRecords) // Skipping records based on page number
+                        .limit(recordsPerPage); // Limiting records per page
+                    responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
+                    responseData['approvedNews']['metaData'] = {
+                        title: "Published News",
+                        "createNew": {
+                            type: "createNew",
+                            label: "Add News",
+                            icon: "add_circle",
+                            key: "createNew",
+                        },
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "View",
+                                // icon: "visibility",
+                                key: "view",
+                                icon: "bi bi-eye-fill fs-4 text-secondary"
+                            },
+                           
+                        ]
+                    }
+                 
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: responseData
+                    });
+                } else if (body.role === 'REPORTER') {
+                    const approvedList = await newsDataSchema.find(
+                        {
+                            approved: true,
+                            rejected: false,
+                            source: "NETI CHARITHRA",
+                            "reportedBy.employeeId": req.body.employeeId// Replace this with the actual employeeId
+
+                        },
+
+                    ).sort({ newsId: -1 }) // Sorting by newsId in descending order
+                        .skip(skipRecords) // Skipping records based on page number
+                        .limit(recordsPerPage); // Limiting records per page
+                    responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
+                    responseData['approvedNews']['metaData'] = {
+                        title: "Published News",
+                        "createNew": {
+                            type: "createNew",
+                            label: "Add News",
+                            icon: "add_circle",
+                            key: "createNew",
+                        },
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "View",
+                                // icon: "visibility",
+                                key: "view",
+                                icon: "bi bi-eye-fill fs-4 text-secondary"
+                            },
+                           
+                        ]
+                    }
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: responseData
+                    });
+                }
+
+            }
+        }
+    } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching News List`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Fetch News List ',
+            functionality: 'To Fetch News List ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while Processing..! ',
+            error: error
+        })
+    }
+}
+
+
+
+const fetchNewsListRejected = async (req, res) => {
+    try {
+        let body = JSON.parse(JSON.stringify(req.body));
+
+        const recordsPerPage = req?.body?.count || 10;
+        const pageNumber = req?.body?.page || 1;
+        const skipRecords = (pageNumber - 1) * recordsPerPage;
+
+        console.log(recordsPerPage, skipRecords)
+
+        let employee = await reporterSchema.findOne({
+            employeeId: body.employeeId
+        });
+        if (!employee) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Cannot publish, contact your superior!'
+            });
+        } else {
+            if (employee.disabledUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Forbidden Access!'
+                });
+            } else if (!employee.activeUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
+                });
+            } else {
+
+                let responseData = {
+
+                    rejectedNews: {
+                        "tableData": {
+                            "headerContent": [
+                                {
+                                    "label": "Title",
+                                    "key": "title"
+                                },
+                                {
+                                    "label": "Sub Title",
+                                    "key": "sub_title"
+                                }, {
+                                    "label": "State",
+                                    "key": "state"
+                                },
+                                {
+                                    "label": "District",
+                                    "key": "district"
+                                },
+                                {
+                                    "label": "Mandal",
+                                    "key": "mandal"
+                                },
+                                {
+                                    "label": "Created Date",
+                                    "key": "createdDate",
+                                    "type": "dataTimePipe"
+                                },
+                                {
+                                    "label": "Created By",
+                                    "key": "employeeId"
+                                },
+
+                                {
+                                    "label": "Rejected On",
+                                    "key": "rejectedOn",
+                                    "type": "dataTimePipe"
+                                },
+                                {
+                                    "label": "Rejected By",
+                                    "key": "rejectedBy"
+                                },
+                                {
+                                    "label": "Reason",
+                                    "key": "rejectedReason"
+                                },
+
+                            ]
+                        }
+                    }
+                }
+
+                if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+
+                    console.log("TR")
+                    const rejectedList = await newsDataSchema.find(
+                        {
+                            approved: false,
+                            rejected: true
+                        }
+                    )
+                        .sort({ newsId: -1 })
+                        .skip(skipRecords)
+                        .limit(recordsPerPage);
+                    const totalRecords = await newsDataSchema.countDocuments(
+                        {
+                            approved: false,
+                            rejected: true
+                        }
+                    );
+                    console.log(rejectedList)
+                    responseData.rejectedNews.tableData['bodyContent'] = await stateDistrictMapping(rejectedList, []);
+                    responseData['rejectedNews']['metaData'] = {
+                        title: "Published News",
+                        "createNew": {
+                            type: "createNew",
+                            label: "Add News",
+                            icon: "add_circle",
+                            key: "createNew",
+                        },
+                        "headerExternalActions": [
+                            {
+                                type: "select",
+                                label: "External Link News",
+                                icon: "add_circle",
+                                key: "externalLink",
+                                options: [
+                                    "Andhra Jyothi"
+                                ]
+                            }
+                        ],
+
+                      
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "View",
+                                // icon: "visibility",
+                                key: "view",
+                                icon: "bi bi-eye-fill fs-4 text-secondary"
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Approve",
+                                icon: "bi bi-check-square-fill text-success fs-4",
+                                key: "approve",
+                                // class: "btn btn-success",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                        ]
+                    }
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: { ...responseData, ...{ totalRecords: totalRecords } },
+
+                    });
+                }
+                else if (body.role === 'DISTRICT MANAGER') {
+
+
+                    const rejectedList = await newsDataSchema.find(
+                        {
+                            approved: false,
+                            rejected: true,
+                            district: req.body.district
+                        },
+
+                    ).sort({ newsId: -1 }) // Sorting by newsId in descending order
+                        .skip(skipRecords) // Skipping records based on page number
+                        .limit(recordsPerPage); // Limiting records per page
+                    responseData.rejectedNews.tableData['bodyContent'] = await stateDistrictMapping(rejectedList, []);
+                    responseData['rejectedNews']['metaData'] = {
+                        title: "Published News",
+                        "createNew": {
+                            type: "createNew",
+                            label: "Add News",
+                            icon: "add_circle",
+                            key: "createNew",
+                        },
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "View",
+                                // icon: "visibility",
+                                key: "view",
+                                icon: "bi bi-eye-fill fs-4 text-secondary"
+                            },
+                            {
+                                type: "button",
+                                tooltip: "Approve",
+                                icon: "bi bi-check-square-fill text-success fs-4",
+                                key: "approve",
+                                // class: "btn btn-success",
+                                disable: {
+                                    role: ['REPORTER']
+                                }
+                            },
+                           
+                        ]
+                    }
+                 
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: responseData
+                    });
+                } else if (body.role === 'REPORTER') {
+                    const rejectedList = await newsDataSchema.find(
+                        {
+                            approved: false,
+                            rejected: true,
+                            source: "NETI CHARITHRA",
+                            "reportedBy.employeeId": req.body.employeeId// Replace this with the actual employeeId
+
+                        },
+
+                    ).sort({ newsId: -1 }) // Sorting by newsId in descending order
+                        .skip(skipRecords) // Skipping records based on page number
+                        .limit(recordsPerPage); // Limiting records per page
+                    responseData.rejectedNews.tableData['bodyContent'] = await stateDistrictMapping(rejectedList, []);
+                    responseData['rejectedNews']['metaData'] = {
+                        title: "Published News",
+                        "createNew": {
+                            type: "createNew",
+                            label: "Add News",
+                            icon: "add_circle",
+                            key: "createNew",
+                        },
+                        "actions": [
+                            {
+                                type: "button",
+                                tooltip: "View",
+                                // icon: "visibility",
+                                key: "view",
+                                icon: "bi bi-eye-fill fs-4 text-secondary"
+                            },
+                            // {
+                            //     type: "button",
+                            //     tooltip: "Approve",
+                            //     icon: "bi bi-check-square-fill text-success fs-4",
+                            //     key: "approve",
+                            //     // class: "btn btn-success",
+                            //     disable: {
+                            //         role: ['REPORTER']
+                            //     }
+                            // },
+                           
+                        ]
+                    }
+
+                    res.status(200).json({
+                        status: "success",
+                        msg: 'News sent for approval..!',
+                        data: responseData
+                    });
+                }
+
+            }
+        }
+    } catch (error) {
+        const obj = await errorLogBookSchema.create({
+            message: `Error while Fetching News List`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Fetch News List ',
+            functionality: 'To Fetch News List ',
+            employeeId: req.body.employeeId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while Processing..! ',
+            error: error
+        })
+    }
+}
+
+
 
 const getAllEmployees = async (req, res) => {
     try {
@@ -1504,50 +2315,88 @@ function getPastSevenDays() {
 
     return pastSevenDays;
 }
+// Function to convert Date to start of day and end of day epoch timestamps
+const getEpochTimeRange = (date) => {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0); // Set to beginning of day
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999); // Set to end of day
+    return {
+        start: startOfDay.getTime(),
+        end: endOfDay.getTime()
+    };
+};
+function getMonthEpochs(year) {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const months = [];
+
+    const endMonth = (year === currentYear) ? currentMonth : 11;
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    for (let month = 0; month <= endMonth; month++) {
+        const startDate = new Date(year, month, 1, 0, 0, 0);
+        const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+        const startEpoch = startDate.getTime();
+        const endEpoch = endDate.getTime();
+
+        months.push({
+            month: monthNames[month], // Month name
+            startEpoch,
+            endEpoch
+        });
+    }
+
+    return months;
+}
+
+function getLast7Years(year) {
+    let baseYear = 2023;
+    const currentYear = year ? year : new Date().getFullYear();
+    const yearsData = [];
+
+    // Adjust the loop to start from baseYear and go to currentYear
+    for (let year = baseYear; year <= currentYear && yearsData.length < 7; year++) {
+        // Calculate epoch time for January 1st of the current year
+        const jan1Epoch = new Date(`${year}-01-01T00:00:00`).getTime();
+
+        // Calculate epoch time for December 31st of the current year
+        const dec31Epoch = new Date(`${year}-12-31T23:59:59`).getTime();
+
+        // Push the year data into the array
+        yearsData.push({
+            year: year,
+            startEpoch: jan1Epoch,
+            endEpoch: dec31Epoch
+        });
+    }
+
+    return yearsData;
+}
+
 
 // Example usage:
 
-const fetchDashboardV2 = async (req, res) => {
+const newsReportChart = async (req, res) => {
 
     try {
 
         let reqPayloadData = req.body;
 
 
+        let responseJSON = {}
+        if (reqPayloadData.data.reportType === 'Recent') {
+            let dates = await getPastSevenDays();
 
-        if (reqPayloadData.data.reportType === 'recent') {
-            // let dates = await getPastSevenDays();
 
 
-
-            // Static list of dates
-            const dates = [
-                "2024-07-12",
-                // "2024-07-11",
-                // "2024-07-10",
-                // "2024-07-09",
-                // "2024-07-08",
-                // "2024-07-07",
-                // "2024-07-06"
-            ];
-
-            // Function to convert Date to start of day and end of day epoch timestamps
-            const getEpochTimeRange = (date) => {
-                const startOfDay = new Date(date);
-                startOfDay.setHours(0, 0, 0, 0); // Set to beginning of day
-                const endOfDay = new Date(date);
-                endOfDay.setHours(23, 59, 59, 999); // Set to end of day
-                return {
-                    start: startOfDay.getTime(),
-                    end: endOfDay.getTime()
-                };
-            };
-            console.log("D!",getEpochTimeRange("2024-07-12"))
 
             // Build aggregation pipeline for each date
             const pipelines = dates.map(date => {
                 const { start, end } = getEpochTimeRange(date);
-                return [
+                let pipe = [
                     {
                         $match: {
                             createdDate: { $gte: start, $lte: end }
@@ -1556,18 +2405,27 @@ const fetchDashboardV2 = async (req, res) => {
                     {
                         $group: {
                             _id: null,
-                            approved: { $sum: { $cond: [{ $ne: ["$approvedOn", null] }, 1, 0] } },
+                            approved: {
+                                $sum: { $cond: [{ $ne: ["$approvedOn", null] }, 1, 0] }
+                            },
+                            rejected: {
+                                $sum: { $cond: [{ $ne: ["$rejectedOn", null] }, 1, 0] }
+                            },
                             pending: {
                                 $sum: {
                                     $cond: [
-                                        { $and: [{ $eq: ["$approvedOn", null] }, { $eq: ["$rejectedOn", null] }] },
+                                        {
+                                            $and: [
+                                                { $eq: ["$approvedOn", null] },
+                                                { $eq: ["$rejectedOn", null] }
+                                            ]
+                                        },
                                         1,
                                         0
                                     ]
                                 }
                             },
-                          
-                            rejected: { $sum: { $cond: [{ $ne: ["$rejectedOn", null] }, 1, 0] } }
+                            total: { $sum: 1 }
                         }
                     },
                     {
@@ -1579,7 +2437,53 @@ const fetchDashboardV2 = async (req, res) => {
                             rejected: 1
                         }
                     }
+
+
                 ];
+                // let pipe= [
+                //     {
+                //         $match: {
+                //             createdDate: { $gte: start, $lte: end }
+                //         }
+                //     },
+                //     {
+                //         $group: {
+                //             _id: null,
+                //             approved: { $sum: { $cond: [{ $ne: ["$approvedOn", null] }, 1, 0] } },
+                //             // approved: { $sum: { $cond: [{ $eq: ["$approvedOn", null], $eq: ["$rejectedOn", null] }, 1, 0] } },
+
+                //             pending: {
+                //                 $sum: {
+                //                     $cond: [
+                //                         { $and: [{ $eq: ["$approvedOn", null] }, { $eq: ["$rejectedOn", null] }] },
+                //                         1,
+                //                         0
+                //                     ]
+                //                 }
+                //             },
+                //             rejected: { $sum: { $cond: [{ $ne: ["$rejectedOn", null] }, 1, 0] } }
+                //         }
+                //     },
+                //     {
+                //         $project: {
+                //             _id: 0,
+                //             date: { $toDate: start }, // Use start of day as the date for consistent output
+                //             approved: 1,
+                //             pending: 1,
+                //             rejected: 1
+                //         }
+                //     }
+                // ];
+                if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
+                } else
+                    if (req.body.role === 'DISTRICT MANAGER' || req.body.role === 'ADVERTISEMENT MANAGER') {
+                        pipe[0].$match['district'] = req.body.district
+
+                    } else {
+                        pipe[0].$match['employeeId'] = req.body.employeeId // Replace with the desired district value
+
+                    }
+                return pipe
             });
 
             // Execute all pipelines concurrently
@@ -1595,15 +2499,405 @@ const fetchDashboardV2 = async (req, res) => {
                 rejected: result.length > 0 ? result[0].rejected : 0
             }));
 
+            // Prepare response in the desired format
+            const response = {
+                xLabel: reports.map(report => report.date),
+                approved: reports.map(report => report.approved),
+                pending: reports.map(report => report.pending),
+                rejected: reports.map(report => report.rejected)
+            };
+
+
+            responseJSON = response
             // Respond with reports
-            res.status(200).json({
-                status: "success",
-                reports: reports,pipelineResults:pipelineResults
-            });
-          
+
+
+        } else if (reqPayloadData.data.reportType === 'Monthly') {
+
+
+            let months = await getMonthEpochs(reqPayloadData.data.year);
+
+
+            const insidePipeMatch = (month) => {
+                let insidePipeMatchResp = {
+                    createdDate: { $gte: month.startEpoch, $lte: month.endEpoch }
+                }
+                if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
+                } else
+                    if (req.body.role === 'DISTRICT MANAGER' || req.body.role === 'ADVERTISEMENT MANAGER') {
+                        insidePipeMatchResp['district'] = req.body.district
+
+                    } else {
+                        insidePipeMatchResp['employeeId'] = req.body.employeeId // Replace with the desired district value
+
+                    }
+                return insidePipeMatchResp
+            }
+
+
+            let pipeline = [
+                {
+                    $facet: Object.fromEntries(months.map(month => [
+                        month.month,
+                        [
+                            {
+                                $match: insidePipeMatch(month)
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    approved: {
+                                        $sum: { $cond: [{ $ne: ["$approvedOn", null] }, 1, 0] }
+                                    },
+                                    rejected: {
+                                        $sum: { $cond: [{ $ne: ["$rejectedOn", null] }, 1, 0] }
+                                    },
+                                    pending: {
+                                        $sum: {
+                                            $cond: [
+                                                {
+                                                    $and: [
+                                                        { $eq: ["$approvedOn", null] },
+                                                        { $eq: ["$rejectedOn", null] }
+                                                    ]
+                                                },
+                                                1,
+                                                0
+                                            ]
+                                        }
+                                    },
+                                    total: { $sum: 1 }
+                                }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    approved: 1,
+                                    rejected: 1,
+                                    pending: 1,
+                                    total: 1
+                                }
+                            }
+                        ]
+                    ]))
+                },
+                {
+                    $project: {
+                        xLabel: months.map(m => m.month),
+                        approved: months.map(m => ({
+                            $ifNull: [{ $arrayElemAt: [`$${m.month}.approved`, 0] }, 0]
+                        })),
+                        pending: months.map(m => ({
+                            $ifNull: [{ $arrayElemAt: [`$${m.month}.pending`, 0] }, 0]
+                        })),
+                        rejected: months.map(m => ({
+                            $ifNull: [{ $arrayElemAt: [`$${m.month}.rejected`, 0] }, 0]
+                        })),
+                        total: months.map(m => ({
+                            $ifNull: [{ $arrayElemAt: [`$${m.month}.total`, 0] }, 0]
+                        }))
+                    }
+                }
+            ];
+            const result = await newsDataSchema.aggregate(pipeline);
+
+
+            responseJSON = result[0]
+
+
+
+        } else if (reqPayloadData.data.reportType === 'Yearly') {
+
+
+            let years = getLast7Years()
+
+
+            const insidePipeMatch = (month) => {
+                let insidePipeMatchResp = {
+                    createdDate: { $gte: month.startEpoch, $lte: month.endEpoch }
+                }
+                if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
+                } else
+                    if (req.body.role === 'DISTRICT MANAGER' || req.body.role === 'ADVERTISEMENT MANAGER') {
+                        insidePipeMatchResp['district'] = req.body.district
+
+                    } else {
+                        insidePipeMatchResp['employeeId'] = req.body.employeeId // Replace with the desired district value
+
+                    }
+                return insidePipeMatchResp
+            }
+
+
+
+
+            const pipeline = [
+                {
+                    $facet: Object.fromEntries(years.map(month => [
+                        month.year,
+                        [
+                            {
+                                $match: insidePipeMatch(month)
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    approved: {
+                                        $sum: { $cond: [{ $ne: ["$approvedOn", null] }, 1, 0] }
+                                    },
+                                    rejected: {
+                                        $sum: { $cond: [{ $ne: ["$rejectedOn", null] }, 1, 0] }
+                                    },
+                                    pending: {
+                                        $sum: {
+                                            $cond: [
+                                                {
+                                                    $and: [
+                                                        { $eq: ["$approvedOn", null] },
+                                                        { $eq: ["$rejectedOn", null] }
+                                                    ]
+                                                },
+                                                1,
+                                                0
+                                            ]
+                                        }
+                                    },
+                                    total: { $sum: 1 }
+                                }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    approved: 1,
+                                    rejected: 1,
+                                    pending: 1,
+                                    total: 1
+                                }
+                            }
+                        ]
+                    ]))
+                },
+                {
+                    $project: {
+                        xLabel: years.map(m => m.year),
+                        approved: years.map(m => ({
+                            $ifNull: [{ $arrayElemAt: [`$${m.year}.approved`, 0] }, 0]
+                        })),
+                        pending: years.map(m => ({
+                            $ifNull: [{ $arrayElemAt: [`$${m.year}.pending`, 0] }, 0]
+                        })),
+                        rejected: years.map(m => ({
+                            $ifNull: [{ $arrayElemAt: [`$${m.year}.rejected`, 0] }, 0]
+                        })),
+                        total: years.map(m => ({
+                            $ifNull: [{ $arrayElemAt: [`$${m.year}.total`, 0] }, 0]
+                        }))
+                    }
+                }
+            ];
+            const result = await newsDataSchema.aggregate(pipeline);
+
+
+            responseJSON = result[0]
         }
 
+        res.status(200).json({
+            status: "success",
+            reports: responseJSON
+        });
         // console.log(reqPayloadData)
+
+    } catch (error) {
+
+        // const obj = await errorLogBookSchema.create({
+        //     message: `Error while Fetching Dashboard`,
+        //     stackTrace: JSON.stringify([...error.stack].join('/n')),
+        //     page: 'Fetch Dashboard ',
+        //     functionality: 'To Fetch Dashboard ',
+        //     employeeId: req.body.employeeId || '',
+        //     errorMessage: `${JSON.stringify(error) || ''}`
+        // })
+        console.log(error)
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while processing..! ',
+            error: error
+        })
+
+    }
+}
+
+const overallNewsReport = async (req, res) => {
+
+    try {
+
+
+        let pipeline = [
+            { $match: {} },
+            {
+                $group: {
+                    _id: null,
+                    pending: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $eq: ["$approvedOn", null] },
+                                        { $eq: ["$rejectedOn", null] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    approved: {
+                        $sum: {
+                            $cond: [{ $ne: ["$approvedOn", null] }, 1, 0]
+                        }
+                    },
+                    rejected: {
+                        $sum: {
+                            $cond: [{ $ne: ["$rejectedOn", null] }, 1, 0]
+                        }
+                    },
+                    total: { $sum: 1 }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    pending: 1,
+                    approved: 1,
+                    rejected: 1,
+                    total: 1
+                }
+            }
+        ]
+
+        if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
+        } else
+            if (req.body.role === 'DISTRICT MANAGER' || req.body.role === 'ADVERTISEMENT MANAGER') {
+                pipeline[0]['$match']['district'] = req.body.district
+
+            } else {
+                pipeline[0]['$match']['employeeId'] = req.body.employeeId // Replace with the desired district value
+
+            }
+        const result = await newsDataSchema.aggregate(pipeline);
+
+
+        res.status(200).json({
+            status: "success",
+            // reports: responseJSON
+            result: result[0] || { pending: 0, approved: 0, rejected: 0, total: 0 }
+        });
+
+    } catch (error) {
+
+        // const obj = await errorLogBookSchema.create({
+        //     message: `Error while Fetching Dashboard`,
+        //     stackTrace: JSON.stringify([...error.stack].join('/n')),
+        //     page: 'Fetch Dashboard ',
+        //     functionality: 'To Fetch Dashboard ',
+        //     employeeId: req.body.employeeId || '',
+        //     errorMessage: `${JSON.stringify(error) || ''}`
+        // })
+        console.log(error)
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while processing..! ',
+            error: error
+        })
+
+    }
+}
+
+const moment = require('moment-timezone');
+
+const getEmployeeActiveCount = async (req, res) => {
+
+    try {
+
+
+
+        console.log("a")
+        // const currentDate = new Date().setHours(0, 0, 0, 0); // Start of the current day
+
+        const employeeIds = await reportersSchema.find({}, 'employeeId').lean();
+        let list = employeeIds.map(employee => employee.employeeId);
+
+        // const { employeeIds } = req.body;
+
+        if (!employeeIds || !Array.isArray(employeeIds) || employeeIds.length === 0) {
+            return res.status(400).json({ error: 'Invalid or empty employeeIds array' });
+        }
+
+
+        const currentDate = new Date().getTime(); // Current date in epoch seconds
+
+        const result = await employeeTracing.aggregate([
+            {
+                $match: {
+                    employeeId: { $in: list }
+                }
+            },
+            {
+                $group: {
+                    _id: "$employeeId",
+                    isActive: {
+                        $max: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $lte: ["$startDate", currentDate] },
+                                        { $gte: ["$endDate", currentDate] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    activeCount: { $sum: "$isActive" },
+                    inactiveCount: { $sum: { $cond: [{ $eq: ["$isActive", 0] }, 1, 0] } },
+                    processedCount: { $sum: 1 }
+                }
+            }
+        ]);
+
+        let activeCount = 0;
+        let inactiveCount = 0;
+        let notFoundCount = 0;
+
+        if (result.length > 0) {
+            activeCount = result[0].activeCount;
+            inactiveCount = result[0].inactiveCount;
+            notFoundCount = list.length - result[0].processedCount;
+        } else {
+            notFoundCount = list.length;
+        }
+
+        let obj = {
+            activeCount,
+            inactiveCount,
+            notFoundCount
+        };
+
+
+        // let reso = await employeeTracing.find()
+        // res.json(employeeStatuses);
+
+
+        res.status(200).json({
+            status: "success",
+            data: obj,
+        });
 
     } catch (error) {
 
@@ -2656,5 +3950,8 @@ module.exports = {
     publishNews,
     fetchDashboard, deleteS3Images, getFileTempUrls3,
     addSubscribers,
-    getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getAllEmployeesV2, getNewsInfo, addSubscriberToGroup, fetchDashboardV2
+    getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getAllEmployeesV2, getNewsInfo, addSubscriberToGroup,
+
+
+    newsReportChart, overallNewsReport, getEmployeeActiveCount, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected
 }
