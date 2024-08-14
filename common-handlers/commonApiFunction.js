@@ -93,9 +93,9 @@ const reporterLogin = async (req, res) => {
                 let tokesns = await metaDataSchema.findOne({ type: "FCM_TOKENS" });
 
 
-                if(userDataCopy?.profilePicture?.fileName){
-                   let url = await getFileTempUrls3(userDataCopy?.profilePicture.fileName);
-                   userDataCopy['profilePicture']['tempURL'] = url
+                if (userDataCopy?.profilePicture?.fileName) {
+                    let url = await getFileTempUrls3(userDataCopy?.profilePicture.fileName);
+                    userDataCopy['profilePicture']['tempURL'] = url
                 }
 
 
@@ -237,7 +237,7 @@ const publishNews = async (req, res) => {
                         task: task
                     });
                 } else if (body.type === 'approve') {
-                    console.log(   {
+                    console.log({
                         approved: true,
                         approvedBy: body.employeeId,
                         approvedOn: body?.data?.approvedOn || new Date().getTime(),
@@ -1316,7 +1316,7 @@ const fetchNewsListApproved = async (req, res) => {
                             }
                         ],
 
-                      
+
                         "actions": [
                             {
                                 type: "button",
@@ -1375,10 +1375,10 @@ const fetchNewsListApproved = async (req, res) => {
                                 key: "view",
                                 icon: "bi bi-eye-fill fs-4 text-secondary"
                             },
-                           
+
                         ]
                     }
-                 
+
 
                     res.status(200).json({
                         status: "success",
@@ -1415,7 +1415,7 @@ const fetchNewsListApproved = async (req, res) => {
                                 key: "view",
                                 icon: "bi bi-eye-fill fs-4 text-secondary"
                             },
-                           
+
                         ]
                     }
 
@@ -1571,7 +1571,7 @@ const fetchNewsListRejected = async (req, res) => {
                             }
                         ],
 
-                      
+
                         "actions": [
                             {
                                 type: "button",
@@ -1640,10 +1640,10 @@ const fetchNewsListRejected = async (req, res) => {
                                     role: ['REPORTER']
                                 }
                             },
-                           
+
                         ]
                     }
-                 
+
 
                     res.status(200).json({
                         status: "success",
@@ -1690,7 +1690,7 @@ const fetchNewsListRejected = async (req, res) => {
                             //         role: ['REPORTER']
                             //     }
                             // },
-                           
+
                         ]
                     }
 
@@ -3445,6 +3445,486 @@ const getEmployeesData = async (req, res) => {
     }
 }
 
+const getEmployeesDataV2 = async (req, res) => {
+    try {
+        let body = JSON.parse(JSON.stringify(req.body));
+        let employee = await reporterSchema.findOne({
+            employeeId: body.employeeId
+        });
+        if (!employee) {
+            res.status(200).json({
+                status: "failed",
+                msg: 'Cannot process, contact your superior!'
+            });
+        } else {
+            if (employee.disabledUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Forbidden Access!'
+                });
+            } else if (!employee.activeUser) {
+                return res.status(200).json({
+                    status: "failed",
+                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
+                });
+            } else {
+
+
+                const page = req?.body?.page || 1;
+                const limit = req?.body?.count || 5;
+
+
+                const skip = (page - 1) * limit;
+
+                console.log("skip", skip)
+                let pipeline = [
+                    // Match stage (for filtering)
+                    { $match: {} },
+                    {
+                        $addFields: {
+                            parts: { $split: ["$employeeId", "-"] }
+                        }
+                    },
+                    {
+                        $addFields: {
+                            part1: { $arrayElemAt: ["$parts", 0] },
+                            part2: { $arrayElemAt: ["$parts", 1] },
+                            numericPart: { $toInt: { $arrayElemAt: ["$parts", 2] } }
+                        }
+                    },
+                    {
+                        $facet: {
+                            metadata: [{ $count: "total" }],
+                            data: [
+                                { $sort: { part2: 1, numericPart: 1 } },
+                                { $skip: skip },
+                                { $limit: limit }
+                            ]
+                        }
+                    },
+                    {
+                        $sort: { part2: 1, numericPart: 1 }
+                    },
+                    // Sort stage
+                    // { $sort: { employeeId: -1 } },
+
+                    // Pagination
+                    // { $skip: skip },
+                    // { $limit: limit }
+                ];
+
+
+
+                if (req?.body?.action?.toLowerCase() === 'active') {
+
+                    pipeline[0]['$match'] = {
+                        activeUser: true,
+                        disabledUser: false
+                    }
+
+                } else if (req?.body?.action?.toLowerCase() === 'inactive') {
+                    pipeline[0]['$match'] = {
+                        activeUser: false,
+                        disabledUser: false
+                    }
+
+                } else if (req?.body?.action?.toLowerCase() === 'disabled') {
+                    pipeline[0]['$match'] = {
+                        disabledUser: true
+                    }
+                }
+                let headerContent = [
+                    {
+                        "label": "Employee Name",
+                        "key": "name"
+                    },
+                    {
+                        "label": "Employee Id",
+                        "key": "employeeId"
+                    }, {
+                        "label": "Role",
+                        "key": "role"
+                    },
+                    {
+                        "label": "Mobile Number",
+                        "key": "mobile"
+                    },
+                    {
+                        "label": "Email",
+                        "key": "mail"
+                    },
+                    {
+                        "label": "State",
+                        "key": "state"
+                    },
+                    {
+                        "label": "District",
+                        "key": "district"
+                    },
+                    {
+                        "label": "Mandal",
+                        "key": "mandal"
+                    },
+                    {
+                        "label": "Identity Verification Status",
+                        "key": "identityVerificationStatus",
+                        "style": {
+                            "min-width": "20rem"
+                        }
+                    }
+                ]
+                let metaData = {}
+
+                let responseData = {
+                    activeEmployees: {
+                        "tableData": {
+
+                            "headerContent": [
+                                {
+                                    "label": "Employee Name",
+                                    "key": "name"
+                                },
+                                {
+                                    "label": "Employee Id",
+                                    "key": "employeeId"
+                                }, {
+                                    "label": "Role",
+                                    "key": "role"
+                                },
+                                {
+                                    "label": "Mobile Number",
+                                    "key": "mobile"
+                                },
+                                {
+                                    "label": "Email",
+                                    "key": "mail"
+                                },
+                                {
+                                    "label": "State",
+                                    "key": "state"
+                                },
+                                {
+                                    "label": "District",
+                                    "key": "district"
+                                },
+                                {
+                                    "label": "Mandal",
+                                    "key": "mandal"
+                                },
+                                {
+                                    "label": "Identity Verification Status",
+                                    "key": "identityVerificationStatus"
+                                }
+                            ]
+                        }
+                    },
+                    inActiveEmployees: {
+                        "tableData": {
+                            "headerContent": [
+                                {
+                                    "label": "Employee Name",
+                                    "key": "name"
+                                },
+                                {
+                                    "label": "Employee Id",
+                                    "key": "employeeId"
+                                }, {
+                                    "label": "Role",
+                                    "key": "role"
+                                },
+                                {
+                                    "label": "Mobile Number",
+                                    "key": "mobile"
+                                },
+                                {
+                                    "label": "Email",
+                                    "key": "mail"
+                                },
+                                {
+                                    "label": "State",
+                                    "key": "state"
+                                },
+                                {
+                                    "label": "District",
+                                    "key": "district"
+                                },
+                                {
+                                    "label": "Mandal",
+                                    "key": "mandal"
+                                }
+                            ]
+                        }
+                    },
+                    disabledEmployees: {
+                        "tableData": {
+                            "headerContent": [
+                                {
+                                    "label": "Employee Name",
+                                    "key": "name"
+                                },
+                                {
+                                    "label": "Employee Id",
+                                    "key": "employeeId"
+                                }, {
+                                    "label": "Role",
+                                    "key": "role"
+                                },
+                                {
+                                    "label": "Mobile Number",
+                                    "key": "mobile"
+                                },
+                                {
+                                    "label": "Email",
+                                    "key": "mail"
+                                },
+                                {
+                                    "label": "State",
+                                    "key": "state"
+                                },
+                                {
+                                    "label": "District",
+                                    "key": "district"
+                                },
+                                {
+                                    "label": "Mandal",
+                                    "key": "mandal"
+                                }
+                            ]
+
+                        }
+                    }
+                }
+                if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
+
+
+
+                    if (req?.body?.action?.toLowerCase() === 'active') {
+                        console.log("CAME HERE")
+                        metaData = {
+                            title: "Active Employees",
+                            "actions": [
+                                {
+                                    type: "button",
+                                    tooltip: "Edit",
+                                    icon: "bi bi-pencil-square",
+
+                                    key: "edit",
+                                    class: "btn btn-success"
+                                },
+                                {
+                                    type: "button",
+                                    tooltip: "In Active",
+                                    icon: "bi bi-person-exclamation",
+                                    key: "inactive",
+                                    class: "btn btn-dark"
+                                },
+                                {
+                                    type: "button",
+                                    tooltip: "Disable",
+                                    key: "disable",
+                                    class: "btn btn-danger",
+                                    icon: "bi bi-person-slash",
+                                },
+                                {
+                                    type: "button",
+                                    tooltip: "Verify Identity",
+                                    key: "verify_identity",
+                                    class: "btn btn-outline-primary",
+                                    icon: "bi bi-person-check-fill",
+                                }
+                            ],
+                            "createNew": {
+                                type: "createNew",
+                                label: "Add Employee",
+                                icon: "add_circle",
+                                key: "createNew",
+                            }
+                        },
+                            console.log("CAME HERE", metaData)
+
+                    } else
+
+                        if (req?.body?.action?.toLowerCase() === 'inactive') {
+                            metaData = {
+                                title: "In Active Employees",
+                                "actions": [
+                                    {
+                                        type: "button",
+                                        tooltip: "Edit",
+                                        icon: "bi bi-pencil-square",
+                                        key: "edit",
+                                        class: "btn btn-success"
+                                    },
+                                    {
+                                        type: "button",
+                                        tooltip: "Active",
+                                        key: "active",
+                                        class: "btn btn-success",
+                                        icon: "bi bi-person-plus-fill",
+
+                                    },
+                                    {
+                                        type: "button",
+                                        tooltip: "Disable",
+                                        key: "disable",
+                                        class: "btn btn-danger",
+                                        icon: "bi bi-person-slash",
+                                    }
+                                ]
+                            }
+                        } else
+
+                            if (req?.body?.action?.toLowerCase() === 'disabled') {
+                                metaData = {
+                                    title: "Disabled Employees",
+                                    "actions": [
+                                        {
+                                            type: "button",
+                                            tooltip: "Enable",
+                                            key: "enable",
+                                            class: "btn btn-primary",
+                                            icon: "bi bi-person-plus-fill",
+                                        }
+                                    ]
+                                }
+                            }
+
+
+                    if (req.body.role === 'INCHARGE DIRECTOR') {
+                        for (let index = 0; index < metaData['actions'].length; index++) {
+                            metaData['actions'][index]['disable'] = {
+                                role: ['CEO', 'INCHARGE DIRECTOR']
+                            }
+                        }
+
+                    }
+
+
+
+                } else if (req.body.role === 'DISTRICT MANAGER' || req.body.role === 'ADVERTISEMENT MANAGER') {
+
+
+                    // ACTIONS BELOW
+                    if (req?.body?.action?.toLowerCase() === 'active') {
+
+                        metaData = {
+                            title: "Active Employees",
+                            "actions": [
+                                {
+                                    type: "button",
+                                    tooltip: "In Active",
+                                    icon: "bi bi-person-exclamation",
+                                    key: "inactive",
+                                    class: "btn btn-dark",
+                                    disable: {
+                                        role: ['CEO', 'INCHARGE DIRECTOR', 'DISTRICT MANAGER', 'ADVERTISEMENT MANAGER']
+                                    }
+                                },
+                                {
+                                    type: "button",
+                                    tooltip: "Disable",
+                                    key: "disable",
+                                    class: "btn btn-danger",
+                                    icon: "bi bi-person-slash",
+                                    disable: {
+                                        role: ['CEO', 'INCHARGE DIRECTOR', 'DISTRICT MANAGER', 'ADVERTISEMENT MANAGER']
+                                    }
+                                }
+                            ],
+                            "createNew": {
+                                type: "createNew",
+                                label: "Add Employee",
+                                icon: "add_circle",
+                                key: "createNew",
+                            }
+                        }
+                    } else if (req?.body?.action?.toLowerCase() === 'inactive') {
+
+                        metaData = {
+                            title: "In Active Employees",
+                            "actions": [
+                                {
+                                    type: "button",
+                                    tooltip: "Active",
+                                    key: "active",
+                                    class: "btn btn-success",
+                                    icon: "bi bi-person-plus-fill",
+                                    disable: {
+                                        role: ['CEO', 'INCHARGE DIRECTOR', 'DISTRICT MANAGER', 'ADVERTISEMENT MANAGER']
+                                    }
+                                },
+                                {
+                                    type: "button",
+                                    tooltip: "Disable",
+                                    key: "disable",
+                                    class: "btn btn-danger",
+                                    icon: "bi bi-person-slash",
+                                    disable: {
+                                        role: ['CEO', 'INCHARGE DIRECTOR', 'DISTRICT MANAGER', 'ADVERTISEMENT MANAGER']
+                                    }
+                                }
+                            ]
+                        }
+                    } else if (req?.body?.action?.toLowerCase() === 'disabled') {
+                        metaData = {
+                            title: "Disabled Employees",
+                            "actions": [
+                                {
+                                    type: "button",
+                                    tooltip: "Enable",
+                                    key: "enable",
+                                    class: "btn btn-primary",
+                                    icon: "bi bi-person-plus-fill",
+                                    disable: {
+                                        role: ['CEO', 'INCHARGE DIRECTOR', 'DISTRICT MANAGER', 'ADVERTISEMENT MANAGER']
+                                    }
+                                }
+                            ]
+                        }
+                    }
+
+
+
+                } else if (req.body.role === 'REPORTER') {
+
+
+                    res.status(200).json({
+                        status: "failed",
+                        msg: 'No Access...!'
+                    });
+                }
+
+
+                let resp = await reporterSchema.aggregate(pipeline)
+
+                let metaDataFinal = resp[0]?.['metadata'] || {}
+
+                res.status(200).json({
+                    status: "success",
+                    data: { ...resp[0], ...{ header: headerContent, metadata: { ...metaData, ...metaDataFinal } } }
+                });
+
+
+            }
+        }
+    } catch (error) {
+        // const obj = await errorLogBookSchema.create({
+        //     message: `Error while Listing Employees Data`,
+        //     stackTrace: JSON.stringify([...error.stack].join('/n')),
+        //     page: 'Fetch Employees Data ',
+        //     functionality: 'To Fetch Employees Data ',
+        //     employeeId: req.body.employeeId || '',
+        //     errorMessage: `${JSON.stringify(error) || ''}`
+        // })
+        console.error(error)
+        res.status(200).json({
+            error: error,
+            status: "failed",
+            msg: 'Error while processing..!'
+        })
+    }
+}
+
 const manipulateEmployee = async (req, res) => {
     try {
 
@@ -3953,5 +4433,5 @@ module.exports = {
     getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData, getNewsList, getAllEmployees, getAllEmployeesV2, getNewsInfo, addSubscriberToGroup,
 
 
-    newsReportChart, overallNewsReport, getEmployeeActiveCount, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected
+    newsReportChart, overallNewsReport, getEmployeeActiveCount, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getEmployeesDataV2
 }

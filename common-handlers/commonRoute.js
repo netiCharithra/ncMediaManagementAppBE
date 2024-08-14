@@ -1,5 +1,5 @@
 const express = require('express')
-const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboard, addSubscribers, getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData,
+const { registerReporter, reporterLogin, getMetaData, publishNews, fetchDashboard, addSubscribers, getSubscribers, getEmployeesData, manipulateEmployee, getEmployeeData,getEmployeesDataV2,
     getNewsInfo, deleteS3Images,
     getNewsList, getAllEmployees, addSubscriberToGroup, getAllEmployeesV2, newsReportChart, 
     overallNewsReport, getEmployeeActiveCount, fetchNewsListPending,
@@ -34,6 +34,7 @@ router.route('/addSubscribers').post(addSubscribers);
 router.route('/addSubscriberToGroup').post(addSubscriberToGroup);
 router.route('/getSubscribers').post(getSubscribers);
 router.route('/getEmployeesData').post(getEmployeesData);
+router.route('/getEmployeesDataV2').post(getEmployeesDataV2);
 router.route('/manipulateEmployee').post(manipulateEmployee);
 router.route('/getEmployeeData').post(getEmployeeData);
 router.route('/getNewsList').post(getNewsList);
