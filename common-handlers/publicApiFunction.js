@@ -1570,7 +1570,7 @@ const getAllNews = async (req, res) => {
     }
 }
 
-const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+// const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const requestPublicOTP = async (req, res) => {
     try {
@@ -1579,36 +1579,36 @@ const requestPublicOTP = async (req, res) => {
         //     "mobileNumber": 8317513201,
         //     "countryCode":"+91"
         // }
-        let obj = {
-            otp: generateOTP(6),
-            mobileNumber: req.body.phoneNumber,
-            countryCode: req.body.countryCode
-        }
-        let resp = await otpTrackingSchema.create(obj);
+        // let obj = {
+        //     otp: generateOTP(6),
+        //     mobileNumber: req.body.phoneNumber,
+        //     countryCode: req.body.countryCode
+        // }
+        // let resp = await otpTrackingSchema.create(obj);
 
-        client.messages
-            .create({
-                body: `${obj.otp} is your OTP to validate in NC Media mobile App \n OTP Expires in 10 minutes. \n Team - NC Media`,
-                from: '+1 251 572 1321', // Replace with your alphanumeric sender ID
-                to: req.body.countryCode + req.body.phoneNumber
-            })
-            .then(message => {
+        // client.messages
+        //     .create({
+        //         body: `${obj.otp} is your OTP to validate in NC Media mobile App \n OTP Expires in 10 minutes. \n Team - NC Media`,
+        //         from: '+1 251 572 1321', // Replace with your alphanumeric sender ID
+        //         to: req.body.countryCode + req.body.phoneNumber
+        //     })
+        //     .then(message => {
 
-                res.status(200).json({
-                    status: "success",
-                    step: "otp",
-                    message: `OTP Sent to your mobile.. Validate with OTP`,
-                    msg: message
-                })
-            })
-            .catch(error => {
-                console.error(error)
-                res.status(200).json({
-                    status: "failed",
+        //         res.status(200).json({
+        //             status: "success",
+        //             step: "otp",
+        //             message: `OTP Sent to your mobile.. Validate with OTP`,
+        //             msg: message
+        //         })
+        //     })
+        //     .catch(error => {
+        //         console.error(error)
+        //         res.status(200).json({
+        //             status: "failed",
 
-                    message: `Something went wrong`,
-                })
-            });
+        //             message: `Something went wrong`,
+        //         })
+        //     });
 
 
 
@@ -1631,6 +1631,7 @@ const requestPublicOTP = async (req, res) => {
         });
     }
 }
+
 const validateUserOTP = async (req, res) => {
     try {
         const data = JSON.parse(JSON.stringify(req.body));
@@ -2080,7 +2081,7 @@ async function updateTempURLs(dataCopy) {
 }
 const getNewsInfoV2 = async (req, res) => {
     try {
-        console.log("CALL FROM MBILE")
+        console.log("CALL FROM MBILE 2")
         console.log(req.body)
 
         let aggregationPipeline = [
@@ -2143,6 +2144,7 @@ const getLatestNewsV2 = async (req, res) => {
     try {
 
 
+        console.log("ojho")
 
         // let page starts from zero;
         let viewersData = await metaDataSchema.updateOne(
@@ -2178,14 +2180,14 @@ const getLatestNewsV2 = async (req, res) => {
         if (req?.body?.category) {
             aggregationPipeline[0]['$match']['category'] = req.body.category
         }
-        console.log(req?.body)
         if (req?.body?.newsType) {
             aggregationPipeline[0]['$match']['newsType'] = req.body.newsType
         }
-
-
+        
+        
         try {
             let newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
+            console.log(req?.body)
             let endOfRecords = newsInfo.length === 0; // Set endOfRecords to true if no records are fetched
             // Fetch temporary URLs for images
             newsInfo = await fetchTempUrls(newsInfo)

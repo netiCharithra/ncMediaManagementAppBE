@@ -32,7 +32,9 @@ const dotenv = require('dotenv');
 dotenv.config()
 const connect = require('./connectDB/mongoDB');
 const router = require('./common-handlers/commonRoute');
+const router_v3 = require('./common-handlers/v3/commonRoute.js');
 app.use('/api/v2', router);
+app.use('/api/v3', router_v3);
 require('dotenv').config();
 const bodyParser = require('body-parser');
 // const admin.initi
