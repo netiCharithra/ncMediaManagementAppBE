@@ -142,6 +142,62 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
         });
     }
 });
+
+
+const uploadHandler = async (req, res) => {
+    try {
+        let uploadedImages = [];
+        console.log(`Number of files received: ${req.files?.length}`);
+
+        if (req.files && req.files.length > 0) {
+            for (let index = 0; index < req.files.length; index++) {
+                const fileName = req.body.fileName === "original"
+                    ? req.files[index].originalname
+                    : `File_${Date.now()}_${index}`;
+
+                const uploadParams = {
+                    Bucket: BUCKET_NAME,
+                    Body: req.files[index].buffer,
+                    Key: fileName,
+                    ContentType: req.files[index].mimetype
+                };
+
+                console.log(`Uploading file: ${fileName}`);
+                await s3.send(new PutObjectCommand(uploadParams));
+                const fileURLTemp = await getFileTempUrls3(fileName);
+                uploadedImages.push({
+                    fileName: fileName,
+                    tempURL: fileURLTemp,
+                    ContentType: req.files[index].mimetype
+                });
+            }
+        }
+
+        res.status(200).json({
+            status: "success",
+            msg: 'Uploaded Successfully',
+            data: uploadedImages
+        });
+    } catch (error) {
+        await errorLogBookSchema.create({
+            message: `Error while uploading files to drive`,
+            stackTrace: JSON.stringify(error.stack?.split('\n')),
+            page: req.body?.uploadType || 'Uploading News Image',
+            functionality: req.body?.uploadType || 'Uploading News Image',
+            errorMessage: JSON.stringify(error)
+        });
+
+        console.error(error);
+        res.status(500).json({
+            status: "failed",
+            msg: 'Failed while processing..',
+        });
+    }
+};
+
+app.post('/api/v3/uploadFiles', upload.array('images'), uploadHandler);
+
+
 // BELWO ENDPOINT IS ONLY FOR TESTING
 app.post('/api/v2/deleteS3', async (req, res) => {
 

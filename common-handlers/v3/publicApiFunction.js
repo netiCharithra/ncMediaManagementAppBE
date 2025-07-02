@@ -1,6 +1,9 @@
 const newsDataSchema = require('../../modals/newsDataSchema');
 const errorLogBookSchema = require('../../modals/errorLogBookSchema');
 const metaDataSchema = require('../../modals/metaDataSchema');
+const EmployeeTracing = require('../../modals/employeeTracing')
+const reportersSchema = require('../../modals/reportersSchema');
+
 const { getFileTempUrls3 } = require('./../commonApiFunction');
 require('dotenv').config();
 
@@ -468,6 +471,139 @@ const getCategoryWiseCount = async (req, res) => {
     }
 }
 
+const employeeTraceCheck = async (req, res) => {
+    try {
+
+
+        const currentDate = new Date().getTime();
+        const providedTraceId = req.body.activeTraceId;
+
+
+
+        const result = await EmployeeTracing.aggregate([
+            {
+                $match: {
+                    activeTraceId: providedTraceId // Filter documents with the provided traceId
+                }
+            },
+            {
+                $project: {
+
+                    activeTraceId: 1,
+                    employeeId: 1,
+                    startDate: 1,
+                    endDate: 1,
+                    createdOn: 1,
+                    createdBy: 1,
+                    UpdatedOn: 1,
+                    UpdatedBy: 1,
+                    status: {
+                        $ifNull: [
+                            {
+                                $cond: {
+                                    if: {
+                                        $eq: ["$activeTraceId", providedTraceId] // Check if the activeTraceId matches the providedTraceId
+                                    },
+                                    then: {
+                                        $cond: {
+                                            if: {
+                                                $and: [
+                                                    { $lte: ["$startDate", currentDate] }, // Check if startDate is less than or equal to current date
+                                                    { $gte: ["$endDate", currentDate] }   // Check if endDate is greater than or equal to current date
+                                                ]
+                                            },
+                                            then: "active",
+                                            else: {
+                                                $cond: {
+                                                    if: { $lt: ["$endDate", currentDate] }, // Check if endDate is less than current date
+                                                    then: "expired",
+                                                    else: "inactive"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    else: "Not a NC Media Reporter"
+                                }
+                            },
+                            "Not a NC Media Reporter"
+                        ]
+                    }
+                }
+            }
+        ]);
+        if (result.length === 0) {
+
+            res.status(200).json({
+                "status": "invalid",
+                "msg": "Not a Neti Charithra Employee",
+                // data:result
+            });
+        } else {
+
+            var recordList = JSON.parse(JSON.stringify(result))
+            const employeeIds = recordList.map(record => record.employeeId);
+
+            // Fetch employee information excluding _id, password, and passwordCopy
+            const employeeInfoList = await reportersSchema.find({ employeeId: { $in: employeeIds } })
+                .select('-_id -password -passwordCopy')
+                .lean(); // Use lean() to get plain JavaScript objects instead of mongoose documents
+
+            for (const record of recordList) {
+                const matchingEmployee = employeeInfoList.find(employee => employee.employeeId === record.employeeId);
+                if (matchingEmployee) {
+                    // Add employeeInfo to the record
+                    record.employeeInfo = matchingEmployee;
+                    if (record?.employeeInfo?.profilePicture?.fileName) {
+                        record.employeeInfo.profilePicture['tempURL'] = await getFileTempUrls3(record.employeeInfo?.profilePicture?.fileName);
+                    }
+                    if (record?.employeeInfo?.identityProof?.fileName) {
+                        record.employeeInfo.identityProof['tempURL'] = await getFileTempUrls3(record.employeeInfo?.identityProof?.fileName);
+                    }
+                    if (record?.employeeInfo?.state) {
+
+                        let allSt = await metaDataSchema.findOne({
+                            type: "STATES"
+                        })
+                        const index = allSt?.data?.findIndex(element => element.value === record.employeeInfo.state);
+                        if (index > -1) {
+                            record.employeeInfo.stateName = allSt.data[index].label;
+                        };
+
+                        const dt = await metaDataSchema.findOne({
+                            type: record.employeeInfo.state + "_DISTRICTS"
+                        })
+                        if (dt?.data?.length > 0 && record?.employeeInfo?.district) {
+                            const dtIndex = dt.data.findIndex(ele => ele.value === record?.employeeInfo?.district)
+                            if (dtIndex > -1) {
+                                record.employeeInfo.districtName = dt.data[dtIndex]?.label
+                            }
+                        }
+                    }
+
+
+                }
+            }
+
+            res.status(200).json({
+                "status": "success",
+                // "msg": "Something went wrong.. Try after sometime..",
+                data: recordList
+            });
+        }
+
+
+
+    } catch (error) {
+        console.error("Error:", error);
+
+        res.status(200).json({
+            "status": "failed",
+            "msg": "Something went wrong.. Try after sometime.."
+        });
+    }
+
+}
+
 module.exports = {
-    getLatestNews, getIndividualNewsInfo, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount
+    getLatestNews, getIndividualNewsInfo, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, employeeTraceCheck
 }
