@@ -2540,17 +2540,18 @@ const getArticlesDashbordInfo = async (req,res) =>{
         const { employeeId } = req.body;
 
         const now = new Date();
-        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();       // epoch ms
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();   // epoch ms
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).getTime() + 86400000 - 1; // end of day
     
-        console.log('Start of This Month:', startOfThisMonth.toISOString());
-        console.log('Start of Last Month:', startOfLastMonth.toISOString());
-        console.log('End of Last Month:', endOfLastMonth.toISOString());
+        // Debug logs
+        console.log('Start of This Month (epoch):', startOfThisMonth);
+        console.log('Start of Last Month (epoch):', startOfLastMonth);
+        console.log('End of Last Month (epoch):', endOfLastMonth);
     
         const employeeFilter = employeeId ? { employeeId } : {};
     
-        const stats = await News.aggregate([
+        const stats = await newsDataSchema.aggregate([
           {
             $facet: {
               total: [
@@ -2561,7 +2562,7 @@ const getArticlesDashbordInfo = async (req,res) =>{
                 {
                   $match: {
                     ...employeeFilter,
-                    createdOn: {
+                    createdDate: {
                       $gte: startOfLastMonth,
                       $lte: endOfLastMonth,
                     },
@@ -2573,7 +2574,7 @@ const getArticlesDashbordInfo = async (req,res) =>{
                 {
                   $match: {
                     ...employeeFilter,
-                    createdOn: {
+                    createdDate: {
                       $gte: startOfThisMonth,
                     },
                   },
@@ -2584,6 +2585,7 @@ const getArticlesDashbordInfo = async (req,res) =>{
           },
         ]);
     
+        console.log(stats)
         const totalRecords = stats[0].total[0]?.count || 0;
         const lastMonthRecords = stats[0].lastMonth[0]?.count || 0;
         const thisMonthRecords = stats[0].thisMonth[0]?.count || 0;
