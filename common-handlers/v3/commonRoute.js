@@ -1,5 +1,5 @@
 const express = require('express')
-const { getLatestNews, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, getIndividualNewsInfo, employeeTraceCheck } = require('./publicApiFunction');
+const { getLatestNews, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, getIndividualNewsInfo, employeeTraceCheck, getVisitorsCount } = require('./publicApiFunction');
 const { employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing ,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo} = require('./adminstrationAPIFunction');
 
 // const { uploadFiles } = require('./uploadImageHandeler')
@@ -13,6 +13,7 @@ router.route('/public/metaData').post(getMetaData);
 router.route('/public/newsInfo').post(getIndividualNewsInfo);
 router.route('/public/employeeTraceCheck').post(employeeTraceCheck);
 router.route('/public/getArticlesDashbordInfo').post(getArticlesDashbordInfo);
+router.route('/public/getVisitorsCount').post(getVisitorsCount);
 
 
 router.route('/admin/employeeLogin').post(employeeLogin);

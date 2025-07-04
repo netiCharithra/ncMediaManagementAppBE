@@ -160,6 +160,48 @@ const getLatestNews = async (req, res) => {
         });
     }
 }
+const getVisitorsCount = async (req, res) => {
+    try {
+        const result = await Visitor.aggregate([
+            {
+                $project: {
+                    tokenCount: {
+                        $reduce: {
+                            input: { $objectToArray: "$fcmTokensByDay" },
+                            initialValue: 0,
+                            in: { $add: ["$$value", { $size: "$$this.v" }] }
+                        }
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalTokens: { $sum: "$tokenCount" }
+                }
+            }
+        ], { maxTimeMS: 30000 });
+
+        res.status(200).json({
+            status: "success",
+            msg: "Success",
+            data: result[0]?.totalTokens || 0
+        });
+    } catch (error) {
+        console.error(error)
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Visitors Count`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Employee Fetching Visitors Count',
+            functionality: 'Error while Fetching Visitors Count',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+        });
+    }
+}
 
 
 
@@ -168,9 +210,7 @@ const getNewsTypeCategorizedNews = async (req, res) => {
 
         console.log("i")
         const language = req?.body?.language || 'te';
-        if(req?.body?.visitorId){
-            handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
-        }
+      
 
         let newsTypesList = await metaDataSchema.findOne({ type: 'NEWS_TYPE_REGIONAL' });
 
@@ -284,9 +324,7 @@ const getNewsCategoryCategorizedNews = async (req, res) => {
 
 
         const language = req?.body?.language || 'te';
-        if(req?.body?.visitorId){
-            handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
-        }
+       
         const aggregateQuery = [{
             $match: {
                 approvedOn: { $gt: 0 },
@@ -725,5 +763,5 @@ const employeeTraceCheck = async (req, res) => {
 }
 
 module.exports = {
-    getLatestNews, getIndividualNewsInfo, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, employeeTraceCheck
+    getLatestNews, getIndividualNewsInfo, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, employeeTraceCheck, getVisitorsCount
 }
