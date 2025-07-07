@@ -6,6 +6,8 @@ const reportersSchema = require('../../modals/reportersSchema');
 const CryptoJS = require('crypto-js');
 const errorLogBookSchema = require('../../modals/errorLogBookSchema');
 const employeeTracing = require('../../modals/employeeTracing');
+const Visitor = require('../../modals/visitorSchema');
+
 require('dotenv').config();
 
 // Encryption configuration
@@ -2621,7 +2623,112 @@ const getArticlesDashbordInfo = async (req,res) =>{
         });
     }
 }
+const getPageViewDashboardInfo = async (req, res) => {
+    try {
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+        
+        // Get first and last day of current month
+        const firstDayCurrentMonth = new Date(currentYear, currentMonth, 1);
+        const lastDayCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
+        
+        // Get first and last day of last month
+        const firstDayLastMonth = new Date(currentYear, currentMonth - 1, 1);
+        const lastDayLastMonth = new Date(currentYear, currentMonth, 0);
+
+        // Format dates as yyyy-mm-dd for comparison
+        const formatDate = (date) => date.toISOString().split('T')[0];
+        
+        const currentMonthStart = formatDate(firstDayCurrentMonth);
+        const currentMonthEnd = formatDate(lastDayCurrentMonth);
+        const lastMonthStart = formatDate(firstDayLastMonth);
+        const lastMonthEnd = formatDate(lastDayLastMonth);
+
+        // Main aggregation pipeline
+        const result = await Visitor.aggregate([
+            // Convert fcmTokensByDay map to array of {date, tokens} objects
+            { $project: {
+                entries: { $objectToArray: "$fcmTokensByDay" }
+            }},
+            // Unwind the entries array
+            { $unwind: "$entries" },
+            // Unwind the tokens array
+            { $unwind: "$entries.v" },
+            // Project relevant fields
+            { $project: {
+                date: "$entries.k",
+                visitCount: { $size: { $ifNull: ["$entries.v.visitedOn", []] } }
+            }},
+            // Group to calculate metrics
+            { $group: {
+                _id: null,
+                thisMonthVisits: {
+                    $sum: {
+                        $cond: [
+                            { $and: [
+                                { $gte: ["$date", currentMonthStart] },
+                                { $lte: ["$date", currentMonthEnd] }
+                            ]},
+                            "$visitCount",
+                            0
+                        ]
+                    }
+                },
+                lastMonthVisits: {
+                    $sum: {
+                        $cond: [
+                            { $and: [
+                                { $gte: ["$date", lastMonthStart] },
+                                { $lte: ["$date", lastMonthEnd] }
+                            ]},
+                            "$visitCount",
+                            0
+                        ]
+                    }
+                }
+            }}
+        ]);
+
+        // Process the result
+        const stats = result[0] || { thisMonthVisits: 0, lastMonthVisits: 0 };
+        
+        // Calculate percentage change
+        let percentChange = 0;
+        if (stats.lastMonthVisits > 0) {
+            percentChange = ((stats.thisMonthVisits - stats.lastMonthVisits) / stats.lastMonthVisits) * 100;
+        } else if (stats.thisMonthVisits > 0) {
+            percentChange = 100;
+        }
+        
+        // Round to 2 decimal places
+        percentChange = parseFloat(percentChange.toFixed(2));
+        res.json({
+            status: "success",
+            data: {
+                thisMonthVisits: stats.thisMonthVisits || 0,
+                lastMonthVisits: stats.lastMonthVisits || 0,
+                percentChange: percentChange
+            },
+            message: "Page view dashboard data retrieved successfully"
+        });
+    } catch (error) {
+        console.error(error);
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Page View Dashboard Data`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Page View Dashboard',
+            functionality: 'Error while Fetching Page View Dashboard Data',
+            errorMessage: `${JSON.stringify(error) || ''}`,
+        });
+        res.status(500).json({
+            status: "error",
+            message: 'Failed to process page view dashboard data',
+            error: error.message
+        });
+    }
+}
 
 module.exports = {
-    employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee,employeeTracingListing,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo
+    employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee,employeeTracingListing,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, getPageViewDashboardInfo
 };

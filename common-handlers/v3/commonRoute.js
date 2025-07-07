@@ -1,6 +1,6 @@
 const express = require('express')
 const { getLatestNews, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, getIndividualNewsInfo, employeeTraceCheck, getVisitorsCount } = require('./publicApiFunction');
-const { employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing ,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo} = require('./adminstrationAPIFunction');
+const { employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing ,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, getPageViewDashboardInfo } = require('./adminstrationAPIFunction');
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
@@ -28,6 +28,7 @@ router.route('/admin/manipulateIndividualEmployee').post(manipulateIndividualEmp
 router.route('/admin/employeeTracingListing').post(employeeTracingListing);
 router.route('/admin/employeeTracingManagement').post(employeeTracingManagement);
 router.route('/admin/employeeTracingActiveEmployeeList').post(employeeTracingActiveEmployeeList);
+router.route('/admin/getPageViewDashboardInfo').post(getPageViewDashboardInfo);
 
 
 router.route('/monitoringOnly/getCategoryWiseCount').post(getCategoryWiseCount);
