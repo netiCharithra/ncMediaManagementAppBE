@@ -1,6 +1,6 @@
 const express = require('express')
-const { getLatestNews, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, getIndividualNewsInfo, employeeTraceCheck } = require('./publicApiFunction');
-const { employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing ,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo,getEmployeeDashboardInfo} = require('./adminstrationAPIFunction');
+const { getLatestNews, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, getIndividualNewsInfo, employeeTraceCheck, getVisitorsCount } = require('./publicApiFunction');
+const { employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing ,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, getPageViewDashboardInfo ,getEmployeeDashboardInfo} = require('./adminstrationAPIFunction');
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
@@ -13,6 +13,7 @@ router.route('/public/metaData').post(getMetaData);
 router.route('/public/newsInfo').post(getIndividualNewsInfo);
 router.route('/public/employeeTraceCheck').post(employeeTraceCheck);
 router.route('/public/getArticlesDashbordInfo').post(getArticlesDashbordInfo);
+router.route('/public/getVisitorsCount').post(getVisitorsCount);
 router.route('/public/getEmployeeDashboardInfo').post(getEmployeeDashboardInfo);
 
 router.route('/admin/employeeLogin').post(employeeLogin);
@@ -27,6 +28,7 @@ router.route('/admin/manipulateIndividualEmployee').post(manipulateIndividualEmp
 router.route('/admin/employeeTracingListing').post(employeeTracingListing);
 router.route('/admin/employeeTracingManagement').post(employeeTracingManagement);
 router.route('/admin/employeeTracingActiveEmployeeList').post(employeeTracingActiveEmployeeList);
+router.route('/admin/getPageViewDashboardInfo').post(getPageViewDashboardInfo);
 
 
 router.route('/monitoringOnly/getCategoryWiseCount').post(getCategoryWiseCount);

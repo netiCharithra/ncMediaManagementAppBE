@@ -3,10 +3,113 @@ const errorLogBookSchema = require('../../modals/errorLogBookSchema');
 const metaDataSchema = require('../../modals/metaDataSchema');
 const EmployeeTracing = require('../../modals/employeeTracing')
 const reportersSchema = require('../../modals/reportersSchema');
-
+const Visitor = require('../../modals/visitorSchema');
 const { getFileTempUrls3 } = require('./../commonApiFunction');
 require('dotenv').config();
 
+
+
+const handleVisitorManagement = async (visitorId, coordinates, timestamp) => {
+    try {
+      if (!visitorId || !timestamp) {
+        console.error('Missing required parameters - visitorId:', visitorId, 'timestamp:', timestamp);
+        return { success: false, error: 'Missing required parameters' };
+      }
+
+      const dateKey = new Date(timestamp).toISOString().split('T')[0];
+      // Validate location format: must be null, undefined, or [number, number]
+      let location = null;
+      if (coordinates && Array.isArray(coordinates) && coordinates.length === 2 && 
+          typeof coordinates[0] === 'number' && typeof coordinates[1] === 'number') {
+        location = coordinates;
+      } else if (coordinates !== null && coordinates !== undefined) {
+        console.warn('Invalid coordinates format. Expected [latitude, longitude] or null, got:', coordinates);
+      }
+      
+      // Find a document that has this visitorId (token) under this dateKey
+      const existingDoc = await Visitor.findOne({
+        [`fcmTokensByDay.${dateKey}`]: {
+          $elemMatch: { token: visitorId }
+        }
+      });
+  
+      if (existingDoc) {
+        // Token exists for the date – update its visitedOn
+        const tokenArray = existingDoc.fcmTokensByDay.get(dateKey) || [];
+        const tokenIndex = tokenArray.findIndex(entry => entry.token === visitorId);
+  
+        if (tokenIndex !== -1) {
+          const visitor = tokenArray[tokenIndex];
+          const lastVisitedTimestamp = visitor.visitedOn.length > 0 
+            ? new Date(visitor.visitedOn[visitor.visitedOn.length - 1])
+            : null;
+          const currentTimestamp = new Date(timestamp);
+          
+          // Only push new timestamp if it's the first one or if it's been at least 1 hour since the last one
+          if (!lastVisitedTimestamp || (currentTimestamp - lastVisitedTimestamp) >= 3600000) {
+            visitor.visitedOn.push(timestamp);
+            // Only update location if it's a valid [number, number] array
+            if (Array.isArray(location) && location.length === 2) {
+              visitor.location = location;
+            } else if (location === null || location === undefined) {
+              // Explicitly set to null if location is null/undefined
+              visitor.location = null;
+            }
+          }
+        }
+        existingDoc.fcmTokensByDay.set(dateKey, tokenArray);
+        await existingDoc.save();
+        return { success: true, action: 'updated' };
+      }
+      
+      // If we get here, either the document doesn't exist or the token isn't found for the date
+      // Try to find a document that already has this dateKey to append to
+      let doc = await Visitor.findOne({
+        [`fcmTokensByDay.${dateKey}`]: { $exists: true }
+      });
+  
+      if (!doc) {
+        // No document yet for this day – create new with proper Map initialization
+        doc = new Visitor({
+          fcmTokensByDay: new Map()
+        });
+      }
+  
+      // Initialize the Map if it doesn't exist
+      if (!doc.fcmTokensByDay) {
+        doc.fcmTokensByDay = new Map();
+      }
+  
+      // Get or initialize the token array for this date
+      const tokenArray = doc.fcmTokensByDay.get(dateKey) || [];
+  
+      // Create visitor object with required fields
+      const newVisitor = {
+        token: visitorId,
+        visitedOn: [timestamp]
+      };
+      
+      // Only add location if it's a valid [number, number] array
+      if (Array.isArray(location) && location.length === 2) {
+        newVisitor.location = location;
+      }
+      
+      tokenArray.push(newVisitor);
+  
+      // Update the Map with the new token array
+      doc.fcmTokensByDay.set(dateKey, tokenArray);
+      
+      // Save the document
+      await doc.save();
+      return { success: true, action: 'created' };
+      
+    } catch (error) {
+      console.error('Error in handleVisitorManagement:', error);
+      return { success: false, error: error.message };
+    }
+  };
+  
+  
 
 const getLatestNews = async (req, res) => {
     try {
@@ -15,6 +118,10 @@ const getLatestNews = async (req, res) => {
         const language = req?.body?.language || 'te';
 
         console.log("hii",req?.body?.language)
+
+        if(req?.body?.visitorId){
+            handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
+        }
         const result = await newsDataSchema.aggregate([
             {
                 $match: {
@@ -31,7 +138,6 @@ const getLatestNews = async (req, res) => {
             }
         ]);
 
-        console.log(result)
         res.status(200).json({
             status: "success",
             msg: "Success",
@@ -54,6 +160,48 @@ const getLatestNews = async (req, res) => {
         });
     }
 }
+const getVisitorsCount = async (req, res) => {
+    try {
+        const result = await Visitor.aggregate([
+            {
+                $project: {
+                    tokenCount: {
+                        $reduce: {
+                            input: { $objectToArray: "$fcmTokensByDay" },
+                            initialValue: 0,
+                            in: { $add: ["$$value", { $size: "$$this.v" }] }
+                        }
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalTokens: { $sum: "$tokenCount" }
+                }
+            }
+        ], { maxTimeMS: 30000 });
+
+        res.status(200).json({
+            status: "success",
+            msg: "Success",
+            data: result[0]?.totalTokens || 0
+        });
+    } catch (error) {
+        console.error(error)
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Visitors Count`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Employee Fetching Visitors Count',
+            functionality: 'Error while Fetching Visitors Count',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+        });
+    }
+}
 
 
 
@@ -62,7 +210,7 @@ const getNewsTypeCategorizedNews = async (req, res) => {
 
         console.log("i")
         const language = req?.body?.language || 'te';
-
+      
 
         let newsTypesList = await metaDataSchema.findOne({ type: 'NEWS_TYPE_REGIONAL' });
 
@@ -176,7 +324,7 @@ const getNewsCategoryCategorizedNews = async (req, res) => {
 
 
         const language = req?.body?.language || 'te';
-
+       
         const aggregateQuery = [{
             $match: {
                 approvedOn: { $gt: 0 },
@@ -279,6 +427,10 @@ const getCategoryNewsPaginatedOnly = async (req, res) => {
     //     { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
     //     { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
     // )
+
+    if(req?.body?.visitorId){
+        handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
+    }
     const recordsPerPage = req?.body?.count || 10;
     const pageNumber = req?.body?.page || 1;
     const skipRecords = (pageNumber - 1) * recordsPerPage;
@@ -355,10 +507,11 @@ const fetchTempUrls = async (records) => {
 
 
 const getIndividualNewsInfo = async (req, res) => {
-    let viewersData = await metaDataSchema.updateOne(
-        { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
-        { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
-    )
+
+    if(req?.body?.visitorId){
+        handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
+    }
+    
     let increamentData = await newsDataSchema.findOneAndUpdate(
         { newsId: req.body.newsId }, // Find the specific record by newsId
         { $inc: { viewCount: 1 } }, // Increment the viewCount by 1
@@ -425,6 +578,9 @@ const getIndividualNewsInfo = async (req, res) => {
 const getCategoryWiseCount = async (req, res) => {
     try {
         const language = req?.body?.language || 'te';
+        if(req?.body?.visitorId){
+            handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
+        }
         
         const result = await newsDataSchema.aggregate([
             {
@@ -477,7 +633,9 @@ const employeeTraceCheck = async (req, res) => {
 
         const currentDate = new Date().getTime();
         const providedTraceId = req.body.activeTraceId;
-
+        if(req?.body?.visitorId){
+            handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
+        }
 
 
         const result = await EmployeeTracing.aggregate([
@@ -605,5 +763,5 @@ const employeeTraceCheck = async (req, res) => {
 }
 
 module.exports = {
-    getLatestNews, getIndividualNewsInfo, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, employeeTraceCheck
+    getLatestNews, getIndividualNewsInfo, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, employeeTraceCheck, getVisitorsCount
 }
