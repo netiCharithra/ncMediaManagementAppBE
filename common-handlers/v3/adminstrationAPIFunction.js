@@ -2103,7 +2103,7 @@ const manipulateIndividualEmployee = async (req, res) => {
 
 const employeeTracingListing = async (req, res) => {
 
-    const PAGE_SIZE =req.body.count|| 10; // Set your desired page size
+    const PAGE_SIZE = req.body.count || 10; // Set your desired page size
 
     const today = new Date().getTime();
     console.log(today)
@@ -2121,7 +2121,7 @@ const employeeTracingListing = async (req, res) => {
             totalRecords = count;
 
             return employeeTracing.aggregate([
-                
+
                 {
                     $addFields: {
                         // Split the activeTraceId into parts based on "-"
@@ -2168,8 +2168,8 @@ const employeeTracingListing = async (req, res) => {
                     }
                 },
                 {
-                    $match:{
-                        active:req.body.action
+                    $match: {
+                        active: req.body.action
                     }
                 },
                 {
@@ -2271,7 +2271,7 @@ const employeeTracingListing = async (req, res) => {
                     },
                     metaData: {
                         title: "Emplpoyee Tracing",
-                        totalRecords:totalRecords,
+                        totalRecords: totalRecords,
                         "actions": [
                             {
                                 type: "button",
@@ -2295,7 +2295,7 @@ const employeeTracingListing = async (req, res) => {
 
                                 // }
                             },
-                          
+
                         ],
                         "createNew": {
                             type: "createNew",
@@ -2535,7 +2535,7 @@ const employeeTracingActiveEmployeeList = async (req, res) => {
 }
 
 
-const getArticlesDashbordInfo = async (req,res) =>{
+const getArticlesDashbordInfo = async (req, res) => {
     try {
         const { employeeId } = req.body;
 
@@ -2543,68 +2543,68 @@ const getArticlesDashbordInfo = async (req,res) =>{
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();       // epoch ms
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();   // epoch ms
         const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).getTime() + 86400000 - 1; // end of day
-    
+
         // Debug logs
         console.log('Start of This Month (epoch):', startOfThisMonth);
         console.log('Start of Last Month (epoch):', startOfLastMonth);
         console.log('End of Last Month (epoch):', endOfLastMonth);
-    
+
         const employeeFilter = employeeId ? { employeeId } : {};
-    
+
         const stats = await newsDataSchema.aggregate([
-          {
-            $facet: {
-              total: [
-                { $match: employeeFilter },
-                { $count: 'count' }
-              ],
-              lastMonth: [
-                {
-                  $match: {
-                    ...employeeFilter,
-                    createdDate: {
-                      $gte: startOfLastMonth,
-                      $lte: endOfLastMonth,
-                    },
-                  },
+            {
+                $facet: {
+                    total: [
+                        { $match: employeeFilter },
+                        { $count: 'count' }
+                    ],
+                    lastMonth: [
+                        {
+                            $match: {
+                                ...employeeFilter,
+                                createdDate: {
+                                    $gte: startOfLastMonth,
+                                    $lte: endOfLastMonth,
+                                },
+                            },
+                        },
+                        { $count: 'count' },
+                    ],
+                    thisMonth: [
+                        {
+                            $match: {
+                                ...employeeFilter,
+                                createdDate: {
+                                    $gte: startOfThisMonth,
+                                },
+                            },
+                        },
+                        { $count: 'count' },
+                    ],
                 },
-                { $count: 'count' },
-              ],
-              thisMonth: [
-                {
-                  $match: {
-                    ...employeeFilter,
-                    createdDate: {
-                      $gte: startOfThisMonth,
-                    },
-                  },
-                },
-                { $count: 'count' },
-              ],
             },
-          },
         ]);
-    
+
         console.log(stats)
         const totalRecords = stats[0].total[0]?.count || 0;
         const lastMonthRecords = stats[0].lastMonth[0]?.count || 0;
         const thisMonthRecords = stats[0].thisMonth[0]?.count || 0;
-    
+
         let percentChange = 0;
         if (lastMonthRecords === 0) {
-          percentChange = thisMonthRecords === 0 ? 0 : 100;
+            percentChange = thisMonthRecords === 0 ? 0 : 100;
         } else {
-          percentChange = ((thisMonthRecords - lastMonthRecords) / lastMonthRecords) * 100;
+            percentChange = ((thisMonthRecords - lastMonthRecords) / lastMonthRecords) * 100;
         }
-    
+
         res.json({
-          employeeId: employeeId || 'ALL',
-          totalRecords,
-          lastMonthRecords,
-          thisMonthRecords,
-          percentChange: parseFloat(percentChange.toFixed(2)),
+            employeeId: employeeId || 'ALL',
+            totalRecords,
+            lastMonthRecords,
+            thisMonthRecords,
+            percentChange: parseFloat(percentChange.toFixed(2)),
         });
-    
+
     } catch (error) {
         console.error(error)
         await errorLogBookSchema.create({
@@ -2622,6 +2622,103 @@ const getArticlesDashbordInfo = async (req,res) =>{
     }
 }
 
+const getEmployeeDashboardInfo = async (req, res) => {
+    console.log("🚀 Employee Dashboard Hit");
+
+    try {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getTime() + 86400000 - 1;
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).getTime() + 86400000 - 1;
+
+        console.log(new Date(startOfThisMonth), new Date(endOfThisMonth));
+
+        const stats = await employeeTracing.aggregate([
+            {
+                $facet: {
+                    thisMonthUsers: [
+                        {
+                            $match: {
+                                endDate: {
+                                    $gte: startOfThisMonth,
+                                    $lte: endOfThisMonth
+                                }
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: "$employeeId"
+                            }
+                        },
+                        {
+                            $count: "count"
+                        }
+                    ],
+                    lastMonthUsers: [
+                        {
+                            $match: {
+                                endDate: {
+                                    $gte: startOfLastMonth,
+                                    $lte: endOfLastMonth
+                                }
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: "$employeeId"
+                            }
+                        },
+                        {
+                            $count: "count"
+                        }
+                    ]
+                }
+            }
+        ]);
+
+        const result = stats[0];
+
+        const thisMonthUsers = result.thisMonthUsers[0]?.count || 0;
+        const lastMonthUsers = result.lastMonthUsers[0]?.count || 0;
+
+        // Get total number of users from reportersSchema
+        const totalUsers = await reportersSchema.countDocuments();
+
+        // Calculate percentage difference
+        let percentage = 0;
+        if (lastMonthUsers > 0) {
+            percentage = ((thisMonthUsers - lastMonthUsers) / lastMonthUsers) * 100;
+        } else if (thisMonthUsers > 0) {
+            percentage = 100;
+        }
+
+        res.json({
+            thisMonthUsers,
+            lastMonthUsers,
+            totalUsers,
+            percentage: percentage.toFixed(2) // rounded to 2 decimal places
+        });
+
+    } catch (error) {
+        console.error(error);
+        await errorLogBookSchema.create({
+            message: "Error while fetching user activity data",
+            stackTrace: JSON.stringify(error.stack),
+            page: "User Activity Dashboard",
+            functionality: "Dashboard data fetch",
+            errorMessage: `${JSON.stringify(error) || ''}`
+        });
+        res.status(200).json({
+            status: "failed",
+            msg: "Failed to process user activity dashboard"
+        });
+    }
+};
+
+
 module.exports = {
-    employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee,employeeTracingListing,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo
+    employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing, employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, getEmployeeDashboardInfo
 };
