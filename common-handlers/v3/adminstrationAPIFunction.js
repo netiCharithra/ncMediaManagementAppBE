@@ -2105,7 +2105,7 @@ const manipulateIndividualEmployee = async (req, res) => {
 
 const employeeTracingListing = async (req, res) => {
 
-    const PAGE_SIZE =req.body.count|| 10; // Set your desired page size
+    const PAGE_SIZE = req.body.count || 10; // Set your desired page size
 
     const today = new Date().getTime();
     console.log(today)
@@ -2123,7 +2123,7 @@ const employeeTracingListing = async (req, res) => {
             totalRecords = count;
 
             return employeeTracing.aggregate([
-                
+
                 {
                     $addFields: {
                         // Split the activeTraceId into parts based on "-"
@@ -2170,8 +2170,8 @@ const employeeTracingListing = async (req, res) => {
                     }
                 },
                 {
-                    $match:{
-                        active:req.body.action
+                    $match: {
+                        active: req.body.action
                     }
                 },
                 {
@@ -2273,7 +2273,7 @@ const employeeTracingListing = async (req, res) => {
                     },
                     metaData: {
                         title: "Emplpoyee Tracing",
-                        totalRecords:totalRecords,
+                        totalRecords: totalRecords,
                         "actions": [
                             {
                                 type: "button",
@@ -2297,7 +2297,7 @@ const employeeTracingListing = async (req, res) => {
 
                                 // }
                             },
-                          
+
                         ],
                         "createNew": {
                             type: "createNew",
@@ -2568,14 +2568,14 @@ const getArticlesDashbordInfo = async (req, res) => {
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();       // epoch ms
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();   // epoch ms
         const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).getTime() + 86400000 - 1; // end of day
-    
+
         // Debug logs
         console.log('Start of This Month (epoch):', startOfThisMonth);
         console.log('Start of Last Month (epoch):', startOfLastMonth);
         console.log('End of Last Month (epoch):', endOfLastMonth);
-    
+
         const employeeFilter = employeeId ? { employeeId } : {};
-    
+
         const stats = await newsDataSchema.aggregate([
           {
             $facet: {
@@ -2614,21 +2614,21 @@ const getArticlesDashbordInfo = async (req, res) => {
                 { $count: 'count' },
               ],
             },
-          },
+        }
         ]);
-    
+
         console.log(stats)
         const totalRecords = stats[0].total[0]?.count || 0;
         const lastMonthRecords = stats[0].lastMonth[0]?.count || 0;
         const thisMonthRecords = stats[0].thisMonth[0]?.count || 0;
-    
+
         let percentChange = 0;
         if (lastMonthRecords === 0) {
-          percentChange = thisMonthRecords === 0 ? 0 : 100;
+            percentChange = thisMonthRecords === 0 ? 0 : 100;
         } else {
-          percentChange = ((thisMonthRecords - lastMonthRecords) / lastMonthRecords) * 100;
+            percentChange = ((thisMonthRecords - lastMonthRecords) / lastMonthRecords) * 100;
         }
-    
+
         res.json({
         status:"success",
         msg:"Data Fetched Successfully",
