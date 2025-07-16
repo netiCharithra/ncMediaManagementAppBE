@@ -3189,7 +3189,15 @@ const getVisitsTimeSeries = async (req, res) => {
             { $unwind: "$tokensArray.v.visitedOn" },
             { $project: {
                 _id: 0,
-                visitTime: "$tokensArray.v.visitedOn"
+                visitTime: "$tokensArray.v.visitedOn",
+                // Convert epoch to Date and then to IST (UTC+5:30)
+                visitTimeIST: {
+                    $dateToString: {
+                        format: "%Y-%m-%dT%H:%M:%S%z",
+                        date: { $toDate: "$tokensArray.v.visitedOn" },
+                        timezone: "+05:30"
+                    }
+                }
             }},
             ...(period.toLowerCase() !== 'total' ? [{
                 $match: {
@@ -3201,13 +3209,21 @@ const getVisitsTimeSeries = async (req, res) => {
             { $group: {
                 _id: groupId,
                 count: { $sum: 1 },
-                timestamp: { $max: "$visitTime" }
+                timestamp: { $max: "$visitTime" },
+                timestampIST: { $max: "$visitTimeIST" }
             }},
             { $sort: { timestamp: 1 } },
             { $project: {
                 _id: 0,
-                period: "$_id",
-                count: 1
+                period: period.toLowerCase() === 'day' ? {
+                    $dateToString: {
+                        format: "%H:%M",  // 24-hour format (00-23)
+                        date: { $toDate: "$timestamp" },
+                        timezone: "+05:30"
+                    }
+                } : "$_id",
+                count: 1,
+                timestamp: "$timestampIST"
             }}
         ];
 
