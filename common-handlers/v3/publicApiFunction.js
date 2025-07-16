@@ -379,6 +379,7 @@ const getMetaData = async (req, res) => {
     try {
         const data = req.body;
         let metaData = {}
+        console.log("111")
         for (let index = 0; index < req.body.metaList.length; index++) {
             let value = await metaDataSchema.findOne({
                 type: req.body.metaList[index]
@@ -405,7 +406,7 @@ const getMetaData = async (req, res) => {
         }
 
     } catch (error) {
-        console.error(error)
+        console.error("1", error)
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching Metadata`,
             stackTrace: JSON.stringify([...error.stack].join('/n')),
