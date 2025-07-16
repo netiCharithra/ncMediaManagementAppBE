@@ -1,6 +1,6 @@
 const express = require('express')
 const { getLatestNews, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, getIndividualNewsInfo, employeeTraceCheck, getVisitorsCount } = require('./publicApiFunction');
-const { employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing ,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, getPageViewDashboardInfo } = require('./adminstrationAPIFunction');
+const { employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing ,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats } = require('./adminstrationAPIFunction');
 
 // const { uploadFiles } = require('./uploadImageHandeler')
 const router = express.Router()
@@ -12,7 +12,6 @@ router.route('/public/home/getCategoryNewsPaginatedOnly').post(getCategoryNewsPa
 router.route('/public/metaData').post(getMetaData);
 router.route('/public/newsInfo').post(getIndividualNewsInfo);
 router.route('/public/employeeTraceCheck').post(employeeTraceCheck);
-router.route('/public/getArticlesDashbordInfo').post(getArticlesDashbordInfo);
 router.route('/public/getVisitorsCount').post(getVisitorsCount);
 
 
@@ -29,6 +28,9 @@ router.route('/admin/employeeTracingListing').post(employeeTracingListing);
 router.route('/admin/employeeTracingManagement').post(employeeTracingManagement);
 router.route('/admin/employeeTracingActiveEmployeeList').post(employeeTracingActiveEmployeeList);
 router.route('/admin/getPageViewDashboardInfo').post(getPageViewDashboardInfo);
+router.route('/admin/getArticlesDashbordInfo').post(getArticlesDashbordInfo);
+router.route('/admin/getArticlesByCategory').post(getArticlesByCategory);
+router.route('/admin/getActiveEmployeeStats').post(getActiveEmployeeStats);
 
 
 router.route('/monitoringOnly/getCategoryWiseCount').post(getCategoryWiseCount);

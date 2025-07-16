@@ -2537,9 +2537,32 @@ const employeeTracingActiveEmployeeList = async (req, res) => {
 }
 
 
-const getArticlesDashbordInfo = async (req,res) =>{
+const getArticlesDashbordInfo = async (req, res) => {
     try {
-        const { employeeId } = req.body;
+        const body = JSON.parse(JSON.stringify(req.body));
+        const { employeeId } = body;
+
+        // Employee validation
+        let employee = await reportersSchema.findOne({
+            employeeId: body.employeeId
+        });
+        
+        if (!employee) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Cannot access, contact your superior!'
+            });
+        } else if (employee.disabledUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Forbidden Access!'
+            });
+        } else if (!employee.activeUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Employment not yet approved. Kindly contact your superior.'
+            });
+        }
 
         const now = new Date();
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();       // epoch ms
@@ -2557,13 +2580,19 @@ const getArticlesDashbordInfo = async (req,res) =>{
           {
             $facet: {
               total: [
-                { $match: employeeFilter },
+                { 
+                  $match: {
+                    ...employeeFilter,
+                    approvedOn: { $gt: 0 }
+                  }
+                },
                 { $count: 'count' }
               ],
               lastMonth: [
                 {
                   $match: {
                     ...employeeFilter,
+                    approvedOn: { $gt: 0 },
                     createdDate: {
                       $gte: startOfLastMonth,
                       $lte: endOfLastMonth,
@@ -2576,6 +2605,7 @@ const getArticlesDashbordInfo = async (req,res) =>{
                 {
                   $match: {
                     ...employeeFilter,
+                    approvedOn: { $gt: 0 },
                     createdDate: {
                       $gte: startOfThisMonth,
                     },
@@ -2600,12 +2630,17 @@ const getArticlesDashbordInfo = async (req,res) =>{
         }
     
         res.json({
-          employeeId: employeeId || 'ALL',
-          totalRecords,
-          lastMonthRecords,
-          thisMonthRecords,
-          percentChange: parseFloat(percentChange.toFixed(2)),
-        });
+        status:"success",
+        msg:"Data Fetched Successfully",
+        data:{
+
+            employeeId: employeeId || 'ALL',
+            totalRecords,
+            lastMonthRecords,
+            thisMonthRecords,
+            percentChange: parseFloat(percentChange.toFixed(2)),
+        }
+    });
     
     } catch (error) {
         console.error(error)
@@ -2625,6 +2660,30 @@ const getArticlesDashbordInfo = async (req,res) =>{
 }
 const getPageViewDashboardInfo = async (req, res) => {
     try {
+        let body = JSON.parse(JSON.stringify(req.body));
+
+        // Employee validation
+        let employee = await reportersSchema.findOne({
+            employeeId: body.employeeId
+        });
+        
+        if (!employee) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Cannot access, contact your superior!'
+            });
+        } else if (employee.disabledUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Forbidden Access!'
+            });
+        } else if (!employee.activeUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Employment not yet approved. Kindly contact your superior.'
+            });
+        }
+
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth();
@@ -2663,6 +2722,7 @@ const getPageViewDashboardInfo = async (req, res) => {
             // Group to calculate metrics
             { $group: {
                 _id: null,
+                totalVisits: { $sum: "$visitCount" },
                 thisMonthVisits: {
                     $sum: {
                         $cond: [
@@ -2691,7 +2751,7 @@ const getPageViewDashboardInfo = async (req, res) => {
         ]);
 
         // Process the result
-        const stats = result[0] || { thisMonthVisits: 0, lastMonthVisits: 0 };
+        const stats = result[0] || { totalVisits: 0, thisMonthVisits: 0, lastMonthVisits: 0 };
         
         // Calculate percentage change
         let percentChange = 0;
@@ -2706,6 +2766,7 @@ const getPageViewDashboardInfo = async (req, res) => {
         res.json({
             status: "success",
             data: {
+                totalVisits: stats.totalVisits || 0,
                 thisMonthVisits: stats.thisMonthVisits || 0,
                 lastMonthVisits: stats.lastMonthVisits || 0,
                 percentChange: percentChange
@@ -2729,6 +2790,190 @@ const getPageViewDashboardInfo = async (req, res) => {
     }
 }
 
+const getArticlesByCategory = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
+        const TARGET_ARTICLES = 350;
+
+        // Employee validation
+        let employee = await reportersSchema.findOne({
+            employeeId: body.employeeId
+        });
+        
+        if (!employee) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Cannot access, contact your superior!'
+            });
+        } else if (employee.disabledUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Forbidden Access!'
+            });
+        } else if (!employee.activeUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Employment not yet approved. Kindly contact your superior.'
+            });
+        }
+
+        // Get all unique categories
+        const categories = await newsDataSchema.distinct('category');
+        
+        // Get count of articles for each category
+        const categoryStats = await Promise.all(categories.map(async (category) => {
+            const count = await newsDataSchema.countDocuments({ 
+                category: category,
+                approved: true,
+                rejected: false
+            });
+            
+            const percentage = Math.min(Math.round((count / TARGET_ARTICLES) * 100), 100);
+            
+            return {
+                name: category,
+                count: count,
+                percentage: percentage,
+                target: TARGET_ARTICLES,
+                remaining: Math.max(0, TARGET_ARTICLES - count)
+            };
+        }));
+
+        // Sort by count (descending)
+        categoryStats.sort((a, b) => b.count - a.count);
+
+        res.status(200).json({
+            status: "success",
+            data: categoryStats
+        });
+
+    } catch (error) {
+        console.error('Error in getArticlesByCategory:', error);
+        await errorLogBookSchema.create({
+            message: 'Error while fetching article counts by category',
+            stackTrace: error.stack ? [...error.stack].join('/n') : '',
+            page: 'Article Dashboard',
+            functionality: 'Fetch article counts by category',
+            errorMessage: error.message || JSON.stringify(error)
+        });
+        
+        res.status(500).json({
+            status: "failed",
+            msg: 'Failed to fetch article statistics',
+            error: error.message
+        });
+    }
+};
+
+const getActiveEmployeeStats = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
+
+        // Employee validation
+        let employee = await reportersSchema.findOne({
+            employeeId: body.employeeId
+        });
+        
+        if (!employee) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Cannot access, contact your superior!'
+            });
+        } else if (employee.disabledUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Forbidden Access!'
+            });
+        } else if (!employee.activeUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Employment not yet approved. Kindly contact your superior.'
+            });
+        }
+
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+        
+        // Get first and last day of current month
+        const firstDayCurrentMonth = new Date(currentYear, currentMonth, 1);
+        const lastDayCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
+        
+        // Get first and last day of last month
+        const firstDayLastMonth = new Date(currentYear, currentMonth - 1, 1);
+        const lastDayLastMonth = new Date(currentYear, currentMonth, 0);
+
+        // Get active employees for current month
+        const currentMonthActive = await employeeTracing.distinct('employeeId', {
+            startDate: { $lte: lastDayCurrentMonth.getTime() },
+            $or: [
+                { endDate: { $gte: firstDayCurrentMonth.getTime() } },
+                { endDate: { $exists: false } }
+            ]
+        });
+
+        // Get active employees for last month
+        const lastMonthActive = await employeeTracing.distinct('employeeId', {
+            startDate: { $lte: lastDayLastMonth.getTime() },
+            $or: [
+                { endDate: { $gte: firstDayLastMonth.getTime() } },
+                { endDate: { $exists: false } }
+            ]
+        });
+
+        const currentMonthCount = currentMonthActive.length;
+        const lastMonthCount = lastMonthActive.length;
+        
+        // Calculate percentage change
+        let percentChange = 0;
+        if (lastMonthCount > 0) {
+            percentChange = ((currentMonthCount - lastMonthCount) / lastMonthCount) * 100;
+        } else if (currentMonthCount > 0) {
+            percentChange = 100;
+        }
+        
+        // Round to 2 decimal places
+        percentChange = parseFloat(percentChange.toFixed(2));
+        
+        // Get all active employees (regardless of month)
+        const totalActiveEmployees = await employeeTracing.distinct('employeeId', {
+            $or: [
+                { endDate: { $exists: false } },
+                { endDate: { $gte: Date.now() } }
+            ]
+        });
+
+        res.json({
+            status: "success",
+            data: {
+                totalActive: totalActiveEmployees.length,
+                lastMonthActive: lastMonthCount,
+                percentChange: percentChange
+            },
+            message: "Active employee statistics retrieved successfully"
+        });
+    } catch (error) {
+        console.error('Error in getActiveEmployeeStats:', error);
+        await errorLogBookSchema.create({
+            message: 'Error while fetching active employee statistics',
+            stackTrace: error.stack ? [...error.stack].join('/n') : '',
+            page: 'Employee Dashboard',
+            functionality: 'Fetch active employee statistics',
+            errorMessage: error.message || JSON.stringify(error)
+        });
+        
+        res.status(500).json({
+            status: "error",
+            message: 'Failed to process active employee statistics',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
-    employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee,employeeTracingListing,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, getPageViewDashboardInfo
+    employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, 
+    getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, 
+    getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing,
+    employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, 
+    getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats
 };
