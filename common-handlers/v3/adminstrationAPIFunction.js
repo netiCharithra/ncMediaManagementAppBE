@@ -3139,6 +3139,79 @@ const getVisitorTimeSeries = async (req, res) => {
         });
     }
 };
+const getVisitorLocations = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
+        
+        // Employee validation
+        const employee = await reportersSchema.findOne({
+            employeeId: body.employeeId
+        });
+        
+        if (!employee) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Cannot access, contact your superior!'
+            });
+        } else if (employee.disabledUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Forbidden Access!'
+            });
+        } else if (!employee.activeUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Employment not yet approved. Kindly contact your superior.'
+            });
+        }
+
+        // Get all visitors with location data
+        const visitors = await Visitor.find({});
+        
+        // Extract all locations from fcmTokensByDay
+        const locations = [];
+        
+        visitors.forEach(visitor => {
+            if (visitor.fcmTokensByDay) {
+                for (const [day, tokens] of visitor.fcmTokensByDay.entries()) {
+                    if (Array.isArray(tokens)) {
+                        tokens.forEach(tokenData => {
+                            if (tokenData.location && 
+                                Array.isArray(tokenData.location) && 
+                                tokenData.location.length === 2) {
+                                locations.push({
+                                    lat: tokenData.location[0],
+                                    lng: tokenData.location[1]
+                                });
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
+        res.json({
+            status: "success",
+            data: locations,
+            message: "Visitor locations retrieved successfully"
+        });
+    } catch (error) {
+        console.error('Error in getVisitorLocations:', error);
+        await errorLogBookSchema.create({
+            message: 'Error while fetching visitor locations',
+            stackTrace: error.stack ? [...error.stack].join('/n') : '',
+            page: 'Visitor Analytics',
+            functionality: 'Fetch visitor locations',
+            errorMessage: error.message || JSON.stringify(error)
+        });
+        res.status(500).json({
+            status: "error",
+            message: 'Failed to process visitor locations',
+            error: error.message
+        });
+    }
+};
+
 const getVisitsTimeSeries = async (req, res) => {
     try {
         const body = JSON.parse(JSON.stringify(req.body));
@@ -3286,5 +3359,5 @@ module.exports = {
     getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, 
     getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing,
     employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, 
-    getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries,getVisitsTimeSeries
+    getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries, getVisitsTimeSeries, getVisitorLocations
 };
