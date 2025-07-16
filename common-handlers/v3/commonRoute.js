@@ -13,7 +13,7 @@ router.route('/public/metaData').post(getMetaData);
 router.route('/public/newsInfo').post(getIndividualNewsInfo);
 router.route('/public/employeeTraceCheck').post(employeeTraceCheck);
 router.route('/public/getVisitorsCount').post(getVisitorsCount);
-router.route('/public/getEmployeeDashboardInfo').post(getEmployeeDashboardInfo);
+// router.route('/public/getEmployeeDashboardInfo').post(getEmployeeDashboardInfo);
 
 router.route('/admin/employeeLogin').post(employeeLogin);
 router.route('/admin/metaData').post(getMetaData);
