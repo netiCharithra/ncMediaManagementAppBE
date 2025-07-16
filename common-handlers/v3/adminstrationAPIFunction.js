@@ -2970,10 +2970,321 @@ const getActiveEmployeeStats = async (req, res) => {
     }
 };
 
+const getVisitorTimeSeries = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
+        const { period = 'day' } = body; // 'day', 'week', 'month', 'year', 'total'
+
+        // Employee validation
+        const employee = await reportersSchema.findOne({
+            employeeId: body.employeeId
+        });
+        
+        if (!employee) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Cannot access, contact your superior!'
+            });
+        } else if (employee.disabledUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Forbidden Access!'
+            });
+        } else if (!employee.activeUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Employment not yet approved. Kindly contact your superior.'
+            });
+        }
+
+        const now = new Date();
+        let startDate, endDate, groupId, dateFormat;
+        let matchStage = {};
+
+        // Set date range and grouping based on period
+        switch (period.toLowerCase()) {
+            case 'total':
+                // All data, group by day
+                groupId = { $dateToString: { format: '%Y-%m-%d', date: { $toDate: { $arrayElemAt: ["$visitedOn", -1] } } } };
+                dateFormat = '%Y-%m-%d';
+                startDate = null;
+                break;
+            case 'day':
+                // Last 24 hours, group by 30-minute intervals
+                startDate = new Date(now);
+                startDate.setHours(now.getHours() - 24);
+                // Group by both hour and minute (30-minute intervals)
+                groupId = {
+                    $let: {
+                        vars: {
+                            date: { $toDate: { $arrayElemAt: ["$visitedOn", -1] } },
+                            hour: { $hour: { $toDate: { $arrayElemAt: ["$visitedOn", -1] } } },
+                            minute: { $minute: { $toDate: { $arrayElemAt: ["$visitedOn", -1] } } }
+                        },
+                        in: {
+                            $concat: [
+                                { $toString: { $cond: [{ $eq: [{$mod: ["$$hour", 12]}, 0] }, 12, { $mod: ["$$hour", 12] }] } },
+                                ":",
+                                { $cond: [{ $lt: ["$$minute", 30] }, "00", "30"] },
+                                { $cond: [{ $lt: ["$$hour", 12] }, "am", "pm"] }
+                            ]
+                        }
+                    }
+                };
+                dateFormat = 'h:mma';
+                break;
+            case 'week':
+                // Last 7 days, group by day
+                startDate = new Date(now);
+                startDate.setDate(now.getDate() - 7);
+                groupId = { $dateToString: { format: '%Y-%m-%d', date: { $toDate: { $arrayElemAt: ["$visitedOn", -1] } } } };
+                dateFormat = '%Y-%m-%d';
+                break;
+            case 'month':
+                // Last 30 days, group by day
+                startDate = new Date(now);
+                startDate.setDate(now.getDate() - 30);
+                groupId = { $dateToString: { format: '%Y-%m-%d', date: { $toDate: { $arrayElemAt: ["$visitedOn", -1] } } } };
+                dateFormat = '%Y-%m-%d';
+                break;
+            case 'year':
+                // Last 12 months, group by month
+                startDate = new Date(now);
+                startDate.setMonth(now.getMonth() - 12);
+                groupId = { $dateToString: { format: '%Y-%m', date: { $toDate: { $arrayElemAt: ["$visitedOn", -1] } } } };
+                dateFormat = '%Y-%m';
+                break;
+            default:
+                return res.status(400).json({
+                    status: "failed",
+                    msg: 'Invalid period. Must be one of: day, week, month, year, total'
+                });
+        }
+
+        // Create the aggregation pipeline
+        const pipeline = [
+            // Convert the fcmTokensByDay map to an array of {k: date, v: tokens} objects
+            { $addFields: { tokensArray: { $objectToArray: "$fcmTokensByDay" } } },
+            // Unwind the tokens array
+            { $unwind: "$tokensArray" },
+            // Unwind the tokens array inside each date
+            { $unwind: "$tokensArray.v" },
+            // Project the fields we need
+            {
+                $project: {
+                    _id: 0,
+                    date: "$tokensArray.k",
+                    visitedOn: "$tokensArray.v.visitedOn"
+                }
+            },
+            // Filter by date range (skip for total)
+            ...(period.toLowerCase() !== 'total' ? [{
+                $match: {
+                    $expr: {
+                        $gte: [
+                            { $arrayElemAt: ["$visitedOn", -1] },
+                            startDate.getTime()
+                        ]
+                    }
+                }
+            }] : []),
+            // Group by time period
+            {
+                $group: {
+                    _id: groupId,
+                    count: { $sum: 1 },
+                    // Keep the actual timestamp for sorting
+                    timestamp: { $max: { $arrayElemAt: ["$visitedOn", -1] } }
+                }
+            },
+            // Sort by the timestamp
+            { $sort: { timestamp: 1 } },
+            // Project to final format
+            {
+                $project: {
+                    _id: 0,
+                    period: "$_id",
+                    count: 1
+                }
+            }
+        ];
+
+        const result = await Visitor.aggregate(pipeline);
+
+        res.json({
+            status: "success",
+            data: {
+                period: period,
+                dateFormat: dateFormat,
+                counts: result.map(item => item.count),
+                periods: result.map(item => item.period)
+            },
+            message: "Visitor time series data retrieved successfully"
+        });
+
+    } catch (error) {
+        console.error('Error in getVisitorTimeSeries:', error);
+        await errorLogBookSchema.create({
+            message: 'Error while fetching visitor time series data',
+            stackTrace: error.stack ? [...error.stack].join('/n') : '',
+            page: 'Visitor Analytics',
+            functionality: 'Fetch visitor time series data',
+            errorMessage: error.message || JSON.stringify(error)
+        });
+        
+        res.status(500).json({
+            status: "error",
+            message: 'Failed to process visitor time series data',
+            error: error.message
+        });
+    }
+};
+const getVisitsTimeSeries = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
+        const { period = 'day' } = body; // 'day', 'week', 'month', 'year', 'total'
+
+        // Employee validation
+        const employee = await reportersSchema.findOne({
+            employeeId: body.employeeId
+        });
+        
+        if (!employee) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Cannot access, contact your superior!'
+            });
+        } else if (employee.disabledUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Forbidden Access!'
+            });
+        } else if (!employee.activeUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Employment not yet approved. Kindly contact your superior.'
+            });
+        }
+
+        const now = new Date();
+        let startDate, groupId, dateFormat;
+
+        // Set date range and grouping based on period
+        switch (period.toLowerCase()) {
+            case 'total':
+                groupId = { $dateToString: { format: '%Y-%m-%d', date: { $toDate: "$visitTime" } } };
+                dateFormat = '%Y-%m-%d';
+                startDate = null;
+                break;
+            case 'day':
+                startDate = new Date(now);
+                startDate.setHours(now.getHours() - 24);
+                groupId = {
+                    $let: {
+                        vars: {
+                            date: { $toDate: "$visitTime" },
+                            hour: { $hour: { $toDate: "$visitTime" } },
+                            minute: { $minute: { $toDate: "$visitTime" } }
+                        },
+                        in: {
+                            $concat: [
+                                { $toString: { $cond: [{ $eq: [{$mod: ["$$hour", 12]}, 0] }, 12, { $mod: ["$$hour", 12] }] } },
+                                ":",
+                                { $cond: [{ $lt: ["$$minute", 30] }, "00", "30"] },
+                                { $cond: [{ $lt: ["$$hour", 12] }, "am", "pm"] }
+                            ]
+                        }
+                    }
+                };
+                dateFormat = 'h:mma';
+                break;
+            case 'week':
+                startDate = new Date(now);
+                startDate.setDate(now.getDate() - 7);
+                groupId = { $dateToString: { format: '%Y-%m-%d', date: { $toDate: "$visitTime" } } };
+                dateFormat = '%Y-%m-%d';
+                break;
+            case 'month':
+                startDate = new Date(now);
+                startDate.setDate(now.getDate() - 30);
+                groupId = { $dateToString: { format: '%Y-%m-%d', date: { $toDate: "$visitTime" } } };
+                dateFormat = '%Y-%m-%d';
+                break;
+            case 'year':
+                startDate = new Date(now);
+                startDate.setMonth(now.getMonth() - 12);
+                groupId = { $dateToString: { format: '%Y-%m', date: { $toDate: "$visitTime" } } };
+                dateFormat = '%Y-%m';
+                break;
+            default:
+                return res.status(400).json({
+                    status: "failed",
+                    msg: 'Invalid period. Must be one of: day, week, month, year, total'
+                });
+        }
+
+        // Aggregation pipeline: unwind all visits (all timestamps in all tokens)
+        const pipeline = [
+            { $addFields: { tokensArray: { $objectToArray: "$fcmTokensByDay" } } },
+            { $unwind: "$tokensArray" },
+            { $unwind: "$tokensArray.v" },
+            { $unwind: "$tokensArray.v.visitedOn" },
+            { $project: {
+                _id: 0,
+                visitTime: "$tokensArray.v.visitedOn"
+            }},
+            ...(period.toLowerCase() !== 'total' ? [{
+                $match: {
+                    $expr: {
+                        $gte: ["$visitTime", startDate.getTime()]
+                    }
+                }
+            }] : []),
+            { $group: {
+                _id: groupId,
+                count: { $sum: 1 },
+                timestamp: { $max: "$visitTime" }
+            }},
+            { $sort: { timestamp: 1 } },
+            { $project: {
+                _id: 0,
+                period: "$_id",
+                count: 1
+            }}
+        ];
+
+        const result = await Visitor.aggregate(pipeline);
+
+        res.json({
+            status: "success",
+            data: {
+                period: period,
+                dateFormat: dateFormat,
+                counts: result.map(item => item.count),
+                periods: result.map(item => item.period)
+            },
+            message: "Visits time series data retrieved successfully"
+        });
+    } catch (error) {
+        console.error('Error in getVisitsTimeSeries:', error);
+        await errorLogBookSchema.create({
+            message: 'Error while fetching visits time series data',
+            stackTrace: error.stack ? [...error.stack].join('/n') : '',
+            page: 'Visits Analytics',
+            functionality: 'Fetch visits time series data',
+            errorMessage: error.message || JSON.stringify(error)
+        });
+        res.status(500).json({
+            status: "error",
+            message: 'Failed to process visits time series data',
+            error: error.message
+        });
+    }
+};
 module.exports = {
     employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, 
     getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, 
     getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing,
     employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, 
-    getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats
+    getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries,getVisitsTimeSeries
 };
