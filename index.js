@@ -2,11 +2,43 @@ const express = require('express');
 require('express-async-errors');
 const app = express();
 const cors = require("cors");
-app.use(express.json());
 
-const functions = require("firebase-functions")
+// Enable CORS for all routes
+const corsOptions = {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-client-key', 'x-client-token', 'x-client-secret'],
+    credentials: true,
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
+// Parse JSON and URL-encoded bodies
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-const allowedOrigins = ['http://localhost:8081', 'http://localhost:4201', 'https://neticharithra-ncmedia.web.app', '*']; // Add more origins if needed
+
+// Add headers before the routes are defined
+app.use(function (req, res, next) {
+    // Website you wish to allow to connect
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Request methods you wish to allow
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    // Request headers you wish to allow
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,Authorization');
+    // Set to true if you need the website to include cookies in the requests sent
+    // to the API (e.g. in case you use sessions)
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    // Pass to next layer of middleware
+    next();
+});
+
+const functions = require("firebase-functions");
+// const allowedOrigins = ['*']; // Add more origins if needed
 // app.use(cors({
 //     origin: function (origin, callback) {
 //         if (!origin || allowedOrigins.includes(origin)) {
@@ -17,7 +49,7 @@ const allowedOrigins = ['http://localhost:8081', 'http://localhost:4201', 'https
 //         }
 //     }
 // }));
-app.use(cors())
+// app.use(cors())
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
@@ -25,7 +57,9 @@ const dotenv = require('dotenv');
 dotenv.config()
 const connect = require('./connectDB/mongoDB');
 const router = require('./common-handlers/commonRoute');
+const router_v3 = require('./common-handlers/v3/commonRoute.js');
 app.use('/api/v2', router);
+app.use('/api/v3', router_v3);
 require('dotenv').config();
 const bodyParser = require('body-parser');
 // const admin.initi
@@ -133,6 +167,62 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
         });
     }
 });
+
+
+const uploadHandler = async (req, res) => {
+    try {
+        let uploadedImages = [];
+        console.log(`Number of files received: ${req.files?.length}`);
+
+        if (req.files && req.files.length > 0) {
+            for (let index = 0; index < req.files.length; index++) {
+                const fileName = req.body.fileName === "original"
+                    ? req.files[index].originalname
+                    : `File_${Date.now()}_${index}`;
+
+                const uploadParams = {
+                    Bucket: BUCKET_NAME,
+                    Body: req.files[index].buffer,
+                    Key: fileName,
+                    ContentType: req.files[index].mimetype
+                };
+
+                console.log(`Uploading file: ${fileName}`);
+                await s3.send(new PutObjectCommand(uploadParams));
+                const fileURLTemp = await getFileTempUrls3(fileName);
+                uploadedImages.push({
+                    fileName: fileName,
+                    tempURL: fileURLTemp,
+                    ContentType: req.files[index].mimetype
+                });
+            }
+        }
+
+        res.status(200).json({
+            status: "success",
+            msg: 'Uploaded Successfully',
+            data: uploadedImages
+        });
+    } catch (error) {
+        await errorLogBookSchema.create({
+            message: `Error while uploading files to drive`,
+            stackTrace: JSON.stringify(error.stack?.split('\n')),
+            page: req.body?.uploadType || 'Uploading News Image',
+            functionality: req.body?.uploadType || 'Uploading News Image',
+            errorMessage: JSON.stringify(error)
+        });
+
+        console.error(error);
+        res.status(500).json({
+            status: "failed",
+            msg: 'Failed while processing..',
+        });
+    }
+};
+
+app.post('/api/v3/uploadFiles', upload.array('images'), uploadHandler);
+
+
 // BELWO ENDPOINT IS ONLY FOR TESTING
 app.post('/api/v2/deleteS3', async (req, res) => {
 

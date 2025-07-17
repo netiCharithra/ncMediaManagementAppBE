@@ -12,15 +12,15 @@ const employeeTracing = new mongoose.Schema({
         required: [true, 'Employee ID should be specified']
     },
     startDate: {
-        type: String,
+        type: Number,
         required: [true, 'please provide Start Date']
     },
     endDate: {
-        type: String,
+        type: Number,
         required: [true, 'please provide End Date']
     },
     createdOn: {
-        type: String,
+        type: Number,
         required: [false, 'please provide End Date']
     },
     createdBy: {
@@ -28,7 +28,7 @@ const employeeTracing = new mongoose.Schema({
         required: [false, 'please provide End Date']
     },
     UpdatedOn: {
-        type: String,
+        type: Number,
         required: [false, 'please provide End Date']
     },
     UpdatedBy: {

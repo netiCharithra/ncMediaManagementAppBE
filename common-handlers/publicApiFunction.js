@@ -847,9 +847,10 @@ const employeeTracingManagement = async (req, res) => {
 }
 const employeeTracingListing = async (req, res) => {
 
-    const PAGE_SIZE = 10; // Set your desired page size
+    const PAGE_SIZE =req.body.count|| 10; // Set your desired page size
 
-    const today = new Date().toISOString();
+    const today = new Date().getTime();
+    console.log(today)
 
     const page = req.body.page ? parseInt(req.body.page, 10) : 1;
     const skip = (page - 1) * PAGE_SIZE;
@@ -864,8 +865,38 @@ const employeeTracingListing = async (req, res) => {
             totalRecords = count;
 
             return EmployeeTracing.aggregate([
+                
                 {
                     $addFields: {
+                        // Split the activeTraceId into parts based on "-"
+                        parts: { $split: ["$activeTraceId", "-"] }
+                    }
+                },
+                {
+                    $addFields: {
+                        // Extract the state code (AP in this case)
+                        state: { $arrayElemAt: ["$parts", 1] },
+                        // Split the last part (1_1) based on "_"
+                        lastPart: { $arrayElemAt: ["$parts", 2] }
+                    }
+                },
+                {
+                    $addFields: {
+                        // Further split the last part into ID and sequence
+                        lastPartsSplit: { $split: ["$lastPart", "_"] }
+                    }
+                },
+                {
+                    $addFields: {
+                        // Convert ID and sequence into integers
+                        id: { $toInt: { $arrayElemAt: ["$lastPartsSplit", 0] } },
+                        sequence: { $toInt: { $arrayElemAt: ["$lastPartsSplit", 1] } }
+                    }
+                },
+                {
+                    $addFields: {
+                        // numericPart: { $toInt: { $arrayElemAt: ["$parts", 2] } },
+
                         active: {
                             $cond: {
                                 if: {
@@ -881,9 +912,16 @@ const employeeTracingListing = async (req, res) => {
                     }
                 },
                 {
+                    $match:{
+                        active:req.body.action
+                    }
+                },
+                {
                     $sort: {
                         active: -1,
-                        startDate: 1
+                        startDate: 1,
+                        id: 1,          // Ascending order by id
+                        sequence: 1     // Ascending order by sequence
                     }
                 },
                 {
@@ -977,11 +1015,12 @@ const employeeTracingListing = async (req, res) => {
                     },
                     metaData: {
                         title: "Emplpoyee Tracing",
+                        totalRecords:totalRecords,
                         "actions": [
                             {
                                 type: "button",
                                 tooltip: "Edit",
-                                icon: "edit",
+                                icon: "bi bi-pencil-square",
                                 key: "edit",
                                 class: "btn btn-success",
                                 disable: {
@@ -992,7 +1031,7 @@ const employeeTracingListing = async (req, res) => {
                             {
                                 type: "button",
                                 tooltip: "Copy QR Code",
-                                icon: "qr_code_2",
+                                icon: "bi bi-qr-code",
                                 key: "qrCode",
                                 class: "btn btn-dark",
                                 disable: {
@@ -1000,27 +1039,7 @@ const employeeTracingListing = async (req, res) => {
 
                                 }
                             },
-                            // {
-                            //     type: "button",
-                            //     tooltip: "In Active",
-                            //     icon: "edit_off",
-                            //     key: "inactive",
-                            //     class: "btn btn-dark"
-                            // },
-                            // {
-                            //     type: "button",
-                            //     tooltip: "Disable",
-                            //     key: "disable",
-                            //     class: "btn btn-danger",
-                            //     icon: "no_accounts",
-                            // },
-                            // {
-                            //     type: "button",
-                            //     tooltip: "Verify Identity",
-                            //     key: "verify_identity",
-                            //     class: "btn btn-outline-primary",
-                            //     icon: "fact_check",
-                            // }
+                          
                         ],
                         "createNew": {
                             type: "createNew",
@@ -1051,7 +1070,7 @@ const employeeTraceCheck = async (req, res) => {
     try {
 
 
-        const currentDate = new Date().toISOString();
+        const currentDate = new Date().getTime();
         const providedTraceId = req.body.activeTraceId;
 
 
@@ -1551,7 +1570,7 @@ const getAllNews = async (req, res) => {
     }
 }
 
-const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+// const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const requestPublicOTP = async (req, res) => {
     try {
@@ -1560,36 +1579,36 @@ const requestPublicOTP = async (req, res) => {
         //     "mobileNumber": 8317513201,
         //     "countryCode":"+91"
         // }
-        let obj = {
-            otp: generateOTP(6),
-            mobileNumber: req.body.phoneNumber,
-            countryCode: req.body.countryCode
-        }
-        let resp = await otpTrackingSchema.create(obj);
+        // let obj = {
+        //     otp: generateOTP(6),
+        //     mobileNumber: req.body.phoneNumber,
+        //     countryCode: req.body.countryCode
+        // }
+        // let resp = await otpTrackingSchema.create(obj);
 
-        client.messages
-            .create({
-                body: `${obj.otp} is your OTP to validate in NC Media mobile App \n OTP Expires in 10 minutes. \n Team - NC Media`,
-                from: '+1 251 572 1321', // Replace with your alphanumeric sender ID
-                to: req.body.countryCode + req.body.phoneNumber
-            })
-            .then(message => {
+        // client.messages
+        //     .create({
+        //         body: `${obj.otp} is your OTP to validate in NC Media mobile App \n OTP Expires in 10 minutes. \n Team - NC Media`,
+        //         from: '+1 251 572 1321', // Replace with your alphanumeric sender ID
+        //         to: req.body.countryCode + req.body.phoneNumber
+        //     })
+        //     .then(message => {
 
-                res.status(200).json({
-                    status: "success",
-                    step: "otp",
-                    message: `OTP Sent to your mobile.. Validate with OTP`,
-                    msg: message
-                })
-            })
-            .catch(error => {
-                console.error(error)
-                res.status(200).json({
-                    status: "failed",
+        //         res.status(200).json({
+        //             status: "success",
+        //             step: "otp",
+        //             message: `OTP Sent to your mobile.. Validate with OTP`,
+        //             msg: message
+        //         })
+        //     })
+        //     .catch(error => {
+        //         console.error(error)
+        //         res.status(200).json({
+        //             status: "failed",
 
-                    message: `Something went wrong`,
-                })
-            });
+        //             message: `Something went wrong`,
+        //         })
+        //     });
 
 
 
@@ -1612,6 +1631,7 @@ const requestPublicOTP = async (req, res) => {
         });
     }
 }
+
 const validateUserOTP = async (req, res) => {
     try {
         const data = JSON.parse(JSON.stringify(req.body));
@@ -2061,7 +2081,7 @@ async function updateTempURLs(dataCopy) {
 }
 const getNewsInfoV2 = async (req, res) => {
     try {
-        console.log("CALL FROM MBILE")
+        console.log("CALL FROM MBILE 2")
         console.log(req.body)
 
         let aggregationPipeline = [
@@ -2124,6 +2144,7 @@ const getLatestNewsV2 = async (req, res) => {
     try {
 
 
+        console.log("ojho")
 
         // let page starts from zero;
         let viewersData = await metaDataSchema.updateOne(
@@ -2159,14 +2180,14 @@ const getLatestNewsV2 = async (req, res) => {
         if (req?.body?.category) {
             aggregationPipeline[0]['$match']['category'] = req.body.category
         }
-        console.log(req?.body)
         if (req?.body?.newsType) {
             aggregationPipeline[0]['$match']['newsType'] = req.body.newsType
         }
-
-
+        
+        
         try {
             let newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
+            console.log(req?.body)
             let endOfRecords = newsInfo.length === 0; // Set endOfRecords to true if no records are fetched
             // Fetch temporary URLs for images
             newsInfo = await fetchTempUrls(newsInfo)
