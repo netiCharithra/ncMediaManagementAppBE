@@ -1,8 +1,15 @@
 const express = require('express');
 require('express-async-errors');
 const serverless = require('serverless-http');
+const mongoose = require('mongoose');
 const app = express();
 const cors = require("cors");
+
+// Import the database connection
+const connect = require('./connectDB/mongoDB');
+
+// Cache the database connection
+let cachedDb = null;
 
 // Enable CORS for all routes
 const corsOptions = {
@@ -56,7 +63,6 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const dotenv = require('dotenv');
 dotenv.config()
-const connect = require('./connectDB/mongoDB');
 const router = require('./common-handlers/commonRoute');
 const router_v3 = require('./common-handlers/v3/commonRoute.js');
 app.use('/api/v2', router);
@@ -318,7 +324,11 @@ const start = async () => {
     };
 
     try {
-        await connect(process.env.MONGO_DB_URL);
+        // Connect to MongoDB
+        const db = await connect(process.env.MONGO_DB_URL);
+        console.log('MongoDB connected successfully');
+        
+        // Start the server
         await tryPort(port);
     } catch (error) {
         console.error('Failed to start server:', error);
@@ -329,7 +339,24 @@ const start = async () => {
 // start();
 
 // AWS Lambda handler
-exports.handler = serverless(app);
+const handler = async (event, context) => {
+    // Ensure the database is connected
+    try {
+        if (!cachedDb || mongoose.connection.readyState !== 1) {
+            console.log('Connecting to MongoDB from Lambda handler...');
+            await connect(process.env.MONGO_DB_URL);
+        }
+        return serverless(app)(event, context);
+    } catch (error) {
+        console.error('Error in Lambda handler:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Internal server error' })
+        };
+    }
+};
+
+exports.handler = handler;
 
 // For local development
 if (process.env.NODE_ENV !== 'production') {
