@@ -1,5 +1,6 @@
 const express = require('express');
 require('express-async-errors');
+const serverless = require('serverless-http');
 const app = express();
 const cors = require("cors");
 
@@ -294,27 +295,54 @@ async function getFileTempUrls3(fileName) {
 
 
 const start = async () => {
-    let port = process.env.PORT || 3000
+    const server = require('http').createServer(app);
+    let port = process.env.PORT || 3000;
+    
+    const tryPort = (portToTry) => {
+        return new Promise((resolve, reject) => {
+            server.once('error', (err) => {
+                if (err.code === 'EADDRINUSE') {
+                    console.log(`Port ${portToTry} is in use, trying port ${Number(portToTry) + 1}...`);
+                    resolve(tryPort(Number(portToTry) + 1));
+                } else {
+                    reject(err);
+                }
+            });
+            
+            server.listen(portToTry, () => {
+                console.log(`Server is running on port ${portToTry}`);
+                console.log(`Local: http://localhost:${portToTry}`);
+                resolve(portToTry);
+            });
+        });
+    };
+
     try {
-        await connect(process.env.MONGO_DB_URL)
-        app.listen(port, () => {
-            console.log(`listening port ${port}`)
-        })
+        await connect(process.env.MONGO_DB_URL);
+        await tryPort(port);
     } catch (error) {
-        console.error(error)
+        console.error('Failed to start server:', error);
+        process.exit(1);
     }
 }
 
-start();
+// start();
 
+// AWS Lambda handler
+exports.handler = serverless(app);
 
-// exports.api = functions.https.onRequest(app)
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  // const PORT = process.env.PORT || 3000;
+  // app.listen(PORT, () => {
+  //   console.log(`Server is running on port ${PORT}`);
+  // });
+}
 
-
-// SETUP FOR DEPLOYMENT
-// 1. Uncomment exports.api
-// 2. Comment start()
+// SETUP FOR DEPLOYMENT (AWS Lambda)
+// 1. Keep exports.handler uncommented
+// 2. Comment out start()
 
 // SETUP FOR LOCAL RUN
-// 1. Comment exports.api
-// 2. Uncomment start() 
+// 1. Comment out exports.handler
+// 2. Keep start() uncommented
