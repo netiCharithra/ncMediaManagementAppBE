@@ -336,7 +336,7 @@ const start = async () => {
     }
 }
 
-start();
+// start();
 
 // AWS Lambda handler
 const handler = async (event, context) => {
@@ -356,7 +356,7 @@ const handler = async (event, context) => {
     }
 };
 
-// exports.handler = handler;
+exports.handler = handler;
 
 // For local development
 if (process.env.NODE_ENV !== 'production') {
