@@ -34,3 +34,19 @@ jobs:
         aws_region: ${{ secrets.AWS_REGION }}
         function_name: ${{ secrets.LAMBDA_FUNCTION_NAME }}
         zip_file: function.zip
+
+    - name: Update Lambda environment variables
+      run: |
+        aws lambda update-function-configuration \
+          --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
+          --environment "Variables={
+            ACCESS_KEY='${{ secrets.ACCESS_KEY }}',
+            SECRET_ACCESS_KEY='${{ secrets.SECRET_ACCESS_KEY }}',
+            BUCKET_REGION='${{ secrets.BUCKET_REGION }}',
+            BUCKET_NAME_ARTICLE='${{ secrets.BUCKET_NAME_ARTICLE }}',
+            BUCKET_NAME_EMPLOYEE_DOCS='${{ secrets.BUCKET_NAME_EMPLOYEE_DOCS }}'
+            }"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.BUCKET_REGION }}
