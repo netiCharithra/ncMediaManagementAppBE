@@ -1,5 +1,5 @@
 const express = require('express')
-const { getLatestNews, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, getIndividualNewsInfo, employeeTraceCheck, getVisitorsCount } = require('./publicApiFunction');
+const { getLatestNews, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, getIndividualNewsInfo, employeeTraceCheck, getVisitorsCount, getTypeCategorizedNewsPaginatedOnly } = require('./publicApiFunction');
 const { employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing ,employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries, getVisitsTimeSeries, getVisitorLocations } = require('./adminstrationAPIFunction');
 const adminAuth = require('../../middleware/adminAuth');
 const otpAuthRoutes = require('./otpAuth');
@@ -13,6 +13,7 @@ router.route('/public/home/getLatestNews').post(getLatestNews);
 router.route('/public/home/getNewsTypeCategorizedNews').post(getNewsTypeCategorizedNews);
 router.route('/public/home/getNewsCategoryCategorizedNews').post(getNewsCategoryCategorizedNews);
 router.route('/public/home/getCategoryNewsPaginatedOnly').post(getCategoryNewsPaginatedOnly);
+router.route('/public/home/getTypeCategorizedNewsPaginatedOnly').post(getTypeCategorizedNewsPaginatedOnly);
 router.route('/public/metaData').post(getMetaData);
 router.route('/public/newsInfo').post(getIndividualNewsInfo);
 router.route('/public/employeeTraceCheck').post(employeeTraceCheck);
