@@ -5,6 +5,7 @@ const EmployeeTracing = require('../../modals/employeeTracing')
 const reportersSchema = require('../../modals/reportersSchema');
 const Visitor = require('../../modals/visitorSchema');
 const { getFileTempUrls3 } = require('./../commonApiFunction');
+const { generateDownloadUrl } = require('./utils/s3Utils');
 require('dotenv').config();
 
 
@@ -122,7 +123,7 @@ const getLatestNews = async (req, res) => {
         if(req?.body?.visitorId){
             handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
         }
-        const result = await newsDataSchema.aggregate([
+        let result = await newsDataSchema.aggregate([
             {
                 $match: {
                     approvedOn: { $gt: 0 },
@@ -137,6 +138,33 @@ const getLatestNews = async (req, res) => {
                 $limit: 13
             }
         ]);
+
+        // Add signed URLs to each image in the result
+        result = await Promise.all(result.map(async (newsItem) => {
+            if (newsItem.images && Array.isArray(newsItem.images)) {
+                // Process each image to add signed URL
+                newsItem.images = await Promise.all(newsItem.images.map(async (image) => {
+                    if (image?.fileName) {
+                        try {
+                            const signedUrl = await generateDownloadUrl(image.fileName);
+                            return {
+                                ...image.toObject ? image.toObject() : image,
+                                tempURL: signedUrl
+                            };
+                        } catch (error) {
+                            console.error(`Error generating URL for ${image.fileName}:`, error);
+                            return {
+                                ...image.toObject ? image.toObject() : image,
+                                tempURL: null,
+                                error: 'Failed to generate URL'
+                            };
+                        }
+                    }
+                    return image.toObject ? image.toObject() : image;
+                }));
+            }
+            return newsItem;
+        }));
 
         res.status(200).json({
             status: "success",
@@ -287,21 +315,46 @@ const getNewsTypeCategorizedNews = async (req, res) => {
                 }
             }
         ];
-        let result = await newsDataSchema.aggregate(aggregateQuery)
+        let result = await newsDataSchema.aggregate(aggregateQuery);
 
-        // for (let index = 0; index < result?.[0]?.['types'].length; index++) {
-
-        //     result[0]['types'][index]['records'] = await fetchTempUrls(result[0]['types'][index]['records'])
-
-
-        // }
-
+        // Process each type and its records to add image URLs
+        if (result?.[0]?.types?.length > 0) {
+            await Promise.all(result[0].types.map(async (type) => {
+                if (type.records && Array.isArray(type.records)) {
+                    console.log("HIiiiiiii")
+                    type.records = await Promise.all(type.records.map(async (record) => {
+                        if (record.images && Array.isArray(record.images)) {
+                            record.images = await Promise.all(record.images.map(async (image) => {
+                                if (image?.fileName) {
+                                    try {
+                                        const signedUrl = await generateDownloadUrl(image.fileName);
+                                        return {
+                                            ...(image.toObject ? image.toObject() : image),
+                                            tempURL: signedUrl
+                                        };
+                                    } catch (error) {
+                                        console.error(`Error generating URL for ${image.fileName}:`, error);
+                                        return {
+                                            ...(image.toObject ? image.toObject() : image),
+                                            tempURL: null,
+                                            error: 'Failed to generate URL'
+                                        };
+                                    }
+                                }
+                                return image.toObject ? image.toObject() : image;
+                            }));
+                        }
+                        return record;
+                    }));
+                }
+                return type;
+            }));
+        }
 
         res.status(200).json({
             status: "success",
             msg: 'Success',
             data: result
-
         });
     } catch (error) {
         console.error(error)
@@ -348,16 +401,45 @@ const getNewsCategoryCategorizedNews = async (req, res) => {
                 news: { $slice: ["$news", 5] }
             }
         }]
-        let result = await newsDataSchema.aggregate(aggregateQuery)
+        let result = await newsDataSchema.aggregate(aggregateQuery);
 
-        for (let index = 0; index < result?.length; index++) {
-            result[index]['news'] = await fetchTempUrls(result[index]['news'])
+        // Process each category and its news items to add image URLs
+        if (result?.length > 0) {
+            await Promise.all(result.map(async (category) => {
+                if (category.news && Array.isArray(category.news)) {
+                    category.news = await Promise.all(category.news.map(async (newsItem) => {
+                        if (newsItem.images && Array.isArray(newsItem.images)) {
+                            newsItem.images = await Promise.all(newsItem.images.map(async (image) => {
+                                if (image?.fileName) {
+                                    try {
+                                        const signedUrl = await generateDownloadUrl(image.fileName);
+                                        return {
+                                            ...(image.toObject ? image.toObject() : image),
+                                            tempURL: signedUrl
+                                        };
+                                    } catch (error) {
+                                        console.error(`Error generating URL for ${image.fileName}:`, error);
+                                        return {
+                                            ...(image.toObject ? image.toObject() : image),
+                                            tempURL: null,
+                                            error: 'Failed to generate URL'
+                                        };
+                                    }
+                                }
+                                return image.toObject ? image.toObject() : image;
+                            }));
+                        }
+                        return newsItem;
+                    }));
+                }
+                return category;
+            }));
         }
+
         res.status(200).json({
             status: "success",
             msg: 'Success',
             data: result
-
         });
     } catch (error) {
         console.error(error)
@@ -465,20 +547,48 @@ const getCategoryNewsPaginatedOnly = async (req, res) => {
         const newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
         const endOfRecords = newsInfo[0].records.length === 0; // Set endOfRecords to true if no records are fetched
 
+        // Process news records to add tempURL for each image
+        const processNewsImages = async (records) => {
+            if (!Array.isArray(records)) return [];
+            
+            return await Promise.all(records.map(async (record) => {
+                if (record.images && Array.isArray(record.images)) {
+                    try {
+                        record.images = await Promise.all(record.images.map(async (image) => {
+                            if (image?.fileName) {
+                                try {
+                                    const signedUrl = await generateDownloadUrl(image.fileName);
+                                    return {
+                                        ...(image.toObject ? image.toObject() : image),
+                                        tempURL: signedUrl
+                                    };
+                                } catch (error) {
+                                    console.error(`Error generating URL for ${image.fileName}:`, error);
+                                    return {
+                                        ...(image.toObject ? image.toObject() : image),
+                                        tempURL: null,
+                                        error: 'Failed to generate URL'
+                                    };
+                                }
+                            }
+                            return image.toObject ? image.toObject() : image;
+                        }));
+                    } catch (error) {
+                        console.error('Error processing images for record:', record.newsId, error);
+                        // Continue with original images if there's an error processing
+                    }
+                }
+                return record;
+            }));
+        };
 
-        // Update specific record with temporary URLs for images
-        // let specificRecordWithTempURL = await Promise.all(newsInfo[0].records.map(async record => {
-        //     let imagesWithTempURL = await Promise.all(record.images.map(async image => {
-        //         let tempURL = await getFileTempUrls3(image.fileName);
-        //         return { ...image, tempURL };
-        //     }));
-        //     return { ...record, images: imagesWithTempURL };
-        // }));
+        // Process all records to add image URLs
+        const processedRecords = await processNewsImages(newsInfo[0]?.records || []);
 
         res.status(200).json({
             status: "success",
             data: {
-                records: newsInfo[0].records,
+                records: processedRecords,
                 endOfRecords: endOfRecords,
             }
         });
@@ -488,6 +598,100 @@ const getCategoryNewsPaginatedOnly = async (req, res) => {
     }
 }
 
+
+const getTypeCategorizedNewsPaginatedOnly = async (req, res) => {
+    // let page starts from zero;
+    // let viewersData = await metaDataSchema.updateOne(
+    //     { type: 'viewersIp', data: { $nin: [req.ip] } }, // Find documents of the specified type without the target IP
+    //     { $addToSet: { data: req.ip } }, // Add the target IP to the array if not already present
+    // )
+
+    if(req?.body?.visitorId){
+        handleVisitorManagement(req?.body?.visitorId, req?.body?.location, req?.body?.requestTime)
+    }
+    const recordsPerPage = req?.body?.count || 10;
+    const pageNumber = req?.body?.page || 1;
+    const skipRecords = (pageNumber - 1) * recordsPerPage;
+    const aggregationPipeline = [
+        {
+            $facet: {
+                records: [
+                    {
+                        $match: {
+                            // approvedOn: { $gt: 0 }, // Filtering for approved records
+                            newsType: req.body.type, // Match the specific category,
+                            // language:req.body.language
+                        }
+                    },
+                    {
+                        $sort: { newsId: -1 } // Sorting by createdDate in descending order
+                    },
+                    {
+                        $skip: skipRecords // Skipping records based on page number
+                    },
+                    {
+                        $limit: recordsPerPage // Limiting records per page
+                    }
+                ],
+
+            }
+        }
+    ];
+
+    try {
+        const newsInfo = await newsDataSchema.aggregate(aggregationPipeline);
+        const endOfRecords = newsInfo[0].records.length === 0; // Set endOfRecords to true if no records are fetched
+
+        // Process news records to add tempURL for each image
+        const processNewsImages = async (records) => {
+            if (!Array.isArray(records)) return [];
+            
+            return await Promise.all(records.map(async (record) => {
+                if (record.images && Array.isArray(record.images)) {
+                    try {
+                        record.images = await Promise.all(record.images.map(async (image) => {
+                            if (image?.fileName) {
+                                try {
+                                    const signedUrl = await generateDownloadUrl(image.fileName);
+                                    return {
+                                        ...(image.toObject ? image.toObject() : image),
+                                        tempURL: signedUrl
+                                    };
+                                } catch (error) {
+                                    console.error(`Error generating URL for ${image.fileName}:`, error);
+                                    return {
+                                        ...(image.toObject ? image.toObject() : image),
+                                        tempURL: null,
+                                        error: 'Failed to generate URL'
+                                    };
+                                }
+                            }
+                            return image.toObject ? image.toObject() : image;
+                        }));
+                    } catch (error) {
+                        console.error('Error processing images for record:', record.newsId, error);
+                        // Continue with original images if there's an error processing
+                    }
+                }
+                return record;
+            }));
+        };
+
+        // Process all records to add image URLs
+        const processedRecords = await processNewsImages(newsInfo[0]?.records || []);
+
+        res.status(200).json({
+            status: "success",
+            data: {
+                records: processedRecords,
+                endOfRecords: endOfRecords,
+            }
+        });
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
 
 
 const fetchTempUrls = async (records) => {
@@ -549,22 +753,57 @@ const getIndividualNewsInfo = async (req, res) => {
         },
     ]);
 
-    // Fetching tempURL for each image in recentRecords and specificRecord
+    // Process recentRecords to add tempURL for each image
+    const processNewsImages = async (newsArray) => {
+        if (!Array.isArray(newsArray)) return [];
+        
+        return await Promise.all(newsArray.map(async (newsItem) => {
+            if (newsItem.images && Array.isArray(newsItem.images)) {
+                newsItem.images = await Promise.all(newsItem.images.map(async (image) => {
+                    if (image?.fileName) {
+                        try {
+                            const signedUrl = await generateDownloadUrl(image.fileName);
+                            return {
+                                ...(image.toObject ? image.toObject() : image),
+                                tempURL: signedUrl
+                            };
+                        } catch (error) {
+                            console.error(`Error generating URL for ${image.fileName}:`, error);
+                            return {
+                                ...(image.toObject ? image.toObject() : image),
+                                tempURL: null,
+                                error: 'Failed to generate URL'
+                            };
+                        }
+                    }
+                    return image.toObject ? image.toObject() : image;
+                }));
+            }
+            return newsItem;
+        }));
+    };
 
-    let recentRecordsWithTempURL = await fetchTempUrls(newsInfo[0].recentRecords)
-    let specificRecordWithTempURL = await fetchTempUrls(newsInfo[0].specificRecord)
+    // Process both recentRecords and specificRecord
+    const [processedRecentRecords, processedSpecificRecord] = await Promise.all([
+        processNewsImages(newsInfo[0]?.recentRecords || []),
+        processNewsImages(newsInfo[0]?.specificRecord || [])
+    ]);
 
-    if (specificRecordWithTempURL?.[0]?.['reportedBy']?.['profilePicture']?.['fileName']) {
-        specificRecordWithTempURL[0]['reportedBy']['profilePicture']['tempURL'] = await getFileTempUrls3(specificRecordWithTempURL[0]['reportedBy']['profilePicture']['fileName']);
+    // Process reporter's profile picture if exists
+    if (processedSpecificRecord?.[0]?.reportedBy?.profilePicture?.fileName) {
+        try {
+            const profilePicUrl = await generateDownloadUrl(processedSpecificRecord[0].reportedBy.profilePicture.fileName);
+            processedSpecificRecord[0].reportedBy.profilePicture.tempURL = profilePicUrl;
+        } catch (error) {
+            console.error('Error generating profile picture URL:', error);
+            processedSpecificRecord[0].reportedBy.profilePicture.tempURL = null;
+            processedSpecificRecord[0].reportedBy.profilePicture.error = 'Failed to generate URL';
+        }
     }
 
-
-
-    // let value = await metaDataSchema.findOne({ type: 'NEWS_CATEGORIES' });
-
-    let responseData = {
-        recentRecords: recentRecordsWithTempURL,
-        specificRecord: specificRecordWithTempURL,
+    const responseData = {
+        recentRecords: processedRecentRecords,
+        specificRecord: processedSpecificRecord,
         // categories: value.data
     };
 
@@ -764,5 +1003,5 @@ const employeeTraceCheck = async (req, res) => {
 }
 
 module.exports = {
-    getLatestNews, getIndividualNewsInfo, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews, getCategoryNewsPaginatedOnly, getCategoryWiseCount, employeeTraceCheck, getVisitorsCount
+    getLatestNews, getIndividualNewsInfo, getMetaData, getNewsTypeCategorizedNews, getNewsCategoryCategorizedNews,getTypeCategorizedNewsPaginatedOnly,  getCategoryNewsPaginatedOnly, getCategoryWiseCount, employeeTraceCheck, getVisitorsCount
 }
