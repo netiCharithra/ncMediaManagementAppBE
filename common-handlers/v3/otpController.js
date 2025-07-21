@@ -44,7 +44,16 @@ const sendOTP = async (req, res) => {
         }
 
         if (!user) {
-            return errorResponse(res, 'Invalid Email/Mobile/EmployeeId');
+
+            return errorResponse(res, 'Authentication failed! Invalid employee ID.', 401);
+        }
+
+        if (user.disabledUser) {
+            return errorResponse(res, 'Forbidden Access! Your account has been disabled.', 403);
+        }
+
+        if (!user.activeUser) {
+            return errorResponse(res, 'Employment not yet approved. Kindly contact your superior.', 403);
         }
 
         // Check for existing active OTP
