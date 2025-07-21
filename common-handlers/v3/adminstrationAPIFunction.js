@@ -249,7 +249,7 @@ const fetchNewsListPending = async (req, res) => {
             }
         };
 
-        if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+        if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR' || body.role === 'MANAGEMENT LEAD') {
             console.log("TR");
             const ntApprovedLst = await newsDataSchema.find({
                 approved: false,
@@ -458,7 +458,7 @@ const fetchNewsListApproved = async (req, res) => {
             }
         }
 
-        if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+        if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR' || body.role === 'MANAGEMENT LEAD') {
 
             console.log("TR")
             const approvedList = await newsDataSchema.find(
@@ -709,7 +709,7 @@ const fetchNewsListRejected = async (req, res) => {
                     }
                 }
 
-                if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+                if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR' || body.role === 'MANAGEMENT LEAD') {
 
                     console.log("TR")
                     const rejectedList = await newsDataSchema.find(
@@ -1518,7 +1518,7 @@ const getEmployeesDataPaginated = async (req, res) => {
                         }
                     }
                 }
-                if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
+                if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR' || req.body.role === 'MANAGEMENT LEAD') {
 
 
 
@@ -1606,7 +1606,7 @@ const getEmployeesDataPaginated = async (req, res) => {
                             }
 
 
-                    if (req.body.role === 'INCHARGE DIRECTOR') {
+                    if (req.body.role === 'INCHARGE DIRECTOR' || body.role === 'MANAGEMENT LEAD') {
                         for (let index = 0; index < metaData['actions'].length; index++) {
                             metaData['actions'][index]['disable'] = {
                                 role: ['CEO', 'INCHARGE DIRECTOR']
