@@ -7,6 +7,7 @@ const CryptoJS = require('crypto-js');
 const errorLogBookSchema = require('../../modals/errorLogBookSchema');
 const employeeTracing = require('../../modals/employeeTracing');
 const Visitor = require('../../modals/visitorSchema');
+const { generateDownloadUrl } = require('./utils/s3Utils');
 
 require('dotenv').config();
 
@@ -1235,7 +1236,7 @@ const getAdminIndividualNewsInfo = async (req, res) => {
                 // Fetching tempURL for each image in newsContent using promises  
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
-                        elementImg['tempURL'] = await getFileTempUrls3(elementImg?.fileName);
+                        elementImg['tempURL'] = await generateDownloadUrl(elementImg?.fileName);
                     }
                     return elementImg; // Returning updated image object
                 }));

@@ -145,7 +145,10 @@ app.post('/api/v3/uploadFiles', upload.array('images'), async (req, res) => {
 
                 console.log(`Uploading file: ${fileName}`);
                 await s3.send(new PutObjectCommand(uploadParams));
-                const fileURLTemp = await generateDownloadUrl(fileName, bucketType);
+
+                const fileURLTemp = await generateDownloadUrl(fileName,undefined, bucketType);
+
+
                 uploadedImages.push({
                     fileName: fileName,
                     tempURL: fileURLTemp,
@@ -235,19 +238,13 @@ app.post('/api/v3/uploadFiles', upload.array('images'), uploadHandler);
 
 
 // BELWO ENDPOINT IS ONLY FOR TESTING
-app.post('/api/v2/deleteS3', async (req, res) => {
+app.post('/api/v3/deleteS3', async (req, res) => {
 
     try {
-        var filename = req.body.data.fileName
-        // const params = {
-        //     Bucket: BUCKET_NAME,
-        //     Key: body.data.fileName
-        // }
-
-
-
+        console.log(req.body)
+        var filename = req.body.fileName
         const uploadParams = {
-            Bucket: BUCKET_NAME,
+            Bucket: req.body.bucketType === "articles" ? BUCKET_NAME_ARTICLE : BUCKET_NAME_EMPLOYEE_DOCS,
             // Body: req.files[index].buffer,
             Key: filename,
             // ContentType: req.files[index].mimetype
@@ -261,6 +258,7 @@ app.post('/api/v2/deleteS3', async (req, res) => {
         return res.status(200).json({
             status: "success",
             msg: 'Deleted Successfully',
+            data: {...req.body}
 
         });
 
