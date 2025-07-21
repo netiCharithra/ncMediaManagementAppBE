@@ -145,7 +145,10 @@ app.post('/api/v3/uploadFiles', upload.array('images'), async (req, res) => {
 
                 console.log(`Uploading file: ${fileName}`);
                 await s3.send(new PutObjectCommand(uploadParams));
+
                 const fileURLTemp = await generateDownloadUrl(fileName,undefined, bucketType);
+
+
                 uploadedImages.push({
                     fileName: fileName,
                     tempURL: fileURLTemp,
