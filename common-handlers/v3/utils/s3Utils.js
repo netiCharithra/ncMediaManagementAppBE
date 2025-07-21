@@ -35,9 +35,10 @@ if (!BUCKET_NAME_ARTICLE || !BUCKET_NAME_EMPLOYEE_DOCS) {
  * @param {string} fileName - Name of the file in S3 (with or without extension)
  * @param {number} [expiresIn=3600] - Expiration time in seconds (default: 1 hour)
  * @param {string} [bucketType='articles'] - Type of bucket ('articles' or 'employee_docs')
+ * @param {boolean} [tryExtensions=false] - Whether to try different file extensions if file not found
  * @returns {Promise<string>} Pre-signed URL
  */
-const generateDownloadUrl = async (fileName, expiresIn = 3600, bucketType = 'articles') => {
+const generateDownloadUrl = async (fileName, expiresIn = 3600, bucketType = 'articles', tryExtensions = false) => {
     try {
         if (!fileName) {
             throw new Error('File name is required');
@@ -50,12 +51,12 @@ const generateDownloadUrl = async (fileName, expiresIn = 3600, bucketType = 'art
 
         console.log(`Generating URL for ${fileName} in bucket ${bucketName}`);
         
-        // Common image extensions to check
+        // Common image extensions to check (only used if tryExtensions is true)
         const imageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg'];
         
-        // If filename already has an extension, use it as is
-        if (imageExtensions.some(ext => fileName.toLowerCase().endsWith(ext))) {
-            console.log(`Using exact filename with extension: ${fileName}`);
+        // If we're not trying extensions, or if the filename already has an extension, use it as is
+        if (!tryExtensions || fileName.includes('.')) {
+            console.log(`Using filename as-is: ${fileName}`);
             const command = new GetObjectCommand({
                 Bucket: bucketName,
                 Key: fileName
@@ -63,7 +64,7 @@ const generateDownloadUrl = async (fileName, expiresIn = 3600, bucketType = 'art
             return await getSignedUrl(s3Client, command, { expiresIn });
         }
         
-        // If no extension, try with common extensions
+        // If tryExtensions is true and filename has no extension, try with common extensions
         let lastError;
         console.log(`Trying with different extensions for: ${fileName}`);
         

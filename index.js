@@ -81,13 +81,16 @@ const upload = multer({ storage: multer.memoryStorage() });
 const stream = require('stream');
 const errorLogBookSchema = require('./modals/errorLogBookSchema');
 const admin = require('firebase-admin');
+const { generateDownloadUrl } = require('./common-handlers/v3/utils/s3Utils.js');
 
 // const serviceAccount = require('./FireBaseConfig.json');
 // admin.initializeApp({
 //     credential: admin.credential.cert(serviceAccount)
 //   });
 
-const BUCKET_NAME = process.env.BUCKET_NAME
+const BUCKET_NAME_ARTICLE = process.env.BUCKET_NAME_ARTICLE
+const BUCKET_NAME_EMPLOYEE_DOCS = process.env.BUCKET_NAME_EMPLOYEE_DOCS
+
 const BUCKET_REGION = process.env.BUCKET_REGION
 const POLICY_NAME = process.env.POLICY_NAME
 
@@ -124,7 +127,7 @@ app.post('/api/v2/sendNotifications', async (req, res) => {
 })
 connect(process.env.MONGO_DB_URL)
 
-app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
+app.post('/api/v3/uploadFiles', upload.array('images'), async (req, res) => {
     try {
         let uploadedImages = [];
         console.log(`Number of files received: ${req.files.length}`);
@@ -132,8 +135,9 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
         if (req.files && req.files.length > 0) {
             for (let index = 0; index < req.files.length; index++) {
                 const fileName = req.body.fileName === "original" ? req.files[index].originalname : "FileNew" + new Date().getTime() + '_0';
+                const bucketType = req.body.bucketType;
                 const uploadParams = {
-                    Bucket: BUCKET_NAME,
+                    Bucket: bucketType === "articles" ? BUCKET_NAME_ARTICLE : BUCKET_NAME_EMPLOYEE_DOCS,
                     Body: req.files[index].buffer,
                     Key: fileName,
                     ContentType: req.files[index].mimetype
@@ -141,7 +145,7 @@ app.post('/api/v2/uploadFiles', upload.array('images'), async (req, res) => {
 
                 console.log(`Uploading file: ${fileName}`);
                 await s3.send(new PutObjectCommand(uploadParams));
-                const fileURLTemp = await getFileTempUrls3(fileName);
+                const fileURLTemp = await generateDownloadUrl(fileName, bucketType);
                 uploadedImages.push({
                     fileName: fileName,
                     tempURL: fileURLTemp,
