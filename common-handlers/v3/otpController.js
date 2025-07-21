@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const reporterSchema = require('../../modals/reportersSchema');
 const OTP = require('../../modals/otpTrackingSchema');
+const { generateDownloadUrl } = require('./utils/s3Utils');
 
 // Simple error response helper
 const errorResponse = (res, message, status = 200) => {
@@ -240,6 +241,11 @@ const verifyOTPAndLogin = async (req, res) => {
 
         expiryTime = new Date(Date.now() + 2 * 60 * 60 * 1000).getTime();
         userData['expiryTime'] = expiryTime;
+
+        if(userData?.profilePicture?.fileName){
+            const tempURL = await generateDownloadUrl(userData.profilePicture.fileName, 9000, 'employee_docs');
+            userData.profilePicture.tempURL = tempURL || '';
+        }
 
         res.status(200).json({
             status: "success",

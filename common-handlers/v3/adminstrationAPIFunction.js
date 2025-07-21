@@ -1756,11 +1756,11 @@ const getIndividualEmployeeData = async (req, res) => {
         })
 
         if (userInfo?.['identityProof']?.fileName) {
-            const url = await getFileTempUrls3(userInfo['identityProof'].fileName)
+            const url = await generateDownloadUrl(userInfo['identityProof'].fileName, undefined, 'employee_docs')
             userInfo['identityProof']['tempURL'] = url;
         }
         if (userInfo?.['profilePicture']?.fileName) {
-            const url = await getFileTempUrls3(userInfo['profilePicture'].fileName)
+            const url = await generateDownloadUrl(userInfo['profilePicture'].fileName, undefined, 'employee_docs')
             userInfo['profilePicture']['tempURL'] = url;
         }
         res.status(200).json({
