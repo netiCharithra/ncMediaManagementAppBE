@@ -1,13 +1,13 @@
 
-const newsDataSchema = require('../modals/newsDataSchema');
-const errorLogBookSchema = require('../modals/errorLogBookSchema');
-const metaDataSchema = require('../modals/metaDataSchema');
-const EmployeeTracing = require('../modals/employeeTracing')
-const reporterSchema = require('../modals/reportersSchema');
+const newsDataSchema = require('../../modals/newsDataSchema');
+const errorLogBookSchema = require('../../modals/errorLogBookSchema');
+const metaDataSchema = require('../../modals/metaDataSchema');
+const EmployeeTracing = require('../../modals/employeeTracing')
+const reporterSchema = require('../../modals/reportersSchema');
 const { getFileTempUrls3 } = require('./commonApiFunction');
-const publicUserSchema = require('../modals/publicUserSchema');
-const otpTrackingSchema = require('../modals/otpTrackingSchema');
-const fcmTokenSchema = require('../modals/fcmTokenSchema');
+const publicUserSchema = require('../../modals/publicUserSchema');
+const otpTrackingSchema = require('../../modals/otpTrackingSchema');
+const fcmTokenSchema = require('../../modals/fcmTokenSchema');
 require('dotenv').config();
 
 

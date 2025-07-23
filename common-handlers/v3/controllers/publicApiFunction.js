@@ -1,11 +1,11 @@
-const newsDataSchema = require('../../modals/newsDataSchema');
-const errorLogBookSchema = require('../../modals/errorLogBookSchema');
-const metaDataSchema = require('../../modals/metaDataSchema');
-const EmployeeTracing = require('../../modals/employeeTracing')
-const reportersSchema = require('../../modals/reportersSchema');
-const Visitor = require('../../modals/visitorSchema');
-const { getFileTempUrls3 } = require('./../commonApiFunction');
-const { generateDownloadUrl } = require('./utils/s3Utils');
+const newsDataSchema = require('../../../modals/newsDataSchema');
+const errorLogBookSchema = require('../../../modals/errorLogBookSchema');
+const metaDataSchema = require('../../../modals/metaDataSchema');
+const EmployeeTracing = require('../../../modals/employeeTracing')
+const reportersSchema = require('../../../modals/reportersSchema');
+const Visitor = require('../../../modals/visitorSchema');
+const { getFileTempUrls3 } = require('../../v2/commonApiFunction');
+const { generateDownloadUrl } = require('../utils/s3Utils');
 require('dotenv').config();
 
 

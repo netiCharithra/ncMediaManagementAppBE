@@ -63,10 +63,12 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const dotenv = require('dotenv');
 dotenv.config()
-const router = require('./common-handlers/commonRoute');
+const router = require('./common-handlers/v2/commonRoute.js');
 const router_v3 = require('./common-handlers/v3/commonRoute.js');
+const mobileRoutes_v3 = require('./common-handlers/v3/routes/mobileRoutes.js');
 app.use('/api/v2', router);
 app.use('/api/v3', router_v3);
+// app.use('/api/v3/mobile', mobileRoutes_v3);
 require('dotenv').config();
 const bodyParser = require('body-parser');
 // const admin.initi
