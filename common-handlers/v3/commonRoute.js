@@ -7,6 +7,7 @@ const adminAuth = require('../../middleware/adminAuth');
 // Import route handlers
 const publicRoutes = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const mobileRoutes = require('./routes/mobileRoutes');
 
 // Public routes
 router.use(publicRoutes);
@@ -26,5 +27,7 @@ adminRouter.use(adminRoutes);
 
 // Monitoring routes (not protected by admin auth)
 router.route('/monitoringOnly/getCategoryWiseCount').post(getCategoryWiseCount);
+
+router.use('/mobile', mobileRoutes);
 
 module.exports = router;
