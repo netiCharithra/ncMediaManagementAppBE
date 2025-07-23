@@ -1,12 +1,12 @@
-const metaDataSchema = require('../../modals/metaDataSchema');
-const newsDataSchema = require('../../modals/newsDataSchema');
+const metaDataSchema = require('../../../modals/metaDataSchema');
+const newsDataSchema = require('../../../modals/newsDataSchema');
 
-const { getFileTempUrls3 } = require('./../commonApiFunction');
-const reportersSchema = require('../../modals/reportersSchema');
 const CryptoJS = require('crypto-js');
-const errorLogBookSchema = require('../../modals/errorLogBookSchema');
-const employeeTracing = require('../../modals/employeeTracing');
-const Visitor = require('../../modals/visitorSchema');
+const reportersSchema = require('../../../modals/reportersSchema');
+const errorLogBookSchema = require('../../../modals/errorLogBookSchema');
+const employeeTracing = require('../../../modals/employeeTracing');
+const Visitor = require('../../../modals/visitorSchema');
+const { generateDownloadUrl } = require('../utils/s3Utils');
 
 require('dotenv').config();
 
@@ -187,7 +187,7 @@ const employeeLogin = async (req, res) => {
         let tokens = await metaDataSchema.findOne({ type: "FCM_TOKENS" });
 
         if (userDataCopy?.profilePicture?.fileName) {
-            let url = await getFileTempUrls3(userDataCopy?.profilePicture.fileName);
+            let url = await generateDownloadUrl(userDataCopy?.profilePicture.fileName, 3600, 'employee_docs');
             userDataCopy['profilePicture']['tempURL'] = url;
         }
 
@@ -248,7 +248,7 @@ const fetchNewsListPending = async (req, res) => {
             }
         };
 
-        if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+        if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR' || body.role === 'MANAGEMENT LEAD') {
             console.log("TR");
             const ntApprovedLst = await newsDataSchema.find({
                 approved: false,
@@ -410,226 +410,203 @@ const fetchNewsListApproved = async (req, res) => {
 
         console.log(recordsPerPage, skipRecords)
 
-        let employee = await reportersSchema.findOne({
-            employeeId: body.employeeId
-        });
-        if (!employee) {
-            res.status(200).json({
-                status: "failed",
-                msg: 'Cannot publish, contact your superior!'
-            });
-        } else {
-            if (employee.disabledUser) {
-                return res.status(200).json({
-                    status: "failed",
-                    msg: 'Forbidden Access!'
-                });
-            } else if (!employee.activeUser) {
-                return res.status(200).json({
-                    status: "failed",
-                    msg: 'Employement not yet approved..! Kindly Contact your Superior.'
-                });
-            } else {
+        let responseData = {
 
-                let responseData = {
-
-                    approvedNews: {
-                        "tableData": {
-                            "headerContent": [
-                                {
-                                    "label": "Title",
-                                    "key": "title"
-                                },
-                                {
-                                    "label": "Sub Title",
-                                    "key": "sub_title"
-                                }, {
-                                    "label": "State",
-                                    "key": "state"
-                                },
-                                {
-                                    "label": "District",
-                                    "key": "district"
-                                },
-                                {
-                                    "label": "Mandal",
-                                    "key": "mandal"
-                                },
-                                {
-                                    "label": "Created Date",
-                                    "key": "createdDate",
-                                    "type": "dataTimePipe"
-                                },
-                                {
-                                    "label": "Created By",
-                                    "key": "employeeId"
-                                },
-                                {
-                                    "label": "Last Updated On",
-                                    "key": "lastUpdatedOn",
-                                    "type": "dataTimePipe"
-                                },
-                                {
-                                    "label": "Last Updated By",
-                                    "key": "lastUpdatedBy"
-                                }
-                            ]
+            approvedNews: {
+                "tableData": {
+                    "headerContent": [
+                        {
+                            "label": "Title",
+                            "key": "title"
+                        },
+                        {
+                            "label": "Sub Title",
+                            "key": "sub_title"
+                        }, {
+                            "label": "State",
+                            "key": "state"
+                        },
+                        {
+                            "label": "District",
+                            "key": "district"
+                        },
+                        {
+                            "label": "Mandal",
+                            "key": "mandal"
+                        },
+                        {
+                            "label": "Created Date",
+                            "key": "createdDate",
+                            "type": "dataTimePipe"
+                        },
+                        {
+                            "label": "Created By",
+                            "key": "employeeId"
+                        },
+                        {
+                            "label": "Last Updated On",
+                            "key": "lastUpdatedOn",
+                            "type": "dataTimePipe"
+                        },
+                        {
+                            "label": "Last Updated By",
+                            "key": "lastUpdatedBy"
                         }
-                    }
+                    ]
                 }
-
-                if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
-
-                    console.log("TR")
-                    const approvedList = await newsDataSchema.find(
-                        {
-                            approved: true,
-                            rejected: false
-                        }
-                    )
-                        .sort({ newsId: -1 })
-                        .skip(skipRecords)
-                        .limit(recordsPerPage);
-                    const totalRecords = await newsDataSchema.countDocuments(
-                        {
-                            approved: true,
-                            rejected: false
-                        }
-                    );
-                    console.log(approvedList)
-                    responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
-                    responseData['approvedNews']['metaData'] = {
-                        title: "Published News",
-                        "createNew": {
-                            type: "createNew",
-                            label: "Add News",
-                            icon: "fa-solid fa-circle-plus",
-                            key: "createNew",
-                        },
-                        "headerExternalActions": [
-                            {
-                                type: "select",
-                                label: "External Link News",
-                                icon: "fa-solid fa-circle-plus",
-                                key: "externalLink",
-                                options: [
-                                    "Andhra Jyothi"
-                                ]
-                            }
-                        ],
-
-
-                        "actions": [
-                            {
-                                type: "button",
-                                tooltip: "View",
-                                // icon: "visibility",
-                                key: "view",
-                                icon: "fa-solid fa-eye  text-secondary"
-                            },
-                            {
-                                type: "button",
-                                tooltip: "Update",
-                                key: "update",
-                                // class: "btn btn-info",
-                                icon: "fa-solid fa-pen-to-square ",
-                                // disable: {
-                                //     role: ['REPORTER']
-                                // }
-                            }
-                        ]
-                    }
-
-                    res.status(200).json({
-                        status: "success",
-                        msg: 'News sent for approval..!',
-                        data: { ...responseData, ...{ totalRecords: totalRecords } },
-
-                    });
-                }
-                else if (body.role === 'DISTRICT MANAGER') {
-
-
-                    const approvedList = await newsDataSchema.find(
-                        {
-                            approved: true,
-                            rejected: false,
-                            district: req.body.district
-                        },
-
-                    ).sort({ newsId: -1 }) // Sorting by newsId in descending order
-                        .skip(skipRecords) // Skipping records based on page number
-                        .limit(recordsPerPage); // Limiting records per page
-                    responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
-                    responseData['approvedNews']['metaData'] = {
-                        title: "Published News",
-                        "createNew": {
-                            type: "createNew",
-                            label: "Add News",
-                            icon: "fa-solid fa-circle-plus",
-                            key: "createNew",
-                        },
-                        "actions": [
-                            {
-                                type: "button",
-                                tooltip: "View",
-                                // icon: "visibility",
-                                key: "view",
-                                icon: "fa-solid fa-eye  text-secondary"
-                            },
-
-                        ]
-                    }
-
-
-                    res.status(200).json({
-                        status: "success",
-                        msg: 'News sent for approval..!',
-                        data: responseData
-                    });
-                } else if (body.role === 'REPORTER') {
-                    const approvedList = await newsDataSchema.find(
-                        {
-                            approved: true,
-                            rejected: false,
-                            source: "NETI CHARITHRA",
-                            "reportedBy.employeeId": req.body.employeeId// Replace this with the actual employeeId
-
-                        },
-
-                    ).sort({ newsId: -1 }) // Sorting by newsId in descending order
-                        .skip(skipRecords) // Skipping records based on page number
-                        .limit(recordsPerPage); // Limiting records per page
-                    responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
-                    responseData['approvedNews']['metaData'] = {
-                        title: "Published News",
-                        "createNew": {
-                            type: "createNew",
-                            label: "Add News",
-                            icon: "fa-solid fa-circle-plus",
-                            key: "createNew",
-                        },
-                        "actions": [
-                            {
-                                type: "button",
-                                tooltip: "View",
-                                // icon: "visibility",
-                                key: "view",
-                                icon: "fa-solid fa-eye  text-secondary"
-                            },
-
-                        ]
-                    }
-
-                    res.status(200).json({
-                        status: "success",
-                        msg: 'News sent for approval..!',
-                        data: responseData
-                    });
-                }
-
             }
         }
+
+        if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR' || body.role === 'MANAGEMENT LEAD') {
+
+            console.log("TR")
+            const approvedList = await newsDataSchema.find(
+                {
+                    approved: true,
+                    rejected: false
+                }
+            )
+                .sort({ newsId: -1 })
+                .skip(skipRecords)
+                .limit(recordsPerPage);
+            const totalRecords = await newsDataSchema.countDocuments(
+                {
+                    approved: true,
+                    rejected: false
+                }
+            );
+            console.log(approvedList)
+            responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
+            responseData['approvedNews']['metaData'] = {
+                title: "Published News",
+                "createNew": {
+                    type: "createNew",
+                    label: "Add News",
+                    icon: "fa-solid fa-circle-plus",
+                    key: "createNew",
+                },
+                "headerExternalActions": [
+                    {
+                        type: "select",
+                        label: "External Link News",
+                        icon: "fa-solid fa-circle-plus",
+                        key: "externalLink",
+                        options: [
+                            "Andhra Jyothi"
+                        ]
+                    }
+                ],
+
+
+                "actions": [
+                    {
+                        type: "button",
+                        tooltip: "View",
+                        // icon: "visibility",
+                        key: "view",
+                        icon: "fa-solid fa-eye  text-secondary"
+                    },
+                    {
+                        type: "button",
+                        tooltip: "Update",
+                        key: "update",
+                        // class: "btn btn-info",
+                        icon: "fa-solid fa-pen-to-square ",
+                        // disable: {
+                        //     role: ['REPORTER']
+                        // }
+                    }
+                ]
+            }
+
+            res.status(200).json({
+                status: "success",
+                msg: 'News sent for approval..!',
+                data: { ...responseData, ...{ totalRecords: totalRecords } },
+
+            });
+        }
+        else if (body.role === 'DISTRICT MANAGER') {
+
+
+            const approvedList = await newsDataSchema.find(
+                {
+                    approved: true,
+                    rejected: false,
+                    district: req.body.district
+                },
+
+            ).sort({ newsId: -1 }) // Sorting by newsId in descending order
+                .skip(skipRecords) // Skipping records based on page number
+                .limit(recordsPerPage); // Limiting records per page
+            responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
+            responseData['approvedNews']['metaData'] = {
+                title: "Published News",
+                "createNew": {
+                    type: "createNew",
+                    label: "Add News",
+                    icon: "fa-solid fa-circle-plus",
+                    key: "createNew",
+                },
+                "actions": [
+                    {
+                        type: "button",
+                        tooltip: "View",
+                        // icon: "visibility",
+                        key: "view",
+                        icon: "fa-solid fa-eye  text-secondary"
+                    },
+
+                ]
+            }
+
+
+            res.status(200).json({
+                status: "success",
+                msg: 'News sent for approval..!',
+                data: responseData
+            });
+        } else if (body.role === 'REPORTER') {
+            const approvedList = await newsDataSchema.find(
+                {
+                    approved: true,
+                    rejected: false,
+                    source: "NETI CHARITHRA",
+                    "reportedBy.employeeId": req.body.employeeId// Replace this with the actual employeeId
+
+                },
+
+            ).sort({ newsId: -1 }) // Sorting by newsId in descending order
+                .skip(skipRecords) // Skipping records based on page number
+                .limit(recordsPerPage); // Limiting records per page
+            responseData.approvedNews.tableData['bodyContent'] = await stateDistrictMapping(approvedList, []);
+            responseData['approvedNews']['metaData'] = {
+                title: "Published News",
+                "createNew": {
+                    type: "createNew",
+                    label: "Add News",
+                    icon: "fa-solid fa-circle-plus",
+                    key: "createNew",
+                },
+                "actions": [
+                    {
+                        type: "button",
+                        tooltip: "View",
+                        // icon: "visibility",
+                        key: "view",
+                        icon: "fa-solid fa-eye  text-secondary"
+                    },
+
+                ]
+            }
+
+            res.status(200).json({
+                status: "success",
+                msg: 'News sent for approval..!',
+                data: responseData
+            });
+        }
+
     } catch (error) {
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching News List`,
@@ -731,7 +708,7 @@ const fetchNewsListRejected = async (req, res) => {
                     }
                 }
 
-                if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR') {
+                if (body.role === 'CEO' || body.role === 'INCHARGE DIRECTOR' || body.role === 'MANAGEMENT LEAD') {
 
                     console.log("TR")
                     const rejectedList = await newsDataSchema.find(
@@ -1258,7 +1235,7 @@ const getAdminIndividualNewsInfo = async (req, res) => {
                 // Fetching tempURL for each image in newsContent using promises  
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
-                        elementImg['tempURL'] = await getFileTempUrls3(elementImg?.fileName);
+                        elementImg['tempURL'] = await generateDownloadUrl(elementImg?.fileName);
                     }
                     return elementImg; // Returning updated image object
                 }));
@@ -1540,7 +1517,7 @@ const getEmployeesDataPaginated = async (req, res) => {
                         }
                     }
                 }
-                if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR') {
+                if (req.body.role === 'CEO' || req.body.role === 'INCHARGE DIRECTOR' || req.body.role === 'MANAGEMENT LEAD') {
 
 
 
@@ -1628,7 +1605,7 @@ const getEmployeesDataPaginated = async (req, res) => {
                             }
 
 
-                    if (req.body.role === 'INCHARGE DIRECTOR') {
+                    if (req.body.role === 'INCHARGE DIRECTOR' || body.role === 'MANAGEMENT LEAD') {
                         for (let index = 0; index < metaData['actions'].length; index++) {
                             metaData['actions'][index]['disable'] = {
                                 role: ['CEO', 'INCHARGE DIRECTOR']
@@ -1778,11 +1755,11 @@ const getIndividualEmployeeData = async (req, res) => {
         })
 
         if (userInfo?.['identityProof']?.fileName) {
-            const url = await getFileTempUrls3(userInfo['identityProof'].fileName)
+            const url = await generateDownloadUrl(userInfo['identityProof'].fileName, undefined, 'employee_docs')
             userInfo['identityProof']['tempURL'] = url;
         }
         if (userInfo?.['profilePicture']?.fileName) {
-            const url = await getFileTempUrls3(userInfo['profilePicture'].fileName)
+            const url = await generateDownloadUrl(userInfo['profilePicture'].fileName, undefined, 'employee_docs')
             userInfo['profilePicture']['tempURL'] = url;
         }
         res.status(200).json({
@@ -3212,7 +3189,15 @@ const getVisitsTimeSeries = async (req, res) => {
             { $unwind: "$tokensArray.v.visitedOn" },
             { $project: {
                 _id: 0,
-                visitTime: "$tokensArray.v.visitedOn"
+                visitTime: "$tokensArray.v.visitedOn",
+                // Convert epoch to Date and then to IST (UTC+5:30)
+                visitTimeIST: {
+                    $dateToString: {
+                        format: "%Y-%m-%dT%H:%M:%S%z",
+                        date: { $toDate: "$tokensArray.v.visitedOn" },
+                        timezone: "+05:30"
+                    }
+                }
             }},
             ...(period.toLowerCase() !== 'total' ? [{
                 $match: {
@@ -3224,13 +3209,21 @@ const getVisitsTimeSeries = async (req, res) => {
             { $group: {
                 _id: groupId,
                 count: { $sum: 1 },
-                timestamp: { $max: "$visitTime" }
+                timestamp: { $max: "$visitTime" },
+                timestampIST: { $max: "$visitTimeIST" }
             }},
             { $sort: { timestamp: 1 } },
             { $project: {
                 _id: 0,
-                period: "$_id",
-                count: 1
+                period: period.toLowerCase() === 'day' ? {
+                    $dateToString: {
+                        format: "%H:%M",  // 24-hour format (00-23)
+                        date: { $toDate: "$timestamp" },
+                        timezone: "+05:30"
+                    }
+                } : "$_id",
+                count: 1,
+                timestamp: "$timestampIST"
             }}
         ];
 

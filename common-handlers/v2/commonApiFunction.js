@@ -1,9 +1,9 @@
 
-const reporterSchema = require('../modals/reportersSchema');
-const metaDataSchema = require('../modals/metaDataSchema');
-const newsDataSchema = require('../modals/newsDataSchema');
-const subscriberDataSchema = require('../modals/subscriberDataSchema');
-const errorLogBookSchema = require('../modals/errorLogBookSchema');
+const reporterSchema = require('../../modals/reportersSchema');
+const metaDataSchema = require('../../modals/metaDataSchema');
+const newsDataSchema = require('../../modals/newsDataSchema');
+const subscriberDataSchema = require('../../modals/subscriberDataSchema');
+const errorLogBookSchema = require('../../modals/errorLogBookSchema');
 const admin = require('firebase-admin');
 // const serviceAccount = require('./../ncmedianewsportal-v2-firebase-adminsdk-zr4hr-b428a7eb9b.json');
 // // const admin = require("firebase-admin/messaging")
@@ -424,8 +424,8 @@ const getNewsInfo = async (req, res) => {
 const dotenv = require('dotenv');
 const { DeleteObjectCommand, S3, S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const reportersSchema = require('../modals/reportersSchema');
-const employeeTracing = require('../modals/employeeTracing');
+const reportersSchema = require('../../modals/reportersSchema');
+const employeeTracing = require('../../modals/employeeTracing');
 dotenv.config()
 
 const BUCKET_NAME = process.env.BUCKET_NAME
