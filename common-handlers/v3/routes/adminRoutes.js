@@ -19,7 +19,8 @@ const {
     getActiveEmployeeStats, 
     getVisitorTimeSeries, 
     getVisitsTimeSeries, 
-    getVisitorLocations 
+    getVisitorLocations,
+    convertPresignedUrlToBase64API 
 } = require('../controllers/adminstrationAPIFunction');
 
 // All routes in this file are protected by adminAuth middleware
@@ -51,5 +52,8 @@ router.route('/dashboard/active-employee-stats').post(getActiveEmployeeStats);
 router.route('/dashboard/visitor-time-series').post(getVisitorTimeSeries);
 router.route('/dashboard/visits-time-series').post(getVisitsTimeSeries);
 router.route('/dashboard/visitor-locations').post(getVisitorLocations);
+
+// Utility routes
+router.route('/utils/presigned-url-to-base64').post(convertPresignedUrlToBase64API);
 
 module.exports = router;
