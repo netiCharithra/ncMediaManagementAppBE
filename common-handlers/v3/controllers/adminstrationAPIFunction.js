@@ -6,7 +6,8 @@ const reportersSchema = require('../../../modals/reportersSchema');
 const errorLogBookSchema = require('../../../modals/errorLogBookSchema');
 const employeeTracing = require('../../../modals/employeeTracing');
 const Visitor = require('../../../modals/visitorSchema');
-const { generateDownloadUrl } = require('../utils/s3Utils');
+const { generateDownloadUrl, convertPresignedUrlToBase64 } = require('../utils/s3Utils');
+const axios = require('axios');
 
 require('dotenv').config();
 
@@ -515,6 +516,16 @@ const fetchNewsListApproved = async (req, res) => {
                         // disable: {
                         //     role: ['REPORTER']
                         // }
+                    },
+                    {
+                        type: "button",
+                        tooltip: "Share in Whatsapp",
+                        key: "whatsapp-share",
+                        // class: "btn btn-info",
+                        icon: "fa-brands fa-whatsapp text-success",
+                        disable: {
+                            role: ['REPORTER']
+                        }
                     }
                 ]
             }
@@ -556,7 +567,16 @@ const fetchNewsListApproved = async (req, res) => {
                         key: "view",
                         icon: "fa-solid fa-eye  text-secondary"
                     },
-
+                    {
+                        type: "button",
+                        tooltip: "Share in Whatsapp",
+                        key: "whatsapp-share",
+                        // class: "btn btn-info",
+                        icon: "fa-brands fa-whatsapp text-success",
+                        disable: {
+                            role: ['REPORTER']
+                        }
+                    }
                 ]
             }
 
@@ -1236,6 +1256,7 @@ const getAdminIndividualNewsInfo = async (req, res) => {
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
                         elementImg['tempURL'] = await generateDownloadUrl(elementImg?.fileName);
+                        elementImg['base64'] = await convertPresignedUrlToBase64(elementImg['tempURL']);
                     }
                     return elementImg; // Returning updated image object
                 }));
@@ -3255,10 +3276,86 @@ const getVisitsTimeSeries = async (req, res) => {
         });
     }
 };
+
+// API endpoint wrapper for convertPresignedUrlToBase64 utility function
+const convertPresignedUrlToBase64API = async (req, res) => {
+    try {
+        const { presignedUrl, options } = req.body;
+
+        // Validate input
+        if (!presignedUrl) {
+            return res.status(400).json({
+                status: "failed",
+                msg: 'Presigned URL is required'
+            });
+        }
+
+        // Call the utility function
+        const result = await convertPresignedUrlToBase64(presignedUrl, options);
+
+        res.json({
+            status: "success",
+            data: result,
+            message: "Image successfully converted to base64"
+        });
+
+    } catch (error) {
+        console.error('Error in convertPresignedUrlToBase64API:', error);
+        
+        // Log error to database
+        await errorLogBookSchema.create({
+            message: 'Error while converting presigned URL to base64',
+            stackTrace: error.stack ? [...error.stack].join('/n') : '',
+            page: 'Admin Utils',
+            functionality: 'Convert presigned URL to base64',
+            errorMessage: error.message || JSON.stringify(error)
+        });
+
+        // Handle specific error types based on error message
+        if (error.message.includes('timeout')) {
+            return res.status(408).json({
+                status: "failed",
+                msg: error.message
+            });
+        }
+
+        if (error.message.includes('Access denied') || error.message.includes('expired')) {
+            return res.status(403).json({
+                status: "failed",
+                msg: error.message
+            });
+        }
+
+        if (error.message.includes('not found')) {
+            return res.status(404).json({
+                status: "failed",
+                msg: error.message
+            });
+        }
+
+        if (error.message.includes('Invalid URL') || 
+            error.message.includes('required') ||
+            error.message.includes('valid S3') ||
+            error.message.includes('image file')) {
+            return res.status(400).json({
+                status: "failed",
+                msg: error.message
+            });
+        }
+
+        res.status(500).json({
+            status: "error",
+            message: 'Failed to convert presigned URL to base64',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, 
     getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, 
     getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing,
     employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, 
-    getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries, getVisitsTimeSeries, getVisitorLocations
+    getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries, getVisitsTimeSeries, getVisitorLocations,
+    convertPresignedUrlToBase64API
 };

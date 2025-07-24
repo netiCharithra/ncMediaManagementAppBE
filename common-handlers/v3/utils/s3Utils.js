@@ -1,5 +1,6 @@
 const { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const axios = require('axios');
 require('dotenv').config();
 
 // Debug log environment variables
@@ -166,11 +167,109 @@ const fileExists = async (fileName, bucketType = 'articles') => {
     }
 };
 
+/**
+ * Convert a presigned S3 URL to base64
+ * @param {string} presignedUrl - The presigned S3 URL
+ * @param {Object} [options={}] - Optional configuration
+ * @param {number} [options.timeout=30000] - Request timeout in milliseconds
+ * @param {number} [options.maxContentLength=10485760] - Max file size in bytes (default: 10MB)
+ * @param {boolean} [options.validateS3Domain=true] - Whether to validate S3 domain
+ * @returns {Promise<Object>} Object containing base64 data and metadata
+ */
+const convertPresignedUrlToBase64 = async (presignedUrl, options = {}) => {
+    const {
+        timeout = 30000,
+        maxContentLength = 10 * 1024 * 1024, // 10MB
+        validateS3Domain = true
+    } = options;
+
+    // Validate input
+    if (!presignedUrl) {
+        throw new Error('Presigned URL is required');
+    }
+
+    // Validate URL format
+    let url;
+    try {
+        url = new URL(presignedUrl);
+    } catch (error) {
+        throw new Error('Invalid URL format');
+    }
+
+    // Optional: Validate that it's an S3 URL
+    if (validateS3Domain && !url.hostname.includes('amazonaws.com') && !url.hostname.includes('s3')) {
+        throw new Error('URL must be a valid S3 presigned URL');
+    }
+
+    try {
+        // Fetch the image from the presigned URL
+        const response = await axios.get(presignedUrl, {
+            responseType: 'arraybuffer',
+            timeout: timeout,
+            maxContentLength: maxContentLength,
+        });
+
+        // Check if response is successful
+        if (response.status !== 200) {
+            throw new Error('Failed to fetch image from presigned URL');
+        }
+
+        // Get content type from response headers
+        const contentType = response.headers['content-type'] || 'application/octet-stream';
+        
+        // Validate that it's an image
+        if (!contentType.startsWith('image/')) {
+            throw new Error('URL does not point to an image file');
+        }
+
+        // Convert to base64
+        const base64Data = Buffer.from(response.data).toString('base64');
+        const base64String = `data:${contentType};base64,${base64Data}`;
+
+        // Get file size for response metadata
+        const fileSizeBytes = response.data.length;
+        const fileSizeKB = Math.round(fileSizeBytes / 1024 * 100) / 100;
+
+        return {
+            base64: base64String,
+            contentType: contentType,
+            fileSizeBytes: fileSizeBytes,
+            fileSizeKB: fileSizeKB
+        };
+
+    } catch (error) {
+        // Handle specific error types and re-throw with more descriptive messages
+        if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+            throw new Error('Request timeout - image took too long to download');
+        }
+
+        if (error.response && error.response.status === 403) {
+            throw new Error('Access denied - presigned URL may have expired or be invalid');
+        }
+
+        if (error.response && error.response.status === 404) {
+            throw new Error('Image not found at the provided URL');
+        }
+
+        // Re-throw the original error if it's already a custom error
+        if (error.message.includes('Invalid URL format') || 
+            error.message.includes('Presigned URL is required') ||
+            error.message.includes('URL must be a valid S3') ||
+            error.message.includes('URL does not point to an image')) {
+            throw error;
+        }
+
+        // For any other errors, wrap them
+        throw new Error(`Failed to convert presigned URL to base64: ${error.message}`);
+    }
+};
+
 module.exports = {
     generateDownloadUrl,
     generateUploadUrl,
     deleteFile,
     fileExists,
+    convertPresignedUrlToBase64,
     BUCKET_NAME_ARTICLE,
     BUCKET_NAME_EMPLOYEE_DOCS
 };
