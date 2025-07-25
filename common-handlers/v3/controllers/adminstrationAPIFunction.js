@@ -1252,11 +1252,49 @@ const getAdminIndividualNewsInfo = async (req, res) => {
                 let newsContent = await newsDataSchema.findOne({ newsId: body.newsId });
 
                 let news = JSON.parse(JSON.stringify(newsContent))
+
+
+                // STATE to Translate
+
+                if(!news['regionalLangauge']){
+                    news['regionalLanguage']={};
+                }
+
+                let stateDistrictAgg = await metaDataSchema.aggregate([
+                    {
+                      $facet: {
+                        stateData: [
+                          { $match: { type: "STATES" } },
+                          { $unwind: "$data" },
+                          { $match: { "data.value": news['state'] } },
+                          { $project: { _id: 0, data: 1 } }
+                        ],
+                        districtData: [
+                          { $match: { type: news['state'] + "_DISTRICTS" } },
+                          { $unwind: "$data" },
+                          { $match: { "data.value": news['district'] } },
+                          { $project: { _id: 0, data: 1 } }
+                        ]
+                      }
+                    }
+                  ]);
+                  
+                  news['regionalLanguage']['state'] = stateDistrictAgg?.[0]?.stateData?.[0]?.data;
+                  news['regionalLanguage']['district'] = stateDistrictAgg?.[0]?.districtData?.[0]?.data;
+
+             
+                  let mandalDataTemp = await metaDataSchema.findOne({
+                    type: `${news['regionalLanguage']['state']['value']}_DISTRICT_MANDALS_REGIONAL`
+                  });
+                  
+                  news['regionalLanguage']['mandal'] = mandalDataTemp?.data?.[news['regionalLanguage']['district']['value']]?.find(
+                    (item) => item.label === news['mandal']
+                  );
                 // Fetching tempURL for each image in newsContent using promises  
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
                         elementImg['tempURL'] = await generateDownloadUrl(elementImg?.fileName);
-                        elementImg['base64'] = await convertPresignedUrlToBase64(elementImg['tempURL']);
+                        // elementImg['base64'] = await convertPresignedUrlToBase64(elementImg['tempURL']);
                     }
                     return elementImg; // Returning updated image object
                 }));
