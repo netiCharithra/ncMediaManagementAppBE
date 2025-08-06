@@ -255,15 +255,15 @@ const fetchNewsListPending = async (req, res) => {
                 approved: false,
                 rejected: false
             })
-            .sort({ newsId: -1 })
-            .skip(skipRecords)
-            .limit(recordsPerPage);
-            
+                .sort({ newsId: -1 })
+                .skip(skipRecords)
+                .limit(recordsPerPage);
+
             const totalRecords = await newsDataSchema.countDocuments({
                 approved: false,
                 rejected: false
             });
-            
+
             console.log(ntApprovedLst);
             responseData.notApprovedNews.tableData.bodyContent = await stateDistrictMapping(ntApprovedLst, []);
             responseData.notApprovedNews.metaData = {
@@ -297,17 +297,17 @@ const fetchNewsListPending = async (req, res) => {
                 msg: 'News sent for approval!',
                 data: { ...responseData, totalRecords }
             });
-        } 
+        }
         else if (body.role === 'DISTRICT MANAGER') {
             const ntApprovedLst = await newsDataSchema.find({
                 approved: false,
                 rejected: false,
                 district: req.body.district
             })
-            .sort({ newsId: -1 })
-            .skip(skipRecords)
-            .limit(recordsPerPage);
-            
+                .sort({ newsId: -1 })
+                .skip(skipRecords)
+                .limit(recordsPerPage);
+
             responseData.notApprovedNews.tableData.bodyContent = await stateDistrictMapping(ntApprovedLst, []);
             responseData.notApprovedNews.metaData = {
                 title: "Pending News",
@@ -340,7 +340,7 @@ const fetchNewsListPending = async (req, res) => {
                 msg: 'News sent for approval!',
                 data: responseData
             });
-        } 
+        }
         else if (body.role === 'REPORTER') {
             const ntApprovedLst = await newsDataSchema.find({
                 approved: false,
@@ -348,10 +348,10 @@ const fetchNewsListPending = async (req, res) => {
                 source: "NETI CHARITHRA",
                 "reportedBy.employeeId": req.body.employeeId
             })
-            .sort({ newsId: -1 })
-            .skip(skipRecords)
-            .limit(recordsPerPage);
-            
+                .sort({ newsId: -1 })
+                .skip(skipRecords)
+                .limit(recordsPerPage);
+
             responseData.notApprovedNews.tableData.bodyContent = await stateDistrictMapping(ntApprovedLst, []);
             responseData.notApprovedNews.metaData = {
                 title: "Pending News",
@@ -378,7 +378,7 @@ const fetchNewsListPending = async (req, res) => {
                 data: responseData
             });
         }
-        
+
         // If no role matches
         return res.status(403).json({
             status: "failed",
@@ -1256,40 +1256,40 @@ const getAdminIndividualNewsInfo = async (req, res) => {
 
                 // STATE to Translate
 
-                if(!news['regionalLangauge']){
-                    news['regionalLanguage']={};
+                if (!news['regionalLangauge']) {
+                    news['regionalLanguage'] = {};
                 }
 
                 let stateDistrictAgg = await metaDataSchema.aggregate([
                     {
-                      $facet: {
-                        stateData: [
-                          { $match: { type: "STATES" } },
-                          { $unwind: "$data" },
-                          { $match: { "data.value": news['state'] } },
-                          { $project: { _id: 0, data: 1 } }
-                        ],
-                        districtData: [
-                          { $match: { type: news['state'] + "_DISTRICTS" } },
-                          { $unwind: "$data" },
-                          { $match: { "data.value": news['district'] } },
-                          { $project: { _id: 0, data: 1 } }
-                        ]
-                      }
+                        $facet: {
+                            stateData: [
+                                { $match: { type: "STATES" } },
+                                { $unwind: "$data" },
+                                { $match: { "data.value": news['state'] } },
+                                { $project: { _id: 0, data: 1 } }
+                            ],
+                            districtData: [
+                                { $match: { type: news['state'] + "_DISTRICTS" } },
+                                { $unwind: "$data" },
+                                { $match: { "data.value": news['district'] } },
+                                { $project: { _id: 0, data: 1 } }
+                            ]
+                        }
                     }
-                  ]);
-                  
-                  news['regionalLanguage']['state'] = stateDistrictAgg?.[0]?.stateData?.[0]?.data;
-                  news['regionalLanguage']['district'] = stateDistrictAgg?.[0]?.districtData?.[0]?.data;
+                ]);
 
-             
-                  let mandalDataTemp = await metaDataSchema.findOne({
+                news['regionalLanguage']['state'] = stateDistrictAgg?.[0]?.stateData?.[0]?.data;
+                news['regionalLanguage']['district'] = stateDistrictAgg?.[0]?.districtData?.[0]?.data;
+
+
+                let mandalDataTemp = await metaDataSchema.findOne({
                     type: `${news['regionalLanguage']['state']['value']}_DISTRICT_MANDALS_REGIONAL`
-                  });
-                  
-                  news['regionalLanguage']['mandal'] = mandalDataTemp?.data?.[news['regionalLanguage']['district']['value']]?.find(
+                });
+
+                news['regionalLanguage']['mandal'] = mandalDataTemp?.data?.[news['regionalLanguage']['district']['value']]?.find(
                     (item) => item.label === news['mandal']
-                  );
+                );
                 // Fetching tempURL for each image in newsContent using promises  
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
@@ -2490,7 +2490,7 @@ const getArticlesDashbordInfo = async (req, res) => {
         let employee = await reportersSchema.findOne({
             employeeId: body.employeeId
         });
-        
+
         if (!employee) {
             return res.status(200).json({
                 status: "failed",
@@ -2521,44 +2521,44 @@ const getArticlesDashbordInfo = async (req, res) => {
         const employeeFilter = employeeId ? { employeeId } : {};
 
         const stats = await newsDataSchema.aggregate([
-          {
-            $facet: {
-              total: [
-                { 
-                  $match: {
-                    ...employeeFilter,
-                    approvedOn: { $gt: 0 }
-                  }
+            {
+                $facet: {
+                    total: [
+                        {
+                            $match: {
+                                ...employeeFilter,
+                                approvedOn: { $gt: 0 }
+                            }
+                        },
+                        { $count: 'count' }
+                    ],
+                    lastMonth: [
+                        {
+                            $match: {
+                                ...employeeFilter,
+                                approvedOn: { $gt: 0 },
+                                createdDate: {
+                                    $gte: startOfLastMonth,
+                                    $lte: endOfLastMonth,
+                                },
+                            },
+                        },
+                        { $count: 'count' },
+                    ],
+                    thisMonth: [
+                        {
+                            $match: {
+                                ...employeeFilter,
+                                approvedOn: { $gt: 0 },
+                                createdDate: {
+                                    $gte: startOfThisMonth,
+                                },
+                            },
+                        },
+                        { $count: 'count' },
+                    ],
                 },
-                { $count: 'count' }
-              ],
-              lastMonth: [
-                {
-                  $match: {
-                    ...employeeFilter,
-                    approvedOn: { $gt: 0 },
-                    createdDate: {
-                      $gte: startOfLastMonth,
-                      $lte: endOfLastMonth,
-                    },
-                  },
-                },
-                { $count: 'count' },
-              ],
-              thisMonth: [
-                {
-                  $match: {
-                    ...employeeFilter,
-                    approvedOn: { $gt: 0 },
-                    createdDate: {
-                      $gte: startOfThisMonth,
-                    },
-                  },
-                },
-                { $count: 'count' },
-              ],
-            },
-        }
+            }
         ]);
 
         console.log(stats)
@@ -2574,18 +2574,18 @@ const getArticlesDashbordInfo = async (req, res) => {
         }
 
         res.json({
-        status:"success",
-        msg:"Data Fetched Successfully",
-        data:{
+            status: "success",
+            msg: "Data Fetched Successfully",
+            data: {
 
-            employeeId: employeeId || 'ALL',
-            totalRecords,
-            lastMonthRecords,
-            thisMonthRecords,
-            percentChange: parseFloat(percentChange.toFixed(2)),
-        }
-    });
-    
+                employeeId: employeeId || 'ALL',
+                totalRecords,
+                lastMonthRecords,
+                thisMonthRecords,
+                percentChange: parseFloat(percentChange.toFixed(2)),
+            }
+        });
+
     } catch (error) {
         console.error(error)
         await errorLogBookSchema.create({
@@ -2610,7 +2610,7 @@ const getPageViewDashboardInfo = async (req, res) => {
         let employee = await reportersSchema.findOne({
             employeeId: body.employeeId
         });
-        
+
         if (!employee) {
             return res.status(200).json({
                 status: "failed",
@@ -2631,18 +2631,18 @@ const getPageViewDashboardInfo = async (req, res) => {
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth();
-        
+
         // Get first and last day of current month
         const firstDayCurrentMonth = new Date(currentYear, currentMonth, 1);
         const lastDayCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
-        
+
         // Get first and last day of last month
         const firstDayLastMonth = new Date(currentYear, currentMonth - 1, 1);
         const lastDayLastMonth = new Date(currentYear, currentMonth, 0);
 
         // Format dates as yyyy-mm-dd for comparison
         const formatDate = (date) => date.toISOString().split('T')[0];
-        
+
         const currentMonthStart = formatDate(firstDayCurrentMonth);
         const currentMonthEnd = formatDate(lastDayCurrentMonth);
         const lastMonthStart = formatDate(firstDayLastMonth);
@@ -2651,52 +2651,62 @@ const getPageViewDashboardInfo = async (req, res) => {
         // Main aggregation pipeline
         const result = await Visitor.aggregate([
             // Convert fcmTokensByDay map to array of {date, tokens} objects
-            { $project: {
-                entries: { $objectToArray: "$fcmTokensByDay" }
-            }},
+            {
+                $project: {
+                    entries: { $objectToArray: "$fcmTokensByDay" }
+                }
+            },
             // Unwind the entries array
             { $unwind: "$entries" },
             // Unwind the tokens array
             { $unwind: "$entries.v" },
             // Project relevant fields
-            { $project: {
-                date: "$entries.k",
-                visitCount: { $size: { $ifNull: ["$entries.v.visitedOn", []] } }
-            }},
+            {
+                $project: {
+                    date: "$entries.k",
+                    visitCount: { $size: { $ifNull: ["$entries.v.visitedOn", []] } }
+                }
+            },
             // Group to calculate metrics
-            { $group: {
-                _id: null,
-                totalVisits: { $sum: "$visitCount" },
-                thisMonthVisits: {
-                    $sum: {
-                        $cond: [
-                            { $and: [
-                                { $gte: ["$date", currentMonthStart] },
-                                { $lte: ["$date", currentMonthEnd] }
-                            ]},
-                            "$visitCount",
-                            0
-                        ]
-                    }
-                },
-                lastMonthVisits: {
-                    $sum: {
-                        $cond: [
-                            { $and: [
-                                { $gte: ["$date", lastMonthStart] },
-                                { $lte: ["$date", lastMonthEnd] }
-                            ]},
-                            "$visitCount",
-                            0
-                        ]
+            {
+                $group: {
+                    _id: null,
+                    totalVisits: { $sum: "$visitCount" },
+                    thisMonthVisits: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $gte: ["$date", currentMonthStart] },
+                                        { $lte: ["$date", currentMonthEnd] }
+                                    ]
+                                },
+                                "$visitCount",
+                                0
+                            ]
+                        }
+                    },
+                    lastMonthVisits: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $gte: ["$date", lastMonthStart] },
+                                        { $lte: ["$date", lastMonthEnd] }
+                                    ]
+                                },
+                                "$visitCount",
+                                0
+                            ]
+                        }
                     }
                 }
-            }}
+            }
         ]);
 
         // Process the result
         const stats = result[0] || { totalVisits: 0, thisMonthVisits: 0, lastMonthVisits: 0 };
-        
+
         // Calculate percentage change
         let percentChange = 0;
         if (stats.lastMonthVisits > 0) {
@@ -2704,7 +2714,7 @@ const getPageViewDashboardInfo = async (req, res) => {
         } else if (stats.thisMonthVisits > 0) {
             percentChange = 100;
         }
-        
+
         // Round to 2 decimal places
         percentChange = parseFloat(percentChange.toFixed(2));
         res.json({
@@ -2743,7 +2753,7 @@ const getArticlesByCategory = async (req, res) => {
         let employee = await reportersSchema.findOne({
             employeeId: body.employeeId
         });
-        
+
         if (!employee) {
             return res.status(200).json({
                 status: "failed",
@@ -2763,17 +2773,17 @@ const getArticlesByCategory = async (req, res) => {
 
         // Get all unique categories
         const categories = await newsDataSchema.distinct('category');
-        
+
         // Get count of articles for each category
         const categoryStats = await Promise.all(categories.map(async (category) => {
-            const count = await newsDataSchema.countDocuments({ 
+            const count = await newsDataSchema.countDocuments({
                 category: category,
                 approved: true,
                 rejected: false
             });
-            
+
             const percentage = Math.min(Math.round((count / TARGET_ARTICLES) * 100), 100);
-            
+
             return {
                 name: category,
                 count: count,
@@ -2800,7 +2810,7 @@ const getArticlesByCategory = async (req, res) => {
             functionality: 'Fetch article counts by category',
             errorMessage: error.message || JSON.stringify(error)
         });
-        
+
         res.status(500).json({
             status: "failed",
             msg: 'Failed to fetch article statistics',
@@ -2817,7 +2827,7 @@ const getActiveEmployeeStats = async (req, res) => {
         let employee = await reportersSchema.findOne({
             employeeId: body.employeeId
         });
-        
+
         if (!employee) {
             return res.status(200).json({
                 status: "failed",
@@ -2838,11 +2848,11 @@ const getActiveEmployeeStats = async (req, res) => {
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth();
-        
+
         // Get first and last day of current month
         const firstDayCurrentMonth = new Date(currentYear, currentMonth, 1);
         const lastDayCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
-        
+
         // Get first and last day of last month
         const firstDayLastMonth = new Date(currentYear, currentMonth - 1, 1);
         const lastDayLastMonth = new Date(currentYear, currentMonth, 0);
@@ -2867,7 +2877,7 @@ const getActiveEmployeeStats = async (req, res) => {
 
         const currentMonthCount = currentMonthActive.length;
         const lastMonthCount = lastMonthActive.length;
-        
+
         // Calculate percentage change
         let percentChange = 0;
         if (lastMonthCount > 0) {
@@ -2875,10 +2885,10 @@ const getActiveEmployeeStats = async (req, res) => {
         } else if (currentMonthCount > 0) {
             percentChange = 100;
         }
-        
+
         // Round to 2 decimal places
         percentChange = parseFloat(percentChange.toFixed(2));
-        
+
         // Get all active employees (regardless of month)
         const totalActiveEmployees = await employeeTracing.distinct('employeeId', {
             $or: [
@@ -2905,7 +2915,7 @@ const getActiveEmployeeStats = async (req, res) => {
             functionality: 'Fetch active employee statistics',
             errorMessage: error.message || JSON.stringify(error)
         });
-        
+
         res.status(500).json({
             status: "error",
             message: 'Failed to process active employee statistics',
@@ -2923,7 +2933,7 @@ const getVisitorTimeSeries = async (req, res) => {
         const employee = await reportersSchema.findOne({
             employeeId: body.employeeId
         });
-        
+
         if (!employee) {
             return res.status(200).json({
                 status: "failed",
@@ -2967,7 +2977,7 @@ const getVisitorTimeSeries = async (req, res) => {
                         },
                         in: {
                             $concat: [
-                                { $toString: { $cond: [{ $eq: [{$mod: ["$$hour", 12]}, 0] }, 12, { $mod: ["$$hour", 12] }] } },
+                                { $toString: { $cond: [{ $eq: [{ $mod: ["$$hour", 12] }, 0] }, 12, { $mod: ["$$hour", 12] }] } },
                                 ":",
                                 { $cond: [{ $lt: ["$$minute", 30] }, "00", "30"] },
                                 { $cond: [{ $lt: ["$$hour", 12] }, "am", "pm"] }
@@ -3075,7 +3085,7 @@ const getVisitorTimeSeries = async (req, res) => {
             functionality: 'Fetch visitor time series data',
             errorMessage: error.message || JSON.stringify(error)
         });
-        
+
         res.status(500).json({
             status: "error",
             message: 'Failed to process visitor time series data',
@@ -3086,12 +3096,12 @@ const getVisitorTimeSeries = async (req, res) => {
 const getVisitorLocations = async (req, res) => {
     try {
         const body = JSON.parse(JSON.stringify(req.body));
-        
+
         // Employee validation
         const employee = await reportersSchema.findOne({
             employeeId: body.employeeId
         });
-        
+
         if (!employee) {
             return res.status(200).json({
                 status: "failed",
@@ -3111,17 +3121,17 @@ const getVisitorLocations = async (req, res) => {
 
         // Get all visitors with location data
         const visitors = await Visitor.find({});
-        
+
         // Extract all locations from fcmTokensByDay
         const locations = [];
-        
+
         visitors.forEach(visitor => {
             if (visitor.fcmTokensByDay) {
                 for (const [day, tokens] of visitor.fcmTokensByDay.entries()) {
                     if (Array.isArray(tokens)) {
                         tokens.forEach(tokenData => {
-                            if (tokenData.location && 
-                                Array.isArray(tokenData.location) && 
+                            if (tokenData.location &&
+                                Array.isArray(tokenData.location) &&
                                 tokenData.location.length === 2) {
                                 locations.push({
                                     lat: tokenData.location[0],
@@ -3165,7 +3175,7 @@ const getVisitsTimeSeries = async (req, res) => {
         const employee = await reportersSchema.findOne({
             employeeId: body.employeeId
         });
-        
+
         if (!employee) {
             return res.status(200).json({
                 status: "failed",
@@ -3205,7 +3215,7 @@ const getVisitsTimeSeries = async (req, res) => {
                         },
                         in: {
                             $concat: [
-                                { $toString: { $cond: [{ $eq: [{$mod: ["$$hour", 12]}, 0] }, 12, { $mod: ["$$hour", 12] }] } },
+                                { $toString: { $cond: [{ $eq: [{ $mod: ["$$hour", 12] }, 0] }, 12, { $mod: ["$$hour", 12] }] } },
                                 ":",
                                 { $cond: [{ $lt: ["$$minute", 30] }, "00", "30"] },
                                 { $cond: [{ $lt: ["$$hour", 12] }, "am", "pm"] }
@@ -3246,18 +3256,20 @@ const getVisitsTimeSeries = async (req, res) => {
             { $unwind: "$tokensArray" },
             { $unwind: "$tokensArray.v" },
             { $unwind: "$tokensArray.v.visitedOn" },
-            { $project: {
-                _id: 0,
-                visitTime: "$tokensArray.v.visitedOn",
-                // Convert epoch to Date and then to IST (UTC+5:30)
-                visitTimeIST: {
-                    $dateToString: {
-                        format: "%Y-%m-%dT%H:%M:%S%z",
-                        date: { $toDate: "$tokensArray.v.visitedOn" },
-                        timezone: "+05:30"
+            {
+                $project: {
+                    _id: 0,
+                    visitTime: "$tokensArray.v.visitedOn",
+                    // Convert epoch to Date and then to IST (UTC+5:30)
+                    visitTimeIST: {
+                        $dateToString: {
+                            format: "%Y-%m-%dT%H:%M:%S%z",
+                            date: { $toDate: "$tokensArray.v.visitedOn" },
+                            timezone: "+05:30"
+                        }
                     }
                 }
-            }},
+            },
             ...(period.toLowerCase() !== 'total' ? [{
                 $match: {
                     $expr: {
@@ -3265,25 +3277,29 @@ const getVisitsTimeSeries = async (req, res) => {
                     }
                 }
             }] : []),
-            { $group: {
-                _id: groupId,
-                count: { $sum: 1 },
-                timestamp: { $max: "$visitTime" },
-                timestampIST: { $max: "$visitTimeIST" }
-            }},
+            {
+                $group: {
+                    _id: groupId,
+                    count: { $sum: 1 },
+                    timestamp: { $max: "$visitTime" },
+                    timestampIST: { $max: "$visitTimeIST" }
+                }
+            },
             { $sort: { timestamp: 1 } },
-            { $project: {
-                _id: 0,
-                period: period.toLowerCase() === 'day' ? {
-                    $dateToString: {
-                        format: "%H:%M",  // 24-hour format (00-23)
-                        date: { $toDate: "$timestamp" },
-                        timezone: "+05:30"
-                    }
-                } : "$_id",
-                count: 1,
-                timestamp: "$timestampIST"
-            }}
+            {
+                $project: {
+                    _id: 0,
+                    period: period.toLowerCase() === 'day' ? {
+                        $dateToString: {
+                            format: "%H:%M",  // 24-hour format (00-23)
+                            date: { $toDate: "$timestamp" },
+                            timezone: "+05:30"
+                        }
+                    } : "$_id",
+                    count: 1,
+                    timestamp: "$timestampIST"
+                }
+            }
         ];
 
         const result = await Visitor.aggregate(pipeline);
@@ -3339,7 +3355,7 @@ const convertPresignedUrlToBase64API = async (req, res) => {
 
     } catch (error) {
         console.error('Error in convertPresignedUrlToBase64API:', error);
-        
+
         // Log error to database
         await errorLogBookSchema.create({
             message: 'Error while converting presigned URL to base64',
@@ -3371,7 +3387,7 @@ const convertPresignedUrlToBase64API = async (req, res) => {
             });
         }
 
-        if (error.message.includes('Invalid URL') || 
+        if (error.message.includes('Invalid URL') ||
             error.message.includes('required') ||
             error.message.includes('valid S3') ||
             error.message.includes('image file')) {
@@ -3389,11 +3405,12 @@ const convertPresignedUrlToBase64API = async (req, res) => {
     }
 };
 
+
 module.exports = {
-    employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected, 
-    getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated, 
+    employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected,
+    getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated,
     getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing,
-    employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo, 
+    employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo,
     getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries, getVisitsTimeSeries, getVisitorLocations,
     convertPresignedUrlToBase64API
 };

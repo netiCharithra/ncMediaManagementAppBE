@@ -8,7 +8,7 @@ const adminAuth = async (req, res, next) => {
 
     try {
         const body = req.body;
-        console.log("admin auth", body)
+        // console.log("admin auth", body)
         if (!body.employeeId) {
             return res.status(401).json({
                 status: "failed",

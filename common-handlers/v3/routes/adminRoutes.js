@@ -20,7 +20,7 @@ const {
     getVisitorTimeSeries, 
     getVisitsTimeSeries, 
     getVisitorLocations,
-    convertPresignedUrlToBase64API 
+    convertPresignedUrlToBase64API
 } = require('../controllers/adminstrationAPIFunction');
 
 // All routes in this file are protected by adminAuth middleware
