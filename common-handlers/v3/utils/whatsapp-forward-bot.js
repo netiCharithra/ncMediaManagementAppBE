@@ -241,30 +241,11 @@ async function stopBot() {
         console.log('🛑 Stopping WhatsApp bot...');
         await client.destroy();
         client = null;
-        
         // Clear QR code when stopping
         currentQRCode = null;
         currentQRCodeBase64 = null;
         qrCodeTimestamp = null;
-        
-        // Clear WhatsApp authentication session data to force fresh authentication
-        try {
-            const authPath = path.join(__dirname, '.wwebjs_auth');
-            console.log('🗑️ Clearing authentication session data at:', authPath);
-            
-            if (fs.existsSync(authPath)) {
-                // Remove the entire authentication directory
-                fs.rmSync(authPath, { recursive: true, force: true });
-                console.log('✅ Authentication session data cleared successfully');
-            } else {
-                console.log('📝 No authentication session data found to clear');
-            }
-        } catch (sessionError) {
-            console.error('⚠️ Failed to clear session data (will still force fresh auth):', sessionError.message);
-            // Don't throw error here, as the main bot stopping was successful
-        }
-        
-        console.log('✅ Bot stopped successfully and authentication reset!');
+        console.log('✅ Bot stopped successfully!');
     } catch (error) {
         console.error('❌ Failed to stop bot:', error);
         throw error;
