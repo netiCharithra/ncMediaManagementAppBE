@@ -7,6 +7,7 @@ const errorLogBookSchema = require('../../../modals/errorLogBookSchema');
 const employeeTracing = require('../../../modals/employeeTracing');
 const Visitor = require('../../../modals/visitorSchema');
 const { generateDownloadUrl, convertPresignedUrlToBase64 } = require('../utils/s3Utils');
+const { startBotAndGetQR, getBotStatus, getQRCode, getQRCodeDebugInfo, stopBot } = require('../utils/whatsapp-forward-bot');
 const axios = require('axios');
 
 require('dotenv').config();
@@ -1227,6 +1228,25 @@ const manipulateNews = async (req, res) => {
 
 const getAdminIndividualNewsInfo = async (req, res) => {
     try {
+        // Ensure WhatsApp client is running
+        console.log('🔍 Checking WhatsApp client status for getAdminIndividualNewsInfo...');
+        const { getBotStatus, startBot } = require('../utils/whatsapp-forward-bot');
+        const status = getBotStatus();
+        
+        if (!status.isRunning) {
+            console.log('⚠️ WhatsApp client is not running. Starting client...');
+            try {
+                await startBot();
+                console.log('✅ WhatsApp client started successfully for getAdminIndividualNewsInfo');
+            } catch (error) {
+                console.error('❌ Failed to start WhatsApp client:', error);
+                // Continue with the request even if WhatsApp client fails to start
+                console.warn('⚠️ Continuing with getAdminIndividualNewsInfo despite WhatsApp client failure');
+            }
+        } else {
+            console.log('✅ WhatsApp client is already running for getAdminIndividualNewsInfo');
+        }
+        
         let body = JSON.parse(JSON.stringify(req.body));
         let employee = await reportersSchema.findOne({
             employeeId: body.employeeId
@@ -3405,6 +3425,231 @@ const convertPresignedUrlToBase64API = async (req, res) => {
     }
 };
 
+// WhatsApp QR Code API endpoint
+const getWhatsAppQRCode = async (req, res) => {
+    try {
+        console.log('📱 WhatsApp QR Code API called');
+        
+        // Helper function to get comprehensive bot status
+        const getComprehensiveBotStatus = () => {
+            const status = getBotStatus();
+            const qrData = getQRCode();
+            const debugInfo = getQRCodeDebugInfo();
+            
+            console.log('🔍 Debug - Bot Status:', {
+                isRunning: status.isRunning,
+                qrData: debugInfo
+            });
+            
+            return {
+                isRunning: status.isRunning,
+                isAuthenticated: status.isRunning && !qrData.hasQR,
+                hasQRCode: qrData.hasQR,
+                qrTimestamp: qrData.timestamp,
+                botState: status.isRunning ? 
+                    (qrData.hasQR ? 'waiting_for_scan' : 'authenticated') : 
+                    'stopped',
+                debugInfo: debugInfo
+            };
+        };
+        
+        // Get initial bot status
+        let initialStatus = getComprehensiveBotStatus();
+        console.log('🔍 Initial bot status:', initialStatus);
+        
+        // If bot is not running, start it
+        if (!initialStatus.isRunning) {
+            console.log('🚀 Bot is not running. Starting bot...');
+            
+            try {
+                const result = await startBotAndGetQR();
+                
+                if (result.success) {
+                    // Get updated status after starting
+                    const updatedStatus = getComprehensiveBotStatus();
+                    const qrData = getQRCode();
+                    
+                    console.log('✅ Bot started successfully. Updated status:', updatedStatus);
+                    console.log('🔍 QR Data after bot start:', qrData);
+                    
+                    return res.json({
+                        status: "success",
+                        data: {
+                            qrCode: qrData.qrCode,
+                            qrCodeBase64: qrData.qrCodeBase64,
+                            timestamp: qrData.timestamp,
+                            botStatus: {
+                                isRunning: updatedStatus.isRunning,
+                                isAuthenticated: updatedStatus.isAuthenticated,
+                                hasQRCode: updatedStatus.hasQRCode,
+                                state: updatedStatus.botState,
+                                lastQRTimestamp: updatedStatus.qrTimestamp,
+                                debug: updatedStatus.debugInfo
+                            },
+                            // Legacy fields for backward compatibility
+                            isAuthenticated: updatedStatus.isAuthenticated,
+                            botState: updatedStatus.botState
+                        },
+                        message: "Bot started successfully and QR code retrieved"
+                    });
+                } else {
+                    // Failed to start bot
+                    console.error(' Failed to start bot:', result.error);
+                    
+                    return res.status(500).json({
+                        status: "error",
+                        data: {
+                            qrCode: null,
+                            qrCodeBase64: null,
+                            botStatus: {
+                                isRunning: false,
+                                isAuthenticated: false,
+                                hasQRCode: false,
+                                state: 'failed_to_start',
+                                error: result.error
+                            }
+                        },
+                        message: result.message || 'Failed to start WhatsApp bot',
+                        error: result.error
+                    });
+                }
+            } catch (startError) {
+                console.error('❌ Exception while starting bot:', startError);
+                
+                return res.status(500).json({
+                    status: "error",
+                    data: {
+                        qrCode: null,
+                        qrCodeBase64: null,
+                        botStatus: {
+                            isRunning: false,
+                            isAuthenticated: false,
+                            hasQRCode: false,
+                            state: 'start_exception',
+                            error: startError.message
+                        }
+                    },
+                    message: 'Exception occurred while starting WhatsApp bot',
+                    error: startError.message
+                });
+            }
+        } else {
+            // Bot is already running, get current status and QR
+            const qrData = getQRCode();
+            const currentStatus = getComprehensiveBotStatus();
+            
+            console.log('✅ Bot is already running. Current status:', currentStatus);
+            
+            return res.json({
+                status: "success",
+                data: {
+                    qrCode: qrData.qrCode,
+                    qrCodeBase64: qrData.qrCodeBase64,
+                    timestamp: qrData.timestamp,
+                    botStatus: {
+                        isRunning: currentStatus.isRunning,
+                        isAuthenticated: currentStatus.isAuthenticated,
+                        hasQRCode: currentStatus.hasQRCode,
+                        state: currentStatus.botState,
+                        lastQRTimestamp: currentStatus.qrTimestamp
+                    },
+                    // Legacy fields for backward compatibility
+                    isAuthenticated: currentStatus.isAuthenticated,
+                    botState: currentStatus.botState
+                },
+                message: currentStatus.isAuthenticated ? 
+                    "Bot is running and authenticated" : 
+                    "Bot is running, QR code available for scanning"
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error in getWhatsAppQRCode:', error);
+        
+        // Log error to database
+        await errorLogBookSchema.create({
+            message: 'Error while getting WhatsApp QR code',
+            stackTrace: error.stack ? [...error.stack].join('/n') : '',
+            page: 'Admin WhatsApp',
+            functionality: 'Get WhatsApp QR Code',
+            errorMessage: error.message || JSON.stringify(error)
+        });
+        
+        res.status(500).json({
+            status: "error",
+            message: 'Failed to get WhatsApp QR code',
+            error: error.message
+        });
+    }
+};
+
+// WhatsApp Bot Stop API endpoint
+const stopWhatsAppBot = async (req, res) => {
+    try {
+        console.log('🛑 WhatsApp Bot Stop API called');
+        
+        // Get current bot status before stopping
+        const initialStatus = getBotStatus();
+        console.log('🔍 Initial bot status:', initialStatus);
+        
+        if (!initialStatus.isRunning) {
+            return res.json({
+                status: "success",
+                data: {
+                    botStatus: {
+                        isRunning: false,
+                        wasRunning: false,
+                        state: 'already_stopped'
+                    }
+                },
+                message: "Bot was already stopped"
+            });
+        }
+        
+        // Stop the bot
+        console.log('🛑 Stopping WhatsApp bot...');
+        await stopBot();
+        
+        // Get updated status after stopping
+        const updatedStatus = getBotStatus();
+        const debugInfo = getQRCodeDebugInfo();
+        
+        console.log('✅ Bot stopped successfully. Updated status:', updatedStatus);
+        console.log('🔍 Debug info after stop:', debugInfo);
+        
+        return res.json({
+            status: "success",
+            data: {
+                botStatus: {
+                    isRunning: updatedStatus.isRunning,
+                    wasRunning: true,
+                    state: 'stopped',
+                    debug: debugInfo
+                }
+            },
+            message: "WhatsApp bot stopped successfully"
+        });
+        
+    } catch (error) {
+        console.error('❌ Error in stopWhatsAppBot:', error);
+        
+        // Log error to database
+        await errorLogBookSchema.create({
+            message: 'Error while stopping WhatsApp bot',
+            stackTrace: error.stack ? [...error.stack].join('/n') : '',
+            page: 'Admin WhatsApp',
+            functionality: 'Stop WhatsApp Bot',
+            errorMessage: error.message || JSON.stringify(error)
+        });
+        
+        res.status(500).json({
+            status: "error",
+            message: 'Failed to stop WhatsApp bot',
+            error: error.message
+        });
+    }
+};
+
 
 module.exports = {
     employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected,
@@ -3412,5 +3657,5 @@ module.exports = {
     getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing,
     employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo,
     getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries, getVisitsTimeSeries, getVisitorLocations,
-    convertPresignedUrlToBase64API
+    convertPresignedUrlToBase64API, getWhatsAppQRCode, stopWhatsAppBot
 };

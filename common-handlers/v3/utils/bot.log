@@ -1,0 +1,77 @@
+=== Bot Started at 2025-08-06T12:15:56.298Z ===
+[2025-08-06T12:15:56.300Z] [INFO] 📝 Logging initialized. Check bot.log for detailed logs.
+[2025-08-06T12:15:56.300Z] [INFO] 📝 Logging initialized. Check bot.log for detailed logs.
+[2025-08-06T12:15:56.300Z] [INFO] 🚀 Starting WhatsApp Forward Bot...
+[2025-08-06T12:15:56.300Z] [INFO] 🚀 Starting WhatsApp Forward Bot...
+[2025-08-06T12:16:02.027Z] [INFO] ✅ Bot started successfully!
+[2025-08-06T12:16:02.027Z] [INFO] ✅ Bot started successfully!
+[2025-08-06T12:16:02.027Z] [INFO] ✅ WhatsApp client started successfully
+[2025-08-06T12:16:02.027Z] [INFO] ✅ WhatsApp client started successfully
+[2025-08-06T12:16:02.028Z] [INFO] 📱 WhatsApp QR Code API called
+[2025-08-06T12:16:02.028Z] [INFO] 📱 WhatsApp QR Code API called
+[2025-08-06T12:16:02.028Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:02.028Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:02.028Z] [INFO] 🔍 Initial bot status: [object Object]
+[2025-08-06T12:16:02.028Z] [INFO] 🔍 Initial bot status: [object Object]
+[2025-08-06T12:16:02.028Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:02.028Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:02.029Z] [INFO] ✅ Bot is already running. Current status: [object Object]
+[2025-08-06T12:16:02.029Z] [INFO] ✅ Bot is already running. Current status: [object Object]
+[2025-08-06T12:16:02.611Z] [INFO] 🔐 WhatsApp Client authenticated successfully!
+[2025-08-06T12:16:02.611Z] [INFO] 🔐 WhatsApp Client authenticated successfully!
+[2025-08-06T12:16:03.492Z] [INFO] ✅ WhatsApp Client is ready!
+[2025-08-06T12:16:03.492Z] [INFO] ✅ WhatsApp Client is ready!
+[2025-08-06T12:16:11.252Z] [INFO] 🔍 Message details: type=chat, hasMedia=false, hasQuotedMsg=false
+[2025-08-06T12:16:11.252Z] [INFO] 🔍 Message details: type=chat, hasMedia=false, hasQuotedMsg=false
+[2025-08-06T12:16:11.252Z] [INFO] 📨 Forwarding text from Group A: "Hi"
+[2025-08-06T12:16:11.252Z] [INFO] 📨 Forwarding text from Group A: "Hi"
+[2025-08-06T12:16:11.276Z] [INFO] 🔍 Looking for groups: Group B, Group C
+[2025-08-06T12:16:11.276Z] [INFO] 🔍 Looking for groups: Group B, Group C
+[2025-08-06T12:16:11.277Z] [INFO] 📋 Available groups: Group C, Group B, Group A
+[2025-08-06T12:16:11.277Z] [INFO] 📋 Available groups: Group C, Group B, Group A
+[2025-08-06T12:16:11.722Z] [INFO] ✅ Sent text to Group B
+[2025-08-06T12:16:11.722Z] [INFO] ✅ Sent text to Group B
+[2025-08-06T12:16:17.007Z] [INFO] ✅ Sent text to Group C
+[2025-08-06T12:16:17.007Z] [INFO] ✅ Sent text to Group C
+[2025-08-06T12:16:26.962Z] [INFO] 🔍 Checking WhatsApp client status...
+[2025-08-06T12:16:26.962Z] [INFO] 🔍 Checking WhatsApp client status...
+[2025-08-06T12:16:26.962Z] [INFO] ✅ WhatsApp client is already running
+[2025-08-06T12:16:26.962Z] [INFO] ✅ WhatsApp client is already running
+[2025-08-06T12:16:26.963Z] [INFO] 📱 WhatsApp QR Code API called
+[2025-08-06T12:16:26.963Z] [INFO] 📱 WhatsApp QR Code API called
+[2025-08-06T12:16:26.963Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:26.963Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:26.963Z] [INFO] 🔍 Initial bot status: [object Object]
+[2025-08-06T12:16:26.963Z] [INFO] 🔍 Initial bot status: [object Object]
+[2025-08-06T12:16:26.963Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:26.963Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:26.963Z] [INFO] ✅ Bot is already running. Current status: [object Object]
+[2025-08-06T12:16:26.963Z] [INFO] ✅ Bot is already running. Current status: [object Object]
+[2025-08-06T12:16:56.960Z] [INFO] 🔍 Checking WhatsApp client status...
+[2025-08-06T12:16:56.960Z] [INFO] 🔍 Checking WhatsApp client status...
+[2025-08-06T12:16:56.961Z] [INFO] ✅ WhatsApp client is already running
+[2025-08-06T12:16:56.961Z] [INFO] ✅ WhatsApp client is already running
+[2025-08-06T12:16:56.961Z] [INFO] 📱 WhatsApp QR Code API called
+[2025-08-06T12:16:56.961Z] [INFO] 📱 WhatsApp QR Code API called
+[2025-08-06T12:16:56.962Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:56.962Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:56.962Z] [INFO] 🔍 Initial bot status: [object Object]
+[2025-08-06T12:16:56.962Z] [INFO] 🔍 Initial bot status: [object Object]
+[2025-08-06T12:16:56.963Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:56.963Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:16:56.963Z] [INFO] ✅ Bot is already running. Current status: [object Object]
+[2025-08-06T12:16:56.963Z] [INFO] ✅ Bot is already running. Current status: [object Object]
+[2025-08-06T12:17:26.956Z] [INFO] 🔍 Checking WhatsApp client status...
+[2025-08-06T12:17:26.956Z] [INFO] 🔍 Checking WhatsApp client status...
+[2025-08-06T12:17:26.957Z] [INFO] ✅ WhatsApp client is already running
+[2025-08-06T12:17:26.957Z] [INFO] ✅ WhatsApp client is already running
+[2025-08-06T12:17:26.957Z] [INFO] 📱 WhatsApp QR Code API called
+[2025-08-06T12:17:26.957Z] [INFO] 📱 WhatsApp QR Code API called
+[2025-08-06T12:17:26.957Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:17:26.957Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:17:26.957Z] [INFO] 🔍 Initial bot status: [object Object]
+[2025-08-06T12:17:26.957Z] [INFO] 🔍 Initial bot status: [object Object]
+[2025-08-06T12:17:26.957Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:17:26.957Z] [INFO] 🔍 Debug - Bot Status: [object Object]
+[2025-08-06T12:17:26.958Z] [INFO] ✅ Bot is already running. Current status: [object Object]
+[2025-08-06T12:17:26.958Z] [INFO] ✅ Bot is already running. Current status: [object Object]
