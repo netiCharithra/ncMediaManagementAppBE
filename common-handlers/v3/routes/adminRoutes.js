@@ -20,7 +20,9 @@ const {
     getVisitorTimeSeries, 
     getVisitsTimeSeries, 
     getVisitorLocations,
-    convertPresignedUrlToBase64API
+    convertPresignedUrlToBase64API,
+    getWhatsAppQRCode,
+    stopWhatsAppBot
 } = require('../controllers/adminstrationAPIFunction');
 
 // All routes in this file are protected by adminAuth middleware
@@ -55,5 +57,9 @@ router.route('/dashboard/visitor-locations').post(getVisitorLocations);
 
 // Utility routes
 router.route('/utils/presigned-url-to-base64').post(convertPresignedUrlToBase64API);
+
+// WhatsApp routes
+router.route('/whatsapp/qr-code').post(getWhatsAppQRCode);
+router.route('/whatsapp/stop-bot').post(stopWhatsAppBot);
 
 module.exports = router;
