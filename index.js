@@ -238,7 +238,16 @@ const uploadHandler = async (req, res) => {
 
 app.post('/api/v3/uploadFiles', upload.array('images'), uploadHandler);
 
-
+// Test API endpoint
+app.get('/test', (req, res) => {
+    res.status(200).json({
+        status: "success",
+        message: "Backend API Services is running!",
+        timestamp: new Date().toISOString(),
+        server: "Backend API Services",
+        version: "1.0.0"
+    });
+});
 // BELWO ENDPOINT IS ONLY FOR TESTING
 app.post('/api/v3/deleteS3', async (req, res) => {
 
