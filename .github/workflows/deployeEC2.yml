@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main
+      - main_v3
 
 jobs:
   deploy:
@@ -21,5 +21,5 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ${{ secrets.EC2_PATH }}
-            git pull origin main
+            git pull origin main_v3
             pm2 restart all
