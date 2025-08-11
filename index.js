@@ -329,7 +329,7 @@ const start = async () => {
             });
             
             server.listen(portToTry, () => {
-                console.log(`Server is running on port TestKey ${portToTry}`);
+                console.log(`Server is running on port  ${portToTry}`);
                 console.log(`Local: http://localhost:${portToTry}`);
                 resolve(portToTry);
             });
