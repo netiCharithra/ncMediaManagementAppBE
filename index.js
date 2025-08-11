@@ -4,6 +4,7 @@ const serverless = require('serverless-http');
 const mongoose = require('mongoose');
 const app = express();
 const cors = require("cors");
+const compression = require('compression');
 
 // Import the database connection
 const connect = require('./connectDB/mongoDB');
@@ -19,6 +20,8 @@ const corsOptions = {
     credentials: true,
     optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
+
+app.use(compression()); // compress JSON responses
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
