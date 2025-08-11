@@ -30,4 +30,14 @@ jobs:
             echo "Current directory: $(pwd)"
             git config pull.rebase false
             git pull origin main_v3
+            echo "Setting up environment variables..."
+            cat > .env << EOF
+            BUCKET_REGION=${{ secrets.AWS_REGION }}
+            ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }}
+            SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            BUCKET_NAME_ARTICLE=${{ secrets.BUCKET_NAME_ARTICLE }}
+            BUCKET_NAME_EMPLOYEE_DOCS=${{ secrets.BUCKET_NAME_EMPLOYEE_DOCS }}
+            NODE_ENV=production
+            EOF
+            echo "Environment variables set. Restarting PM2..."
             pm2 restart all
