@@ -439,6 +439,7 @@ const getNewsCategoryCategorizedNews = async (req, res) => {
             }
         }
 
+        console.log("result", result)
         res.status(200).json({
             status: "success",
             msg: 'Success',
