@@ -26,7 +26,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "Deploying to path: $(pwd)"
-            cd ${{ secrets.EC2_PATH }}
+            cd /home/ec2-user/projects/ncMediaManagementAppBE
             echo "Current directory: $(pwd)"
             git config pull.rebase false
             git pull origin main_v3
