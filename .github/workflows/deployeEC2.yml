@@ -37,6 +37,7 @@ jobs:
             SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
             BUCKET_NAME_ARTICLE=${{ secrets.BUCKET_NAME_ARTICLE }}
             BUCKET_NAME_EMPLOYEE_DOCS=${{ secrets.BUCKET_NAME_EMPLOYEE_DOCS }}
+            MONGO_DB_URL=${{ secrets.MONGO_DB_URL }}
             NODE_ENV=production
             EOF
             echo "Environment variables set. Restarting PM2..."
