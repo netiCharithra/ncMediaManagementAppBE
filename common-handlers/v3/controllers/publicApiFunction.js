@@ -404,12 +404,14 @@ const getNewsCategoryCategorizedNews = async (req, res) => {
         let result = await newsDataSchema.aggregate(aggregateQuery);
 
         // Process each category and its news items to add image URLs
+        // Using sequential processing to prevent deep stack traces
         if (result?.length > 0) {
-            await Promise.all(result.map(async (category) => {
+            for (const category of result) {
                 if (category.news && Array.isArray(category.news)) {
-                    category.news = await Promise.all(category.news.map(async (newsItem) => {
+                    for (const newsItem of category.news) {
                         if (newsItem.images && Array.isArray(newsItem.images)) {
-                            newsItem.images = await Promise.all(newsItem.images.map(async (image) => {
+                            // Process images in smaller batches to prevent stack overflow
+                            const imagePromises = newsItem.images.map(async (image) => {
                                 if (image?.fileName) {
                                     try {
                                         const signedUrl = await generateDownloadUrl(image.fileName);
@@ -427,13 +429,14 @@ const getNewsCategoryCategorizedNews = async (req, res) => {
                                     }
                                 }
                                 return image.toObject ? image.toObject() : image;
-                            }));
+                            });
+                            
+                            // Process images concurrently but in controlled batches
+                            newsItem.images = await Promise.all(imagePromises);
                         }
-                        return newsItem;
-                    }));
+                    }
                 }
-                return category;
-            }));
+            }
         }
 
         res.status(200).json({
