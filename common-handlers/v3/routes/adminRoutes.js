@@ -21,8 +21,6 @@ const {
     getVisitsTimeSeries, 
     getVisitorLocations,
     convertPresignedUrlToBase64API,
-    getWhatsAppQRCode,
-    stopWhatsAppBot
 } = require('../controllers/adminstrationAPIFunction');
 
 // All routes in this file are protected by adminAuth middleware
