@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main_v3_bkp_ec2
+      - main_v3
 
 jobs:
   deploy:
