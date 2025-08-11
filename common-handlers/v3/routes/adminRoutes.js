@@ -58,8 +58,5 @@ router.route('/dashboard/visitor-locations').post(getVisitorLocations);
 // Utility routes
 router.route('/utils/presigned-url-to-base64').post(convertPresignedUrlToBase64API);
 
-// WhatsApp routes
-router.route('/whatsapp/qr-code').post(getWhatsAppQRCode);
-router.route('/whatsapp/stop-bot').post(stopWhatsAppBot);
 
 module.exports = router;
