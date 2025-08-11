@@ -926,12 +926,23 @@ const stateDistrictMapping = async (value, hideFieldValues, deleteElementsList) 
     let unqiueStateFromValue = findUniqueValues(value, "state");
 
     let allDistricts = {};
-    for (let index = 0; index < unqiueStateFromValue.length; index++) {
-        const dt = await metaDataSchema.findOne({
-            type: unqiueStateFromValue[index] + "_DISTRICTS"
-        })
-        allDistricts[unqiueStateFromValue[index]] = dt['data'];
-    };
+    // Use concurrent queries instead of sequential to prevent timeouts
+    const districtQueries = unqiueStateFromValue.map(async (state) => {
+        try {
+            const dt = await metaDataSchema.findOne({
+                type: state + "_DISTRICTS"
+            });
+            return { state, data: dt?.data || [] };
+        } catch (error) {
+            console.error(`Error fetching districts for state ${state}:`, error);
+            return { state, data: [] };
+        }
+    });
+    
+    const districtResults = await Promise.all(districtQueries);
+    districtResults.forEach(result => {
+        allDistricts[result.state] = result.data;
+    });
     for (let index = 0; index < valueCopy.length; index++) {
         if (valueCopy[index]['newsType'] === 'Regional') {
 
