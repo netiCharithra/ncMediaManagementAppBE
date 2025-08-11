@@ -21,7 +21,14 @@ jobs:
           key: ${{ secrets.UBUNTU_EC2_SSH_KEY }}
           script: |
             cd /home/ubuntu/ncMediaManagementAppBE
-            git pull origin main_v3
+            
+            # Ensure we're on main_v3 branch and pull forcefully
+            echo "Switching to main_v3 branch and pulling changes..."
+            git fetch origin
+            git checkout main_v3 || git checkout -b main_v3 origin/main_v3
+            git reset --hard origin/main_v3
+            git pull origin main_v3 --force
+            
             npm install --production
 
             # Create .env file from GitHub secrets
