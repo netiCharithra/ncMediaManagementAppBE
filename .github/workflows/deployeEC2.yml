@@ -25,6 +25,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            echo "Deploying to path: ${{ secrets.EC2_PATH }}"
             cd ${{ secrets.EC2_PATH }}
             git pull origin main_v3
             pm2 restart all
