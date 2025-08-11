@@ -315,6 +315,8 @@ async function getFileTempUrls3(fileName) {
 
 const start = async () => {
     const server = require('http').createServer(app);
+    server.setTimeout(600000);
+
     let port = process.env.PORT || 3000;
     
     const tryPort = (portToTry) => {
