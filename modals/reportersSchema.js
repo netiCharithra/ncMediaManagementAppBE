@@ -54,6 +54,10 @@ const dataSchema = {
         type: String,
         default: ""
     },
+    mpin: {
+        type: Number,
+        required: [false, 'please provide mpin']
+    },
     createdBy: {
         type: String,
         required: [false, 'please provide created date']

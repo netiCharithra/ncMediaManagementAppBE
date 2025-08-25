@@ -1073,6 +1073,7 @@ const manipulateNews = async (req, res) => {
                     msg: 'Employement not yet approved..! Kindly Contact your Superior.'
                 });
             } else {
+                console.log(body.type)
                 if (body.type === 'create') {
 
                     const existingNews = await newsDataSchema.find();
@@ -1244,7 +1245,7 @@ const getAdminIndividualNewsInfo = async (req, res) => {
         let employee = await reportersSchema.findOne({
             employeeId: body.employeeId
         });
-        console.log(employee)
+        console.log("R",employee)
         if (!employee) {
             res.status(200).json({
                 status: "failed",
@@ -1267,42 +1268,48 @@ const getAdminIndividualNewsInfo = async (req, res) => {
                 let news = JSON.parse(JSON.stringify(newsContent))
 
 
-                // STATE to Translate
+                console.log("news", news)
 
-                if (!news['regionalLangauge']) {
-                    news['regionalLanguage'] = {};
-                }
 
-                let stateDistrictAgg = await metaDataSchema.aggregate([
-                    {
-                        $facet: {
-                            stateData: [
-                                { $match: { type: "STATES" } },
-                                { $unwind: "$data" },
-                                { $match: { "data.value": news['state'] } },
-                                { $project: { _id: 0, data: 1 } }
-                            ],
-                            districtData: [
-                                { $match: { type: news['state'] + "_DISTRICTS" } },
-                                { $unwind: "$data" },
-                                { $match: { "data.value": news['district'] } },
-                                { $project: { _id: 0, data: 1 } }
-                            ]
-                        }
+                if(news?.['newsType'] === 'Regional'){
+                    
+                    // STATE to Translate
+    
+                    if (!news['regionalLangauge']) {
+                        news['regionalLanguage'] = {};
                     }
-                ]);
-
-                news['regionalLanguage']['state'] = stateDistrictAgg?.[0]?.stateData?.[0]?.data;
-                news['regionalLanguage']['district'] = stateDistrictAgg?.[0]?.districtData?.[0]?.data;
-
-
-                let mandalDataTemp = await metaDataSchema.findOne({
-                    type: `${news['regionalLanguage']['state']['value']}_DISTRICT_MANDALS_REGIONAL`
-                });
-
-                news['regionalLanguage']['mandal'] = mandalDataTemp?.data?.[news['regionalLanguage']['district']['value']]?.find(
-                    (item) => item.label === news['mandal']
-                );
+    
+                    let stateDistrictAgg = await metaDataSchema.aggregate([
+                        {
+                            $facet: {
+                                stateData: [
+                                    { $match: { type: "STATES" } },
+                                    { $unwind: "$data" },
+                                    { $match: { "data.value": news['state'] } },
+                                    { $project: { _id: 0, data: 1 } }
+                                ],
+                                districtData: [
+                                    { $match: { type: news['state'] + "_DISTRICTS" } },
+                                    { $unwind: "$data" },
+                                    { $match: { "data.value": news['district'] } },
+                                    { $project: { _id: 0, data: 1 } }
+                                ]
+                            }
+                        }
+                    ]);
+    
+                    news['regionalLanguage']['state'] = stateDistrictAgg?.[0]?.stateData?.[0]?.data;
+                    news['regionalLanguage']['district'] = stateDistrictAgg?.[0]?.districtData?.[0]?.data;
+    
+    
+                    let mandalDataTemp = await metaDataSchema.findOne({
+                        type: `${news['regionalLanguage']['state']['value']}_DISTRICT_MANDALS_REGIONAL`
+                    });
+    
+                    news['regionalLanguage']['mandal'] = mandalDataTemp?.data?.[news['regionalLanguage']['district']['value']]?.find(
+                        (item) => item.label === news['mandal']
+                    );
+                }
                 // Fetching tempURL for each image in newsContent using promises  
                 let imagesWithTempURL = await Promise.all(news?.images.map(async (elementImg) => {
                     if (elementImg?.fileName) {
@@ -1323,6 +1330,7 @@ const getAdminIndividualNewsInfo = async (req, res) => {
             }
         }
     } catch (error) {
+        console.log(error)
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching News Info`,
             stackTrace: JSON.stringify([...error.stack].join('/n')),

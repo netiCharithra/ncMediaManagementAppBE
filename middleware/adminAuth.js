@@ -10,7 +10,7 @@ const adminAuth = async (req, res, next) => {
         const body = req.body;
         // console.log("admin auth", body)
         if (!body.employeeId) {
-            return res.status(401).json({
+            return res.status(200).json({
                 status: "failed",
                 msg: 'Authentication required! Employee ID is missing.',
                 code: 'AUTH_MISSING_EMPLOYEE_ID'
@@ -22,7 +22,7 @@ const adminAuth = async (req, res, next) => {
         });
 
         if (!employee) {
-            return res.status(401).json({
+            return res.status(200).json({
                 status: "failed",
                 msg: 'Authentication failed! Invalid employee ID.',
                 code: 'AUTH_INVALID_EMPLOYEE_ID'
@@ -30,7 +30,7 @@ const adminAuth = async (req, res, next) => {
         }
 
         if (employee.disabledUser) {
-            return res.status(403).json({
+            return res.status(200).json({
                 status: "failed",
                 msg: 'Forbidden Access! Your account has been disabled.',
                 code: 'ACCOUNT_DISABLED'
@@ -38,7 +38,7 @@ const adminAuth = async (req, res, next) => {
         }
 
         if (!employee.activeUser) {
-            return res.status(403).json({
+            return res.status(200).json({
                 status: "failed",
                 msg: 'Employment not yet approved. Kindly contact your superior.'
             });

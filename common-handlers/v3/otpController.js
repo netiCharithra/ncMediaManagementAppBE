@@ -125,76 +125,79 @@ const sendOTP = async (req, res) => {
  */
 const verifyOTPAndLogin = async (req, res) => {
     try {
-        const { identifier, otp } = req.body;
+        const { identifier, otp, authType = null, mpin } = req.body;
 
         if (!identifier || !otp) {
             return errorResponse(res, 'Identifier and OTP are required');
         }
 
-        // Find the most recent unexpired OTP for this identifier
-        const otpRecord = await OTP.findOne({
-            identifier,
-            isVerified: false,
-            purpose: 'login'
-        }).sort({ createdAt: -1 });
-
-        console.log("TTTTTT")
-        if (!otpRecord) {
-            return errorResponse(res, 'Invalid or expired OTP');
-        }
-
-        // Special OTP for testing that always passes
-        const isSpecialOTP = otp === '998877';
-        
-        // Verify OTP - direct comparison with stored plain OTP or check if it's the special OTP
-        const isOTPValid = isSpecialOTP || (otpRecord.otp === otp && otpRecord.expiry > new Date());
-        
-        if (!isOTPValid) {
-            // Increment attempts
-            otpRecord.attempts += 1;
+        if(!authType || authType === 'otp') {
+            
+            // Find the most recent unexpired OTP for this identifier
+            const otpRecord = await OTP.findOne({
+                identifier,
+                isVerified: false,
+                purpose: 'login'
+            }).sort({ createdAt: -1 });
+    
+            console.log("TTTTTT")
+            if (!otpRecord) {
+                return errorResponse(res, 'Invalid or expired OTP');
+            }
+    
+            // Special OTP for testing that always passes
+            const isSpecialOTP = otp === '998877';
+            
+            // Verify OTP - direct comparison with stored plain OTP or check if it's the special OTP
+            const isOTPValid = isSpecialOTP || (otpRecord.otp === otp && otpRecord.expiry > new Date());
+            
+            if (!isOTPValid) {
+                // Increment attempts
+                otpRecord.attempts += 1;
+                await otpRecord.save();
+                
+                // Find user by identifier
+                let user;
+                if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+                    user = await reporterSchema.findOne({ mail: identifier });
+                } else if (/^[0-9]{10}$/.test(identifier)) {
+                    user = await reporterSchema.findOne({ mobile: parseInt(identifier) });
+                } else {
+                    user = await reporterSchema.findOne({ employeeId: identifier });
+                }
+                
+                // If user exists and this is the 3rd failed attempt, disable the account
+                if (user && otpRecord.attempts >= 3) {
+                    user.disabledUser = true;
+                    user.disabledBy = 'invalidOTPEntry';
+                    user.disabledOn = Date.now();
+                    await user.save();
+                    
+                    // Mark OTP as verified to prevent further attempts
+                    await OTP.findByIdAndUpdate(otpRecord._id, { isVerified: true });
+                    
+                    // Clear any existing OTPs for this user
+                    await OTP.deleteMany({
+                        identifier,
+                        isVerified: false
+                    });
+                    
+                    return errorResponse(res, 'Account temporarily disabled due to multiple failed attempts. Please contact support.');
+                }
+                
+                const remainingAttempts = 5 - otpRecord.attempts;
+                return errorResponse(
+                    res,
+                    remainingAttempts > 0 
+                        ? `Invalid OTP. ${remainingAttempts} attempts remaining.` 
+                        : 'Maximum attempts exceeded. Please request a new OTP.'
+                );
+            }
+    
+            // Mark OTP as verified
+            otpRecord.isVerified = true;
             await otpRecord.save();
-            
-            // Find user by identifier
-            let user;
-            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
-                user = await reporterSchema.findOne({ mail: identifier });
-            } else if (/^[0-9]{10}$/.test(identifier)) {
-                user = await reporterSchema.findOne({ mobile: parseInt(identifier) });
-            } else {
-                user = await reporterSchema.findOne({ employeeId: identifier });
-            }
-            
-            // If user exists and this is the 3rd failed attempt, disable the account
-            if (user && otpRecord.attempts >= 3) {
-                user.disabledUser = true;
-                user.disabledBy = 'invalidOTPEntry';
-                user.disabledOn = Date.now();
-                await user.save();
-                
-                // Mark OTP as verified to prevent further attempts
-                await OTP.findByIdAndUpdate(otpRecord._id, { isVerified: true });
-                
-                // Clear any existing OTPs for this user
-                await OTP.deleteMany({
-                    identifier,
-                    isVerified: false
-                });
-                
-                return errorResponse(res, 'Account temporarily disabled due to multiple failed attempts. Please contact support.');
-            }
-            
-            const remainingAttempts = 5 - otpRecord.attempts;
-            return errorResponse(
-                res,
-                remainingAttempts > 0 
-                    ? `Invalid OTP. ${remainingAttempts} attempts remaining.` 
-                    : 'Maximum attempts exceeded. Please request a new OTP.'
-            );
         }
-
-        // Mark OTP as verified
-        otpRecord.isVerified = true;
-        await otpRecord.save();
 
         // Find user by identifier (email, mobile, or employeeId)
         let user;
@@ -221,6 +224,9 @@ const verifyOTPAndLogin = async (req, res) => {
             return errorResponse(res, 'Your account is not active. Please contact support.');
         }
 
+        if (authType === 'mpin' && user.mpin !== mpin) {
+            return errorResponse(res, 'Invalid MPIN');
+        }
         // Set session expiry time (120 seconds from now)
         // const expiryTime = new Date(Date.now() + 120 * 1000);
         

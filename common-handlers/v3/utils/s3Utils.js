@@ -39,7 +39,7 @@ if (!BUCKET_NAME_ARTICLE || !BUCKET_NAME_EMPLOYEE_DOCS) {
  * @param {boolean} [tryExtensions=false] - Whether to try different file extensions if file not found
  * @returns {Promise<string>} Pre-signed URL
  */
-const generateDownloadUrl = async (fileName, expiresIn = 3600, bucketType = 'articles', tryExtensions = false) => {
+const generateDownloadUrl = async (fileName, expiresIn = 36000, bucketType = 'articles', tryExtensions = false) => {
     try {
         if (!fileName) {
             throw new Error('File name is required');

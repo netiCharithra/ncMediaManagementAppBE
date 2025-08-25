@@ -1,0 +1,10 @@
+# Files and directories to exclude from Lambda deployment
+node_modules/puppeteer-core/
+node_modules/whatsapp-web.js/
+node_modules/qrcode/
+node_modules/qrcode-terminal/
+common-handlers/v3/utils/whatsapp-forward-bot.js
+middleware/whatsappClientCheck.js
+*.log
+.git/
+.wwebjs_auth/

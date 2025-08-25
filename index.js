@@ -48,19 +48,6 @@ app.use(function (req, res, next) {
     next();
 });
 
-const functions = require("firebase-functions");
-// const allowedOrigins = ['*']; // Add more origins if needed
-// app.use(cors({
-//     origin: function (origin, callback) {
-//         if (!origin || allowedOrigins.includes(origin)) {
-//             callback(null, true);
-//         } else {
-//             console.log("origin", origin)
-//             callback(new Error('Not allowed by CORS'));
-//         }
-//     }
-// }));
-// app.use(cors())
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
@@ -78,7 +65,6 @@ const bodyParser = require('body-parser');
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 const multer = require('multer');
-const storage = multer.memoryStorage()
 
 // const upload = multer({ storage: storage })
 const upload = multer({ storage: multer.memoryStorage() });
@@ -97,7 +83,6 @@ const BUCKET_NAME_ARTICLE = process.env.BUCKET_NAME_ARTICLE
 const BUCKET_NAME_EMPLOYEE_DOCS = process.env.BUCKET_NAME_EMPLOYEE_DOCS
 
 const BUCKET_REGION = process.env.BUCKET_REGION
-const POLICY_NAME = process.env.POLICY_NAME
 
 const ACCESS_KEY = process.env.ACCESS_KEY
 const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY
@@ -179,6 +164,7 @@ app.post('/api/v3/uploadFiles', upload.array('images'), async (req, res) => {
             errorMessage: JSON.stringify(error)
         });
 
+        console.error("ERROR",error)
         console.error(error);
         res.status(500).json({
             status: "failed",
@@ -188,58 +174,6 @@ app.post('/api/v3/uploadFiles', upload.array('images'), async (req, res) => {
 });
 
 
-const uploadHandler = async (req, res) => {
-    try {
-        let uploadedImages = [];
-        console.log(`Number of files received: ${req.files?.length}`);
-
-        if (req.files && req.files.length > 0) {
-            for (let index = 0; index < req.files.length; index++) {
-                const fileName = req.body.fileName === "original"
-                    ? req.files[index].originalname
-                    : `File_${Date.now()}_${index}`;
-
-                const uploadParams = {
-                    Bucket: BUCKET_NAME,
-                    Body: req.files[index].buffer,
-                    Key: fileName,
-                    ContentType: req.files[index].mimetype
-                };
-
-                console.log(`Uploading file: ${fileName}`);
-                await s3.send(new PutObjectCommand(uploadParams));
-                const fileURLTemp = await getFileTempUrls3(fileName);
-                uploadedImages.push({
-                    fileName: fileName,
-                    tempURL: fileURLTemp,
-                    ContentType: req.files[index].mimetype
-                });
-            }
-        }
-
-        res.status(200).json({
-            status: "success",
-            msg: 'Uploaded Successfully',
-            data: uploadedImages
-        });
-    } catch (error) {
-        await errorLogBookSchema.create({
-            message: `Error while uploading files to drive`,
-            stackTrace: JSON.stringify(error.stack?.split('\n')),
-            page: req.body?.uploadType || 'Uploading News Image',
-            functionality: req.body?.uploadType || 'Uploading News Image',
-            errorMessage: JSON.stringify(error)
-        });
-
-        console.error(error);
-        res.status(500).json({
-            status: "failed",
-            msg: 'Failed while processing..',
-        });
-    }
-};
-
-app.post('/api/v3/uploadFiles', upload.array('images'), uploadHandler);
 
 // Test API endpoint
 app.get('/test', (req, res) => {
