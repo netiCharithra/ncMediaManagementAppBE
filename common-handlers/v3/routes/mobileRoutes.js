@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import mobile-specific controller functions here
-const { getPriorityNews,getLatestNews,getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam ,tempAPI,getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById} = require('../controllers/mobileAPIFunctions');
+const { getPriorityNews,getLatestNews,getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam ,tempAPI,getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames} = require('../controllers/mobileAPIFunctions');
 
 /**
  * Mobile API Routes
@@ -19,6 +19,7 @@ router.route('/getIndividualNewsInfo').post(getIndividualNewsInfo);
 router.route('/getHelpTeam').post(getHelpTeam);
 
 router.route('/getNewsFrames').post(getNewsFrames);
+router.route('/getActiveNewsFrames').post(getActiveNewsFrames);
 router.route('/createFrame').post(addNewsFrame);
 router.route('/updateFrame').post(updateNewsFrame);
 router.route('/getFrameById').post(getNewsFrameById);

@@ -645,6 +645,65 @@ const getNewsFrameById = async (req, res) => {
     }
 };
 
+/**
+ * Get all active news frames with temporary URLs
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getActiveNewsFrames = async (req, res) => {
+    try {
+        const now = new Date().getTime();
+        
+        // Filter for active frames (current time is between validFrom and validTo)
+        const matchFilter = { validFrom: { $lte: now }, validTo: { $gte: now } };
+        
+        // Add optional language filter if provided
+        if (req.body.language) {
+            matchFilter.frameLanguage = req.body.language;
+        }
+        
+        // Add optional category filter if provided
+        if (req.body.category) {
+            matchFilter.category = req.body.category;
+        }
+        
+        // Get all active frames
+        const frames = await newsFramesSchema.find(matchFilter).sort({ validFrom: -1 });
+        
+        // Add temporary URLs to all frames
+        const framesWithUrls = await Promise.all(frames.map(async (frame) => {
+            // Create a plain JavaScript object from the Mongoose document
+            const frameObj = frame.toObject();
+            
+            // Add temporary URL to the frame data
+            if (frameObj.frameData && frameObj.frameData.fileName) {
+                frameObj.frameData.tempURL = await generateDownloadUrl(
+                    frameObj.frameData.fileName,
+                    3600, // 1 hour expiry
+                    'news-frames'
+                );
+            }
+            
+            return frameObj;
+        }));
+        
+        // Return the frames with temporary URLs
+        res.status(200).json({
+            status: "success",
+            data: framesWithUrls,
+            message: "Active news frames retrieved successfully"
+        });
+        
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: "failed",
+            msg: "Failed to retrieve active news frames",
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
-    getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById
+    getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames
 }
