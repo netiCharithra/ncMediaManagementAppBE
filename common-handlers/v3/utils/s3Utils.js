@@ -26,8 +26,9 @@ const s3Client = new S3Client({
 
 const BUCKET_NAME_ARTICLE = process.env.BUCKET_NAME_ARTICLE;
 const BUCKET_NAME_EMPLOYEE_DOCS = process.env.BUCKET_NAME_EMPLOYEE_DOCS;
+const BUCKET_NEWS_FRAME = process.env.BUCKET_NEWS_FRAME;
 
-if (!BUCKET_NAME_ARTICLE || !BUCKET_NAME_EMPLOYEE_DOCS) {
+if (!BUCKET_NAME_ARTICLE || !BUCKET_NAME_EMPLOYEE_DOCS || !BUCKET_NEWS_FRAME) {
     throw new Error('One or more bucket names are not configured in environment variables');
 }
 
@@ -45,7 +46,7 @@ const generateDownloadUrl = async (fileName, expiresIn = 36000, bucketType = 'ar
             throw new Error('File name is required');
         }
 
-        const bucketName = bucketType === 'articles' ? BUCKET_NAME_ARTICLE : BUCKET_NAME_EMPLOYEE_DOCS;
+        const bucketName = bucketType === 'articles' ? BUCKET_NAME_ARTICLE : bucketType === "news-frames" ? BUCKET_NEWS_FRAME : BUCKET_NAME_EMPLOYEE_DOCS;
         if (!bucketName) {
             throw new Error(`Bucket name is not configured for type: ${bucketType}`);
         }

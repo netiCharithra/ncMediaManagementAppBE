@@ -1,6 +1,7 @@
 const errorLogBookSchema = require('../../../modals/errorLogBookSchema');
 const metaDataSchema = require('../../../modals/metaDataSchema');
 const newsDataSchema = require('../../../modals/newsDataSchema');
+const newsFramesSchema = require('../../../modals/newsFramesSchema');
 const reportersSchema = require('../../../modals/reportersSchema');
 const { generateDownloadUrl } = require('../utils/s3Utils');
 
@@ -382,7 +383,268 @@ const fetchTempUrls = async (records) => {
     }));
 };
 
+const getNewsFrames = async (req, res) => {
+    try {
+        console.log('Request body:', JSON.stringify(req.body));
+        const { action, page = 1, count = 10, language, category } = req.body; // Pagination & filters
+        const now = new Date().getTime();
+        // Adjust for 1-based pagination (page 1 should skip 0 records)
+        const skipRecords = (page - 1) * count;
+        console.log('Filters:', { action, page, count, language, category, now, skipRecords });
+
+        // Build the filter based on action
+        let matchFilter = {};
+        console.log('Current timestamp (now):', now);
+        
+        // Default to showing all frames if no action is specified
+        if (!action) {
+            console.log('No action specified, showing all frames');
+        } else if (action === "Active") {
+            console.log('Filtering for Active frames');
+            matchFilter = { validFrom: { $lte: now }, validTo: { $gte: now } };
+        } else if (action === "Expired") {
+            console.log('Filtering for Expired frames');
+            matchFilter = { validTo: { $lt: now } };
+        } else if (action === "Upcoming") {
+            console.log('Filtering for Upcoming frames');
+            matchFilter = { validFrom: { $gt: now } };
+        } else {
+            console.log('Unknown action:', action, 'showing all frames');
+        }
+        // Optional filters
+        if (language) matchFilter.frameLanguage = language;
+        if (category) matchFilter.category = category;
+
+        // Aggregation pipeline for pagination
+        let aggregationPipeline = [
+            { $match: matchFilter },
+            { $sort: { validFrom: -1 } }, // Sort newest first
+            { $skip: skipRecords },
+            { $limit: count }
+        ];
+        
+        console.log('Match filter:', JSON.stringify(matchFilter));
+        console.log('Aggregation pipeline:', JSON.stringify(aggregationPipeline));
+        
+        // Get total count of records matching the filter for metadata
+        const totalRecords = await newsFramesSchema.countDocuments(matchFilter);
+        console.log('Total records matching filter:', totalRecords);
+        
+        if (totalRecords === 0) {
+            console.log('No records found matching the filter');
+            return res.status(200).json({
+                status: "success",
+                data: {
+                    data: [],
+                    metaData: {
+                        totalRecords: 0,
+                        endOfRecords: true,
+                        actions: [ {
+                            "type": "button",
+                            "tooltip": "Edit",
+                            "icon": "fa-solid fa-pen-to-square text-primary",
+                            "key": "edit"
+                        },]
+                    }
+                },
+                message: 'No news frames found matching the criteria'
+            });
+        }
+        
+        // Now run the actual query with filters
+        let newsData = await newsFramesSchema.aggregate(aggregationPipeline);
+        console.log('Query results count with filters:', newsData.length);
+
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(totalRecords / count);
+        const endOfRecords = page >= totalPages;
+
+        // Format response with the requested structure
+        res.status(200).json({
+            status: "success",
+            data: {
+                data: newsData,
+                metaData: {
+                    totalRecords,
+                    endOfRecords,
+                    actions: [{
+                        "type": "button",
+                        "tooltip": "Edit",
+                        "icon": "fa-solid fa-pen-to-square text-primary",
+                        "key": "edit"
+                    }, {
+                        "type": "button",
+                        "tooltip": "View",
+                        "icon": "fa-solid fa-eye text-success",
+                        "key": "view"
+                    }]
+                },
+
+            },
+            message: 'News frames retrieved successfully'
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: "failed",
+            msg: 'Failed to process the request.',
+            error: error.message
+        });
+    }
+};
+
+const addNewsFrame = async (req, res) => {
+    try {
+        // Check if data is in the nested structure or direct structure
+        const data = req.body.data || req.body;
+        const { frameName, frameData, validFrom, validTo, frameLanguage } = data;
+
+        if (!frameName || !frameData || !validFrom || !validTo) {
+            return res.status(400).json({
+                status: "failed",
+                msg: "Missing required fields"
+            });
+        }
+
+        // Get latest frameId
+        const lastFrame = await newsFramesSchema.findOne().sort({ frameId: -1 });
+        const newFrameId = lastFrame ? lastFrame.frameId + 1 : 1;
+
+        const newFrame = new newsFramesSchema({
+            frameId: newFrameId,
+            frameName,
+            frameData,   // stored as object
+            validFrom,
+            validTo,
+            frameLanguage: frameLanguage || 'te',
+            createdDate: Date.now(),
+            createdBy: req.body.employeeId || req.body._id || 'system'
+        });
+
+        const savedFrame = await newFrame.save();
+
+        res.status(200).json({
+            status: "success",
+            data: savedFrame
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: "failed",
+            msg: "Failed to add record",
+            error: error.message
+        });
+    }
+};
+
+const updateNewsFrame = async (req, res) => {
+    try {
+        // Check if data is in the nested structure or direct structure
+        const data = req.body.data || req.body;
+        const { frameId, frameName, validFrom, validTo, frameLanguage } = data;
+
+        // Validate required fields
+        if (!frameId) {
+            return res.status(400).json({
+                status: "failed",
+                msg: "frameId is required"
+            });
+        }
+
+        // Find the existing frame
+        const existingFrame = await newsFramesSchema.findOne({ frameId });
+        
+        if (!existingFrame) {
+            return res.status(404).json({
+                status: "failed",
+                msg: "News frame not found"
+            });
+        }
+
+        // Prepare update object with only the fields that are provided
+        const updateData = {};
+        
+        if (frameName) updateData.frameName = frameName;
+        if (validFrom) updateData.validFrom = validFrom;
+        if (validTo) updateData.validTo = validTo;
+        if (frameLanguage) updateData.frameLanguage = frameLanguage;
+        
+        // Add update metadata
+        updateData.updatedDate = new Date().getTime();
+        updateData.updatedBy = req.body.employeeId || req.body._id || 'system';
+
+        // Update the frame
+        const updatedFrame = await newsFramesSchema.findOneAndUpdate(
+            { frameId },
+            { $set: updateData },
+            { new: true } // Return the updated document
+        );
+
+        res.status(200).json({
+            status: "success",
+            data: updatedFrame,
+            msg: "News frame updated successfully"
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: "failed",
+            msg: "Failed to update news frame",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get information about a specific news frame by its ID
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getNewsFrameById = async (req, res) => {
+    try {
+        // Get frameId from request body
+        const { frameId } = req.body;
+
+        // Validate required fields
+        if (!frameId) {
+            return res.status(400).json({
+                status: "failed",
+                msg: "frameId is required"
+            });
+        }
+
+        // Find the frame by ID
+        let frame = await newsFramesSchema.findOne({ frameId });
+
+        frame['frameData']['tempURL']=await generateDownloadUrl(frame['frameData']['fileName'],3600, 'news-frames');
+        
+        if (!frame) {
+            return res.status(404).json({
+                status: "failed",
+                msg: "News frame not found"
+            });
+        }
+
+        // Return the frame data
+        res.status(200).json({
+            status: "success",
+            data: frame,
+            msg: "News frame retrieved successfully"
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: "failed",
+            msg: "Failed to retrieve news frame",
+            error: error.message
+        });
+    }
+};
 
 module.exports = {
-    getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam
+    getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById
 }

@@ -81,6 +81,7 @@ const { generateDownloadUrl } = require('./common-handlers/v3/utils/s3Utils.js')
 
 const BUCKET_NAME_ARTICLE = process.env.BUCKET_NAME_ARTICLE
 const BUCKET_NAME_EMPLOYEE_DOCS = process.env.BUCKET_NAME_EMPLOYEE_DOCS
+const BUCKET_NEWS_FRAME = process.env.BUCKET_NEWS_FRAME
 
 const BUCKET_REGION = process.env.BUCKET_REGION
 
@@ -127,7 +128,7 @@ app.post('/api/v3/uploadFiles', upload.array('images'), async (req, res) => {
                 const fileName = req.body.fileName === "original" ? req.files[index].originalname : "FileNew" + new Date().getTime() + '_0';
                 const bucketType = req.body.bucketType;
                 const uploadParams = {
-                    Bucket: bucketType === "articles" ? BUCKET_NAME_ARTICLE : BUCKET_NAME_EMPLOYEE_DOCS,
+                    Bucket: bucketType === "articles" ? BUCKET_NAME_ARTICLE : bucketType === "news-frames" ? BUCKET_NEWS_FRAME : BUCKET_NAME_EMPLOYEE_DOCS,
                     Body: req.files[index].buffer,
                     Key: fileName,
                     ContentType: req.files[index].mimetype
@@ -192,7 +193,7 @@ app.post('/api/v3/deleteS3', async (req, res) => {
         console.log(req.body)
         var filename = req.body.fileName
         const uploadParams = {
-            Bucket: req.body.bucketType === "articles" ? BUCKET_NAME_ARTICLE : BUCKET_NAME_EMPLOYEE_DOCS,
+            Bucket: req.body.bucketType === "articles" ? BUCKET_NAME_ARTICLE : req.body.bucketType === "news-frames" ? BUCKET_NEWS_FRAME : BUCKET_NAME_EMPLOYEE_DOCS,
             // Body: req.files[index].buffer,
             Key: filename,
             // ContentType: req.files[index].mimetype

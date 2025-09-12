@@ -21,6 +21,9 @@ const {
     getVisitsTimeSeries, 
     getVisitorLocations,
     convertPresignedUrlToBase64API,
+    getImageDownloadUrl,
+    getEmployeeArticlesStats,
+    getOverallArticlesStats,
 } = require('../controllers/adminstrationAPIFunction');
 
 // All routes in this file are protected by adminAuth middleware
@@ -46,6 +49,8 @@ router.route('/employeeTracingActiveEmployeeList').post(employeeTracingActiveEmp
 
 // Dashboard and analytics routes
 router.route('/dashboard/articles').post(getArticlesDashbordInfo);
+router.route('/dashboard/employee-articles-stats').post(getEmployeeArticlesStats);
+router.route('/dashboard/overall-articles-stats').post(getOverallArticlesStats);
 router.route('/dashboard/page-views').post(getPageViewDashboardInfo);
 router.route('/dashboard/articles-by-category').post(getArticlesByCategory);
 router.route('/dashboard/active-employee-stats').post(getActiveEmployeeStats);
@@ -55,6 +60,7 @@ router.route('/dashboard/visitor-locations').post(getVisitorLocations);
 
 // Utility routes
 router.route('/utils/presigned-url-to-base64').post(convertPresignedUrlToBase64API);
+router.route('/utils/get-image-url').post(getImageDownloadUrl);
 
 
 module.exports = router;

@@ -2623,6 +2623,299 @@ const getArticlesDashbordInfo = async (req, res) => {
         });
     }
 }
+
+const getEmployeeArticlesStats = async (req, res) => {
+    try {
+        const body = JSON.parse(JSON.stringify(req.body));
+        const { employeeId } = body;
+
+        // Employee validation
+        let employee = await reportersSchema.findOne({
+            employeeId: body.employeeId
+        });
+
+        if (!employee) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Cannot access, contact your superior!'
+            });
+        } else if (employee.disabledUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Forbidden Access!'
+            });
+        } else if (!employee.activeUser) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'Employment not yet approved. Kindly contact your superior.'
+            });
+        }
+
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();       // epoch ms
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();   // epoch ms
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).getTime() + 86400000 - 1; // end of day
+
+        // Debug logs
+        console.log('Start of This Month (epoch):', startOfThisMonth);
+        console.log('Start of Last Month (epoch):', startOfLastMonth);
+        console.log('End of Last Month (epoch):', endOfLastMonth);
+
+        const employeeFilter = employeeId ? { employeeId, deleted: { $ne: true } } : { deleted: { $ne: true } };
+
+        // Get article statistics with status breakdown
+        const articleStats = await newsDataSchema.aggregate([
+            {
+                $match: employeeFilter
+            },
+            {
+                $facet: {
+                    // Total articles created
+                    totalCreated: [
+                        { $count: 'count' }
+                    ],
+                    // Approved articles
+                    approved: [
+                        {
+                            $match: {
+                                approved: true,
+                                rejected: false
+                            }
+                        },
+                        { $count: 'count' }
+                    ],
+                    // Rejected articles
+                    rejected: [
+                        {
+                            $match: {
+                                rejected: true
+                            }
+                        },
+                        { $count: 'count' }
+                    ],
+                    // Pending articles (neither approved nor rejected)
+                    pending: [
+                        {
+                            $match: {
+                                approved: false,
+                                rejected: false
+                            }
+                        },
+                        { $count: 'count' }
+                    ],
+                    // Original stats for monthly comparisons
+                    total: [
+                        {
+                            $match: {
+                                approvedOn: { $gt: 0 }
+                            }
+                        },
+                        { $count: 'count' }
+                    ],
+                    lastMonth: [
+                        {
+                            $match: {
+                                approvedOn: { $gt: 0 },
+                                createdDate: {
+                                    $gte: startOfLastMonth,
+                                    $lte: endOfLastMonth,
+                                },
+                            },
+                        },
+                        { $count: 'count' },
+                    ],
+                    thisMonth: [
+                        {
+                            $match: {
+                                approvedOn: { $gt: 0 },
+                                createdDate: {
+                                    $gte: startOfThisMonth,
+                                },
+                            },
+                        },
+                        { $count: 'count' },
+                    ],
+                }
+            }
+        ]);
+
+        console.log(articleStats);
+        
+        // Extract counts from aggregation results
+        const totalCreated = articleStats[0].totalCreated[0]?.count || 0;
+        const approvedCount = articleStats[0].approved[0]?.count || 0;
+        const rejectedCount = articleStats[0].rejected[0]?.count || 0;
+        const pendingCount = articleStats[0].pending[0]?.count || 0;
+        
+        // Original stats
+        const totalRecords = articleStats[0].total[0]?.count || 0;
+        const lastMonthRecords = articleStats[0].lastMonth[0]?.count || 0;
+        const thisMonthRecords = articleStats[0].thisMonth[0]?.count || 0;
+
+        let percentChange = 0;
+        if (lastMonthRecords === 0) {
+            percentChange = thisMonthRecords === 0 ? 0 : 100;
+        } else {
+            percentChange = ((thisMonthRecords - lastMonthRecords) / lastMonthRecords) * 100;
+        }
+
+        res.json({
+            status: "success",
+            msg: "Data Fetched Successfully",
+            data: {
+                employeeId: employeeId || 'ALL',
+                totalCreated,
+                approvedCount,
+                rejectedCount,
+                pendingCount,
+                totalRecords,
+                lastMonthRecords,
+                thisMonthRecords,
+                percentChange: parseFloat(percentChange.toFixed(2)),
+            }
+        });
+
+    } catch (error) {
+        console.error(error)
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Home Data`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Employee Fetching Home Data',
+            functionality: 'Error while Fetching Home Data',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        })
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed to while processing..',
+
+        });
+    }
+
+
+}
+const getOverallArticlesStats = async (req, res) => {
+    try {
+        // Get current date information for monthly stats
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();       // epoch ms
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();   // epoch ms
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).getTime() + 86400000 - 1; // end of day
+
+        // Filter to exclude deleted articles
+        const filter = { deleted: { $ne: true } };
+
+        // Get overall article statistics with status breakdown
+        const articleStats = await newsDataSchema.aggregate([
+            {
+                $match: filter
+            },
+            {
+                $facet: {
+                    // Total articles created
+                    totalCreated: [
+                        { $count: 'count' }
+                    ],
+                    // Approved articles
+                    approved: [
+                        {
+                            $match: {
+                                approved: true,
+                                rejected: false
+                            }
+                        },
+                        { $count: 'count' }
+                    ],
+                    // Rejected articles
+                    rejected: [
+                        {
+                            $match: {
+                                rejected: true
+                            }
+                        },
+                        { $count: 'count' }
+                    ],
+                    // Pending articles (neither approved nor rejected)
+                    pending: [
+                        {
+                            $match: {
+                                approved: false,
+                                rejected: false
+                            }
+                        },
+                        { $count: 'count' }
+                    ],
+                    // Monthly statistics
+                    lastMonth: [
+                        {
+                            $match: {
+                                createdDate: {
+                                    $gte: startOfLastMonth,
+                                    $lte: endOfLastMonth,
+                                },
+                            },
+                        },
+                        { $count: 'count' },
+                    ],
+                    thisMonth: [
+                        {
+                            $match: {
+                                createdDate: {
+                                    $gte: startOfThisMonth,
+                                },
+                            },
+                        },
+                        { $count: 'count' },
+                    ],
+                }
+            }
+        ]);
+        
+        // Extract counts from aggregation results
+        const totalCreated = articleStats[0].totalCreated[0]?.count || 0;
+        const approvedCount = articleStats[0].approved[0]?.count || 0;
+        const rejectedCount = articleStats[0].rejected[0]?.count || 0;
+        const pendingCount = articleStats[0].pending[0]?.count || 0;
+        const lastMonthCount = articleStats[0].lastMonth[0]?.count || 0;
+        const thisMonthCount = articleStats[0].thisMonth[0]?.count || 0;
+
+        // Calculate month-over-month percentage change
+        let percentChange = 0;
+        if (lastMonthCount === 0) {
+            percentChange = thisMonthCount === 0 ? 0 : 100;
+        } else {
+            percentChange = ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+        }
+
+        res.json({
+            status: "success",
+            msg: "Overall Article Statistics Fetched Successfully",
+            data: {
+                totalCreated,
+                approvedCount,
+                rejectedCount,
+                pendingCount,
+                lastMonthCount,
+                thisMonthCount,
+                percentChange: parseFloat(percentChange.toFixed(2)),
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        await errorLogBookSchema.create({
+            message: `Error while Fetching Overall Article Statistics`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Admin Dashboard',
+            functionality: 'Error while Fetching Overall Article Statistics',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        });
+        res.status(200).json({
+            status: "failed",
+            msg: 'Failed while processing request',
+        });
+    }
+};
+
 const getPageViewDashboardInfo = async (req, res) => {
     try {
         let body = JSON.parse(JSON.stringify(req.body));
@@ -3429,11 +3722,65 @@ const convertPresignedUrlToBase64API = async (req, res) => {
 
 
 
+/**
+ * Generate a download URL for an image with the provided fileName and bucketName
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getImageDownloadUrl = async (req, res) => {
+    try {
+        const { fileName, bucketName } = req.body;
+        
+        // Validate required parameters
+        if (!fileName) {
+            return res.status(400).json({
+                status: "failed",
+                msg: "fileName is required"
+            });
+        }
+        
+        // Default bucket type is 'articles' if not specified
+        const bucketType = bucketName || 'articles';
+        
+        // Valid bucket types
+        const validBucketTypes = ['articles', 'employee-docs', 'news-frames'];
+        
+        // Validate bucket type
+        if (!validBucketTypes.includes(bucketType)) {
+            return res.status(400).json({
+                status: "failed",
+                msg: `Invalid bucketName. Must be one of: ${validBucketTypes.join(', ')}`
+            });
+        }
+        
+        // Generate download URL
+        const downloadUrl = await generateDownloadUrl(fileName, 36000, bucketType);
+        
+        // Return success response with download URL
+        res.status(200).json({
+            status: "success",
+            data: {
+                fileName,
+                bucketName: bucketType,
+                downloadUrl
+            },
+            msg: "Download URL generated successfully"
+        });
+        
+    } catch (error) {
+        console.error('Error generating download URL:', error);
+        res.status(500).json({
+            status: "failed",
+            msg: `Failed to generate download URL: ${error.message}`
+        });
+    }
+};
+
 module.exports = {
     employeeLogin, fetchNewsListPending, fetchNewsListApproved, fetchNewsListRejected,
     getAllActiveEmployees, manipulateNews, getAdminIndividualNewsInfo, getEmployeesDataPaginated,
     getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing,
     employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo,
     getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries, getVisitsTimeSeries, getVisitorLocations,
-    convertPresignedUrlToBase64API
+    convertPresignedUrlToBase64API, getImageDownloadUrl, getEmployeeArticlesStats, getOverallArticlesStats
 };
