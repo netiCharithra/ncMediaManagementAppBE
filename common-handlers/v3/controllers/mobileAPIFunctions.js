@@ -444,7 +444,17 @@ const getNewsFrames = async (req, res) => {
                             "tooltip": "Edit",
                             "icon": "fa-solid fa-pen-to-square text-primary",
                             "key": "edit"
-                        },]
+                        }, {
+                            "type": "button",
+                            "tooltip": "View",
+                            "icon": "fa-solid fa-eye text-success",
+                            "key": "view"
+                        }, {
+                            "type": "button",
+                            "tooltip": "Configure",
+                            "icon": "fa-solid fa-gear text-warning",
+                            "key": "configure"
+                        }]
                     }
                 },
                 message: 'No news frames found matching the criteria'
@@ -477,6 +487,11 @@ const getNewsFrames = async (req, res) => {
                         "tooltip": "View",
                         "icon": "fa-solid fa-eye text-success",
                         "key": "view"
+                    }, {
+                        "type": "button",
+                        "tooltip": "Configure",
+                        "icon": "fa-solid fa-gear text-secondary",
+                        "key": "configure"
                     }]
                 },
 
@@ -498,7 +513,21 @@ const addNewsFrame = async (req, res) => {
     try {
         // Check if data is in the nested structure or direct structure
         const data = req.body.data || req.body;
-        const { frameName, frameData, validFrom, validTo, frameLanguage } = data;
+        const { 
+            frameName, 
+            frameData, 
+            validFrom, 
+            validTo, 
+            frameLanguage,
+            containerHeight = 535,
+            frameHeight = 515,
+            textPosition = {
+                topPercent: 23, // 23% from the top
+                leftPercent: 3, // 3% from the left
+                frameReductionWidthPercent: 6, // 6% reduction in width
+                contentHeight: 75 // 75% of the frame height
+            }
+        } = data;
 
         if (!frameName || !frameData || !validFrom || !validTo) {
             return res.status(400).json({
@@ -518,6 +547,9 @@ const addNewsFrame = async (req, res) => {
             validFrom,
             validTo,
             frameLanguage: frameLanguage || 'te',
+            containerHeight,
+            frameHeight,
+            textPosition,
             createdDate: Date.now(),
             createdBy: req.body.employeeId || req.body._id || 'system'
         });
@@ -543,7 +575,16 @@ const updateNewsFrame = async (req, res) => {
     try {
         // Check if data is in the nested structure or direct structure
         const data = req.body.data || req.body;
-        const { frameId, frameName, validFrom, validTo, frameLanguage } = data;
+        const { 
+            frameId, 
+            frameName, 
+            validFrom, 
+            validTo, 
+            frameLanguage,
+            containerHeight,
+            frameHeight,
+            textPosition
+        } = data;
 
         // Validate required fields
         if (!frameId) {
@@ -570,6 +611,20 @@ const updateNewsFrame = async (req, res) => {
         if (validFrom) updateData.validFrom = validFrom;
         if (validTo) updateData.validTo = validTo;
         if (frameLanguage) updateData.frameLanguage = frameLanguage;
+        if (containerHeight) updateData.containerHeight = containerHeight;
+        if (frameHeight) updateData.frameHeight = frameHeight;
+        
+        // Handle textPosition object - check if any of its properties are provided
+        if (textPosition) {
+            // If textPosition is provided as a complete object, use it directly
+            if (typeof textPosition === 'object') {
+                // Merge with existing textPosition to ensure all properties are preserved
+                updateData.textPosition = {
+                    ...existingFrame.textPosition || {},
+                    ...textPosition
+                };
+            }
+        }
         
         // Add update metadata
         updateData.updatedDate = new Date().getTime();

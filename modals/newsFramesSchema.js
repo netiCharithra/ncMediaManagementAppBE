@@ -27,6 +27,23 @@ const newsFrameDataSchema = {
         type: String,
         default: "te"
     },
+    containerHeight: {
+        type: Number,
+        default: 535
+    },
+    frameHeight: {
+        type: Number,
+        default: 515
+    },
+    textPosition: {
+        type: Object,
+        default: {
+            topPercent: 23, // 23% from the top
+            leftPercent: 3, // 3% from the left
+            frameReductionWidthPercent: 6, // 6% reduction in width
+            contentHeight: 75 // 75% of the frame height
+        }
+    },
     createdDate: {
         type: Number,
         required: [true, 'please provide createdDate']
@@ -37,11 +54,11 @@ const newsFrameDataSchema = {
     },
     updatedDate: {
         type: Number,
-        required: [true, 'please provide updatedDate']
+        default: 0
     },
     updatedBy: {
         type: String,
-        required: [true, 'please provide updatedBy']
+        default: ''
     },
 };
 
