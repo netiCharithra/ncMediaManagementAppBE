@@ -266,61 +266,54 @@ const searchNews = async (req, res) => {
 
 const getIndividualNewsInfo = async (req, res) => {
     try {
-        console.log("CALL FROM MBILE 2")
+        console.log("CALL FROM MOBILE - getIndividualNewsInfo")
         console.log(req.body)
 
-        let aggregationPipeline = [
-            // Match stage to filter records
-            {
-                $match: {
-                    approvedOn: { $gt: 0 }, // approvedOn should be greater than zero
-                    language: req?.body?.language || 'en',
-                    // deletedOn: { $exists: false } // deletedOn should not exist
-                    rejected: false
-                }
-            },
-            // Sort stage to sort by priorityIndex and newsId
-            {
-                $sort: {
-                    priorityIndex: -1, // Sort by priorityIndex in descending order (higher priority first)
-                    newsId: -1 // Sort by newsId in descending order (latest news first)
-                }
-            },
-            // Limit stage to get top 5 records
-            { $limit: 5 }
-        ]
-
-        if (req?.body?.category) {
-            aggregationPipeline[0]['$match']['category'] = req.body.category
-        }
-        if (req?.body?.newsType) {
-            aggregationPipeline[0]['$match']['newsType'] = req.body.newsType
+        if (!req.body.newsId) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'News ID is required'
+            });
         }
 
-        let data = await newsDataSchema.aggregate(aggregationPipeline)
-        // console.log(data.length)
-
-
-        data = await fetchTempUrls(data)
-
-        // console.log(data)
-        // // Fetch temporary URLs for images
-        // await Promise.all(data.map(async (record) => {
-        //     await Promise.all(record.images.map(async (elementImg) => {
-        //         elementImg.tempURL = await getFileTempUrls3(elementImg?.fileName || elementImg?.name);
-        //     }));
-        // }));
-        res.status(200).json({
-            status: "success",
-            data: data
+        // Find the specific news item by newsId
+        let newsItem = await newsDataSchema.findOne({
+            newsId: parseInt(req.body.newsId),
+            approved: true,
+            rejected: false
         });
 
+        if (!newsItem) {
+            return res.status(200).json({
+                status: "failed",
+                msg: 'News not found or not approved'
+            });
+        }
+
+        // Convert to plain object and add tempURL to image
+        let newsData = newsItem.toObject();
+        
+        if (newsData.images && newsData.images.length > 0 && newsData.images[0].fileName) {
+            newsData.images[0].tempURL = await generateDownloadUrl(newsData.images[0].fileName, 3600, 'articles');
+        }
+
+        // Increment view count
+        await newsDataSchema.updateOne(
+            { newsId: parseInt(req.body.newsId) },
+            { $inc: { viewCount: 1 } }
+        );
+
+        res.status(200).json({
+            status: "success",
+            data: newsData
+        });
 
     } catch (error) {
-        console.error(error);
+        console.error("Error in getIndividualNewsInfo:", error);
         res.status(200).json({
             status: "failed",
-            msg: 'Failed to process the request.',
+            msg: 'Failed to fetch news details',
+            error: error.message
         });
     }
 }
@@ -374,8 +367,9 @@ const fetchTempUrls = async (records) => {
     return await Promise.all(records.map(async (record) => {
         await Promise.all(record.images.map(async (elementImg) => {
             if (elementImg?.fileName || elementImg?.name) {
-
+                console.log("Element Image", elementImg)
                 elementImg.tempURL = await generateDownloadUrl(elementImg?.fileName || elementImg?.name);
+                console.log("Element Image", elementImg)
             }
         }));
 
