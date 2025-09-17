@@ -36,9 +36,7 @@ const swaggerOptions = {
   // Path to the API docs
   apis: [
     './index.js',
-    './common-handlers/v3/routes/*.js',
-    './common-handlers/v2/commonRoute.js',
-    './common-handlers/v3/commonRoute.js'
+    './common-handlers/v3/routes/*.js'
   ],
 };
 
