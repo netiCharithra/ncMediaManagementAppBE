@@ -24,6 +24,7 @@ const {
     getImageDownloadUrl,
     getEmployeeArticlesStats,
     getOverallArticlesStats,
+    generateScreenPermissionsForAllEmployees,
 } = require('../controllers/adminstrationAPIFunction');
 
 // All routes in this file are protected by adminAuth middleware
@@ -62,5 +63,7 @@ router.route('/dashboard/visitor-locations').post(getVisitorLocations);
 router.route('/utils/presigned-url-to-base64').post(convertPresignedUrlToBase64API);
 router.route('/utils/get-image-url').post(getImageDownloadUrl);
 
+// Mobile screen management routes
+router.route('/mobile-screens/generate-all').post(generateScreenPermissionsForAllEmployees);
 
 module.exports = router;

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import mobile-specific controller functions here
-const { getPriorityNews,getLatestNews,getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam ,tempAPI,getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames} = require('../controllers/mobileAPIFunctions');
+const { getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission } = require('../controllers/mobileAPIFunctions');
 
 /**
  * Mobile API Routes
@@ -23,5 +23,10 @@ router.route('/getActiveNewsFrames').post(getActiveNewsFrames);
 router.route('/createFrame').post(addNewsFrame);
 router.route('/updateFrame').post(updateNewsFrame);
 router.route('/getFrameById').post(getNewsFrameById);
+
+// Mobile Screen Management routes
+router.route('/getScreenPermissions').post(getScreenPermissions);
+router.route('/updateScreenPermissions').post(updateScreenPermissions);
+router.route('/toggleScreenPermission').post(toggleScreenPermission);
 
 module.exports = router;

@@ -4,6 +4,7 @@ const newsDataSchema = require('../../../modals/newsDataSchema');
 const newsFramesSchema = require('../../../modals/newsFramesSchema');
 const reportersSchema = require('../../../modals/reportersSchema');
 const { generateDownloadUrl } = require('../utils/s3Utils');
+const MobileScreenManagement = require('../../../modals/mobileScreenManagementSchema');
 
 require('dotenv').config();
 
@@ -544,7 +545,7 @@ const addNewsFrame = async (req, res) => {
             containerHeight,
             frameHeight,
             textPosition,
-            createdDate: Date.now(),
+            createdDate: new Date().getTime(),
             createdBy: req.body.employeeId || req.body._id || 'system'
         });
 
@@ -753,6 +754,190 @@ const getActiveNewsFrames = async (req, res) => {
     }
 };
 
+/**
+ * Get screen permissions for a specific employee
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getScreenPermissions = async (req, res) => {
+    try {
+        const { employeeId } = req.body;
+
+        if (!employeeId) {
+            return res.status(200).json({
+                status: "failed",
+                msg: "Employee ID is required"
+            });
+        }
+
+        // Find the screen permissions for the employee
+        const screenPermissions = await MobileScreenManagement.findOne({ employeeId });
+
+        if (!screenPermissions) {
+            // If no permissions are found, create a temporary object with schema defaults
+            // This won't be saved to the database, just used for the response
+            const tempScreenPermissions = new MobileScreenManagement({
+                employeeId
+            });
+            
+            return res.status(200).json({
+                status: "success",
+                data: {
+                    employeeId,
+                    screens: tempScreenPermissions.screens
+                },
+                msg: "Default screen permissions retrieved"
+            });
+        }
+
+        // Return the found permissions
+        res.status(200).json({
+            status: "success",
+            data: screenPermissions,
+            msg: "Screen permissions retrieved successfully"
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(200).json({
+            status: "failed",
+            msg: "Failed to retrieve screen permissions",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Update screen permissions for a specific employee
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const updateScreenPermissions = async (req, res) => {
+    try {
+        const { employeeId, screens } = req.body;
+
+        if (!employeeId || !screens) {
+            return res.status(200).json({
+                status: "failed",
+                msg: "Employee ID and screens object are required"
+            });
+        }
+
+        // Import the schema here to avoid circular dependencies
+
+        // Find existing permissions
+        let screenPermissions = await MobileScreenManagement.findOne({ employeeId });
+
+        if (!screenPermissions) {
+            // Create new permissions if none exist
+            screenPermissions = new MobileScreenManagement({
+                employeeId,
+                screens,
+                createdOn: new Date().getTime(),
+                createdBy: req.body.adminId || 'system'
+            });
+            await screenPermissions.save();
+
+            return res.status(200).json({
+                status: "success",
+                data: screenPermissions,
+                msg: "Screen permissions created successfully"
+            });
+        }
+
+        // Update existing permissions
+        screenPermissions.screens = screens;
+        screenPermissions.lastUpdatedOn = new Date().getTime();
+        screenPermissions.lastUpdatedBy = req.body.adminId || 'system';
+        await screenPermissions.save();
+
+        res.status(200).json({
+            status: "success",
+            data: screenPermissions,
+            msg: "Screen permissions updated successfully"
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(200).json({
+            status: "failed",
+            msg: "Failed to update screen permissions",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Toggle a specific screen permission for an employee
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const toggleScreenPermission = async (req, res) => {
+    try {
+        const { employeeId, screenName, isEnabled } = req.body;
+
+        if (!employeeId || !screenName || isEnabled === undefined) {
+            return res.status(200).json({
+                status: "failed",
+                msg: "Employee ID, screen name, and isEnabled flag are required"
+            });
+        }
+
+        // Get valid screen names from the schema
+        const validScreens = Object.keys(MobileScreenManagement.schema.paths.screens.schema.paths);
+        if (!validScreens.includes(screenName)) {
+            return res.status(200).json({
+                status: "failed",
+                msg: `Invalid screen name. Valid options are: ${validScreens.join(', ')}`
+            });
+        }
+
+
+        // Find existing permissions
+        let screenPermissions = await MobileScreenManagement.findOne({ employeeId });
+
+        if (!screenPermissions) {
+            // Create a new instance with default values from schema
+            screenPermissions = new MobileScreenManagement({
+                employeeId,
+                createdOn: new Date().getTime(),
+                createdBy: req.body.adminId || 'system'
+            });
+            
+            // Update the specific screen permission
+            screenPermissions.screens[screenName] = isEnabled;
+            
+            await screenPermissions.save();
+
+            return res.status(200).json({
+                status: "success",
+                data: screenPermissions,
+                msg: `Screen permission for ${screenName} set to ${isEnabled}`
+            });
+        }
+
+        // Update the specific screen permission
+        screenPermissions.screens[screenName] = isEnabled;
+        screenPermissions.lastUpdatedOn = new Date().getTime();
+        screenPermissions.lastUpdatedBy = req.body.adminId || 'system';
+        await screenPermissions.save();
+
+        res.status(200).json({
+            status: "success",
+            data: screenPermissions,
+            msg: `Screen permission for ${screenName} set to ${isEnabled}`
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(200).json({
+            status: "failed",
+            msg: "Failed to toggle screen permission",
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
-    getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames
+    getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission
 }

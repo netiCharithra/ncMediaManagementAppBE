@@ -1922,11 +1922,39 @@ const manipulateIndividualEmployee = async (req, res) => {
 
                         let task = await reportersSchema.create(data.data);
 
-                        res.status(200).json({
-                            status: "success",
-                            msg: 'Employee Added...!',
-                            data: task
-                        });
+                        // Create default screen permissions for the new employee
+                        try {
+                            const MobileScreenManagement = require('../../../modals/mobileScreenManagementSchema');
+                            
+                            // Create default screen permissions using schema defaults
+                            const screenPermissions = new MobileScreenManagement({
+                                employeeId: newStateEmployeeId,
+                                createdOn: new Date().getTime(),
+                                createdBy: data.employeeId || 'system'
+                            });
+                            
+                            await screenPermissions.save();
+                            console.log(`Screen permissions created for new employee: ${newStateEmployeeId}`);
+                            
+                            res.status(200).json({
+                                status: "success",
+                                msg: 'Employee Added with default screen permissions!',
+                                data: {
+                                    employee: task,
+                                    screenPermissions: screenPermissions
+                                }
+                            });
+                        } catch (error) {
+                            console.error(`Error creating screen permissions for employee ${newStateEmployeeId}:`, error);
+                            
+                            // Still return success since the employee was created successfully
+                            res.status(200).json({
+                                status: "success",
+                                msg: 'Employee Added but screen permissions creation failed!',
+                                data: task,
+                                screenPermissionsError: error.message
+                            });
+                        }
                     } else {
                         res.status(200).json({
                             status: "failed",
@@ -3771,7 +3799,123 @@ const getImageDownloadUrl = async (req, res) => {
         console.error('Error generating download URL:', error);
         res.status(500).json({
             status: "failed",
-            msg: `Failed to generate download URL: ${error.message}`
+            msg: 'Error while generating screen permissions',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Generate screen permissions for all employees
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const generateScreenPermissionsForAllEmployees = async (req, res) => {
+    try {
+        // Import the schemas
+        const MobileScreenManagement = require('../../../modals/mobileScreenManagementSchema');
+        
+        // Get all employees from the reporters collection
+        const allEmployees = await reportersSchema.find({}, { employeeId: 1 });
+        
+        if (!allEmployees || allEmployees.length === 0) {
+            return res.status(200).json({
+                status: "failed",
+                msg: "No employees found in the system"
+            });
+        }
+        
+        // Track results
+        const results = {
+            total: allEmployees.length,
+            created: 0,
+            alreadyExisted: 0,
+            failed: 0,
+            details: []
+        };
+        
+        // Process each employee
+        for (const employee of allEmployees) {
+            try {
+                if (!employee.employeeId) {
+                    results.failed++;
+                    results.details.push({
+                        employee: employee._id,
+                        status: 'failed',
+                        reason: 'Missing employeeId'
+                    });
+                    continue;
+                }
+                
+                // Check if screen permissions already exist for this employee
+                const existingPermissions = await MobileScreenManagement.findOne({ employeeId: employee.employeeId });
+                
+                if (existingPermissions) {
+                    results.alreadyExisted++;
+                    results.details.push({
+                        employeeId: employee.employeeId,
+                        status: 'skipped',
+                        reason: 'Permissions already exist'
+                    });
+                    continue;
+                }
+                
+                // Create default screen permissions for the employee
+                const screenPermissions = new MobileScreenManagement({
+                    employeeId: employee.employeeId,
+                    screens: {
+                        dashboard: true,
+                        newsManagement: false,
+                        employeeManagement: false,
+                        employeeTracing: false,
+                        newsFrameManagement: false,
+                        userScreensPermissionManagement: false
+                    },
+                    createdOn: Date.now(),
+                    createdBy: req.body.adminId || 'system'
+                });
+                
+                await screenPermissions.save();
+                
+                results.created++;
+                results.details.push({
+                    employeeId: employee.employeeId,
+                    status: 'created',
+                    permissions: screenPermissions.screens
+                });
+                
+            } catch (error) {
+                console.error(`Error processing employee ${employee.employeeId}:`, error);
+                results.failed++;
+                results.details.push({
+                    employeeId: employee.employeeId || 'unknown',
+                    status: 'failed',
+                    reason: error.message
+                });
+            }
+        }
+        
+        res.status(200).json({
+            status: "success",
+            data: results,
+            msg: `Successfully processed ${results.total} employees: ${results.created} created, ${results.alreadyExisted} already existed, ${results.failed} failed`
+        });
+        
+    } catch (error) {
+        console.error('Error generating screen permissions:', error);
+        const obj = await errorLogBookSchema.create({
+            message: `Error while generating screen permissions for all employees`,
+            stackTrace: JSON.stringify([...error.stack].join('/n')),
+            page: 'Screen Permissions',
+            functionality: 'Generate screen permissions for all employees',
+            employeeId: req.body.adminId || '',
+            errorMessage: `${JSON.stringify(error) || ''}`
+        });
+        
+        res.status(200).json({
+            status: "failed",
+            msg: 'Error while generating screen permissions',
+            error: error.message
         });
     }
 };
@@ -3782,5 +3926,5 @@ module.exports = {
     getIndividualEmployeeData, manipulateIndividualEmployee, employeeTracingListing,
     employeeTracingManagement, employeeTracingActiveEmployeeList, getArticlesDashbordInfo,
     getPageViewDashboardInfo, getArticlesByCategory, getActiveEmployeeStats, getVisitorTimeSeries, getVisitsTimeSeries, getVisitorLocations,
-    convertPresignedUrlToBase64API, getImageDownloadUrl, getEmployeeArticlesStats, getOverallArticlesStats
+    convertPresignedUrlToBase64API, getImageDownloadUrl, getEmployeeArticlesStats, getOverallArticlesStats, generateScreenPermissionsForAllEmployees
 };
