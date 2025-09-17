@@ -6,6 +6,9 @@ const app = express();
 const cors = require("cors");
 const compression = require('compression');
 
+// Import Swagger documentation
+const { swaggerDocs } = require('./swagger');
+
 // Import the database connection
 const connect = require('./connectDB/mongoDB');
 
@@ -327,4 +330,5 @@ if (process.env.NODE_ENV !== 'production') {
 // 1. Comment out exports.handler
 // 2. Keep start() uncommented
 
-// Test
+// Initialize Swagger documentation
+swaggerDocs(app);
