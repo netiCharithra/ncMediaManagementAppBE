@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import mobile-specific controller functions here
-const { getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission } = require('../controllers/mobileAPIFunctions');
+const { getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission, getEmployeesList } = require('../controllers/mobileAPIFunctions');
 
 /**
  * @swagger
@@ -65,18 +65,42 @@ const { getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNe
  *         _id:
  *           type: string
  *           description: Auto-generated ID
- *         screenId:
- *           type: string
- *           description: Screen identifier
- *         screenName:
- *           type: string
- *           description: Name of the screen
- *         isEnabled:
- *           type: boolean
- *           description: Whether the screen is enabled
  *         employeeId:
  *           type: string
  *           description: ID of the employee this permission applies to
+ *         screens:
+ *           type: object
+ *           properties:
+ *             dashboard:
+ *               type: boolean
+ *               description: Permission for dashboard access
+ *             newsManagement:
+ *               type: boolean
+ *               description: Permission for news management
+ *             employeeManagement:
+ *               type: boolean
+ *               description: Permission for employee management
+ *             employeeTracing:
+ *               type: boolean
+ *               description: Permission for employee tracing
+ *             newsFrameManagement:
+ *               type: boolean
+ *               description: Permission for news frame management
+ *             userScreensPermissionManagement:
+ *               type: boolean
+ *               description: Permission for user screens permission management
+ *         createdOn:
+ *           type: number
+ *           description: Timestamp when the permissions were created
+ *         createdBy:
+ *           type: string
+ *           description: ID of the employee who created the permissions
+ *         lastUpdatedOn:
+ *           type: number
+ *           description: Timestamp when the permissions were last updated
+ *         lastUpdatedBy:
+ *           type: string
+ *           description: ID of the employee who last updated the permissions
  */
 
 /**
@@ -462,6 +486,7 @@ router.route('/getFrameById').post(getNewsFrameById);
  *               employeeId:
  *                 type: string
  *                 description: ID of the employee
+ *                 example: NC-AP-2
  *     responses:
  *       200:
  *         description: Screen permissions for the employee
@@ -474,9 +499,10 @@ router.route('/getFrameById').post(getNewsFrameById);
  *                   type: string
  *                   example: success
  *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/ScreenPermission'
+ *                   $ref: '#/components/schemas/ScreenPermission'
+ *                 msg:
+ *                   type: string
+ *                   example: Screen permissions retrieved successfully
  */
 router.route('/getScreenPermissions').post(getScreenPermissions);
 
@@ -493,18 +519,35 @@ router.route('/getScreenPermissions').post(getScreenPermissions);
  *           schema:
  *             type: object
  *             properties:
+ *               loggedEmployeeId:
+ *                 type: string
+ *                 description: ID of the employee making the request
+ *                 example: NC-AP-1
  *               employeeId:
  *                 type: string
- *                 description: ID of the employee
+ *                 description: ID of the employee whose permissions are being updated
+ *                 example: NC-AP-2
  *               permissions:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     screenId:
- *                       type: string
- *                     isEnabled:
- *                       type: boolean
+ *                 type: object
+ *                 properties:
+ *                   dashboard:
+ *                     type: boolean
+ *                     description: Permission for dashboard access
+ *                   newsManagement:
+ *                     type: boolean
+ *                     description: Permission for news management
+ *                   employeeManagement:
+ *                     type: boolean
+ *                     description: Permission for employee management
+ *                   employeeTracing:
+ *                     type: boolean
+ *                     description: Permission for employee tracing
+ *                   newsFrameManagement:
+ *                     type: boolean
+ *                     description: Permission for news frame management
+ *                   userScreensPermissionManagement:
+ *                     type: boolean
+ *                     description: Permission for user screens permission management
  *     responses:
  *       200:
  *         description: Updated screen permissions
@@ -517,9 +560,23 @@ router.route('/getScreenPermissions').post(getScreenPermissions);
  *                   type: string
  *                   example: success
  *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/ScreenPermission'
+ *                   $ref: '#/components/schemas/ScreenPermission'
+ *                 msg:
+ *                   type: string
+ *                   example: Screen permissions updated successfully
+ *       403:
+ *         description: Not authorized to update permissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failed
+ *                 msg:
+ *                   type: string
+ *                   example: Not authorized to update permissions for this employee
  */
 router.route('/updateScreenPermissions').post(updateScreenPermissions);
 
@@ -536,15 +593,23 @@ router.route('/updateScreenPermissions').post(updateScreenPermissions);
  *           schema:
  *             type: object
  *             properties:
+ *               loggedEmployeeId:
+ *                 type: string
+ *                 description: ID of the employee making the request
+ *                 example: NC-AP-1
  *               employeeId:
  *                 type: string
- *                 description: ID of the employee
- *               screenId:
+ *                 description: ID of the employee whose permission is being toggled
+ *                 example: NC-AP-2
+ *               screenName:
  *                 type: string
- *                 description: ID of the screen
+ *                 description: Name of the screen permission to toggle
+ *                 enum: [dashboard, newsManagement, employeeManagement, employeeTracing, newsFrameManagement, userScreensPermissionManagement]
+ *                 example: dashboard
  *               isEnabled:
  *                 type: boolean
  *                 description: New permission status
+ *                 example: true
  *     responses:
  *       200:
  *         description: Updated permission status
@@ -558,7 +623,90 @@ router.route('/updateScreenPermissions').post(updateScreenPermissions);
  *                   example: success
  *                 data:
  *                   $ref: '#/components/schemas/ScreenPermission'
+ *                 msg:
+ *                   type: string
+ *                   example: Screen permission for dashboard set to true
+ *       403:
+ *         description: Not authorized to update permissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failed
+ *                 msg:
+ *                   type: string
+ *                   example: Not authorized to update permissions for this employee
  */
 router.route('/toggleScreenPermission').post(toggleScreenPermission);
+
+/**
+ * @swagger
+ * /mobile/getEmployeesList:
+ *   post:
+ *     summary: Get list of all employees with optional filtering
+ *     tags: [Mobile]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               searchTerm:
+ *                 type: string
+ *                 description: Term to search for in name or employee ID
+ *               page:
+ *                 type: number
+ *                 description: Page number for pagination
+ *                 default: 1
+ *               limit:
+ *                 type: number
+ *                 description: Number of employees per page
+ *                 default: 10
+ *     responses:
+ *       200:
+ *         description: List of employees
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     employees:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                           employeeId:
+ *                             type: string
+ *                           mail:
+ *                             type: string
+ *                           mobile:
+ *                             type: number
+ *                           role:
+ *                             type: string
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         totalEmployees:
+ *                           type: number
+ *                         totalPages:
+ *                           type: number
+ *                         currentPage:
+ *                           type: number
+ *                         limit:
+ *                           type: number
+ */
+router.route('/getEmployeesList').post(getEmployeesList);
 
 module.exports = router;

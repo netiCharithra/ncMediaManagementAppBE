@@ -814,12 +814,21 @@ const getScreenPermissions = async (req, res) => {
  */
 const updateScreenPermissions = async (req, res) => {
     try {
-        const { employeeId, screens } = req.body;
+        const { employeeId, permissions, loggedEmployeeId } = req.body;
 
-        if (!employeeId || !screens) {
+        if (!employeeId || !permissions) {
             return res.status(200).json({
                 status: "failed",
-                msg: "Employee ID and screens object are required"
+                msg: "Employee ID and permissions object are required"
+            });
+        }
+        
+        // Authorization check: Only NC-AP-1 can update permissions for NC-AP-1
+        // If the target employeeId is NC-AP-1, verify the logged employee is also NC-AP-1
+        if (employeeId === 'NC-AP-1' && loggedEmployeeId !== 'NC-AP-1') {
+            return res.status(403).json({
+                status: "failed",
+                msg: "Not authorized to update permissions for this employee"
             });
         }
 
@@ -830,11 +839,28 @@ const updateScreenPermissions = async (req, res) => {
 
         if (!screenPermissions) {
             // Create new permissions if none exist
+            
+            // Apply the same authorization check for creation
+            if (employeeId === 'NC-AP-1' && loggedEmployeeId !== 'NC-AP-1') {
+                return res.status(403).json({
+                    status: "failed",
+                    msg: "Not authorized to create permissions for this employee"
+                });
+            }
+            
+            // Create new permissions object with the provided structure
             screenPermissions = new MobileScreenManagement({
                 employeeId,
-                screens,
+                screens: {
+                    dashboard: permissions.dashboard || false,
+                    newsManagement: permissions.newsManagement || false,
+                    employeeManagement: permissions.employeeManagement || false,
+                    employeeTracing: permissions.employeeTracing || false,
+                    newsFrameManagement: permissions.newsFrameManagement || false,
+                    userScreensPermissionManagement: permissions.userScreensPermissionManagement || false
+                },
                 createdOn: new Date().getTime(),
-                createdBy: req.body.adminId || 'system'
+                createdBy: req.body.adminId || loggedEmployeeId || 'system'
             });
             await screenPermissions.save();
 
@@ -845,10 +871,17 @@ const updateScreenPermissions = async (req, res) => {
             });
         }
 
-        // Update existing permissions
-        screenPermissions.screens = screens;
+        // Update existing permissions with the new structure
+        screenPermissions.screens = {
+            dashboard: permissions.dashboard !== undefined ? permissions.dashboard : screenPermissions.screens.dashboard,
+            newsManagement: permissions.newsManagement !== undefined ? permissions.newsManagement : screenPermissions.screens.newsManagement,
+            employeeManagement: permissions.employeeManagement !== undefined ? permissions.employeeManagement : screenPermissions.screens.employeeManagement,
+            employeeTracing: permissions.employeeTracing !== undefined ? permissions.employeeTracing : screenPermissions.screens.employeeTracing,
+            newsFrameManagement: permissions.newsFrameManagement !== undefined ? permissions.newsFrameManagement : screenPermissions.screens.newsFrameManagement,
+            userScreensPermissionManagement: permissions.userScreensPermissionManagement !== undefined ? permissions.userScreensPermissionManagement : screenPermissions.screens.userScreensPermissionManagement
+        };
         screenPermissions.lastUpdatedOn = new Date().getTime();
-        screenPermissions.lastUpdatedBy = req.body.adminId || 'system';
+        screenPermissions.lastUpdatedBy = req.body.adminId || loggedEmployeeId || 'system';
         await screenPermissions.save();
 
         res.status(200).json({
@@ -874,7 +907,7 @@ const updateScreenPermissions = async (req, res) => {
  */
 const toggleScreenPermission = async (req, res) => {
     try {
-        const { employeeId, screenName, isEnabled } = req.body;
+        const { employeeId, screenName, isEnabled, loggedEmployeeId } = req.body;
 
         if (!employeeId || !screenName || isEnabled === undefined) {
             return res.status(200).json({
@@ -882,9 +915,19 @@ const toggleScreenPermission = async (req, res) => {
                 msg: "Employee ID, screen name, and isEnabled flag are required"
             });
         }
+        
+        // Authorization check: Only NC-AP-1 can update permissions for NC-AP-1
+        // If the target employeeId is NC-AP-1, verify the logged employee is also NC-AP-1
+        if (employeeId === 'NC-AP-1' && loggedEmployeeId !== 'NC-AP-1') {
+            return res.status(403).json({
+                status: "failed",
+                msg: "Not authorized to update permissions for this employee"
+            });
+        }
 
-        // Get valid screen names from the schema
-        const validScreens = Object.keys(MobileScreenManagement.schema.paths.screens.schema.paths);
+        // Valid screen names for the new schema structure
+        const validScreens = ['dashboard', 'newsManagement', 'employeeManagement', 'employeeTracing', 'newsFrameManagement', 'userScreensPermissionManagement'];
+        
         if (!validScreens.includes(screenName)) {
             return res.status(200).json({
                 status: "failed",
@@ -892,20 +935,30 @@ const toggleScreenPermission = async (req, res) => {
             });
         }
 
-
         // Find existing permissions
         let screenPermissions = await MobileScreenManagement.findOne({ employeeId });
 
         if (!screenPermissions) {
             // Create a new instance with default values from schema
+            // Initialize with all permissions set to false
+            const initialScreens = {
+                dashboard: false,
+                newsManagement: false,
+                employeeManagement: false,
+                employeeTracing: false,
+                newsFrameManagement: false,
+                userScreensPermissionManagement: false
+            };
+            
+            // Set the specific permission that's being toggled
+            initialScreens[screenName] = isEnabled;
+            
             screenPermissions = new MobileScreenManagement({
                 employeeId,
+                screens: initialScreens,
                 createdOn: new Date().getTime(),
-                createdBy: req.body.adminId || 'system'
+                createdBy: req.body.adminId || loggedEmployeeId || 'system'
             });
-            
-            // Update the specific screen permission
-            screenPermissions.screens[screenName] = isEnabled;
             
             await screenPermissions.save();
 
@@ -919,7 +972,7 @@ const toggleScreenPermission = async (req, res) => {
         // Update the specific screen permission
         screenPermissions.screens[screenName] = isEnabled;
         screenPermissions.lastUpdatedOn = new Date().getTime();
-        screenPermissions.lastUpdatedBy = req.body.adminId || 'system';
+        screenPermissions.lastUpdatedBy = req.body.adminId || loggedEmployeeId || 'system';
         await screenPermissions.save();
 
         res.status(200).json({
@@ -938,6 +991,87 @@ const toggleScreenPermission = async (req, res) => {
     }
 };
 
+/**
+ * Get list of all employees with optional filtering by name or ID
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getEmployeesList = async (req, res) => {
+    try {
+        // Use count and page parameters to match admin/news/approved pattern
+        const recordsPerPage = req.body?.count || 10;
+        const pageNumber = req.body?.page || 1;
+        const skipRecords = (pageNumber - 1) * recordsPerPage;
+        const searchTerm = req.body?.searchTerm;
+        
+        // Build the query based on search parameters
+        let query = {};
+        
+        // If searchTerm is provided, search by name or employeeId
+        if (searchTerm) {
+            query = {
+                $or: [
+                    { name: { $regex: searchTerm, $options: 'i' } }, // Case-insensitive name search
+                    { employeeId: { $regex: searchTerm, $options: 'i' } } // Case-insensitive employeeId search
+                ]
+            };
+        }
+        
+        // Execute the query with pagination
+        const employees = await reportersSchema.find(query)
+            .select('name employeeId mail mobile state district mandal role activeUser') // Select only needed fields
+            .skip(skipRecords)
+            .limit(recordsPerPage)
+            .sort({ employeeId: 1 }); // Sort by name in ascending order
+        
+        // Get total count for pagination
+        const totalRecords = await reportersSchema.countDocuments(query);
+        
+        // Calculate if this is the end of records
+        const endOfRecords = (pageNumber * recordsPerPage) >= totalRecords;
+        
+        // Format response to match admin/news/approved pattern
+        let responseData = {
+            employeesList: {
+                tableData: {
+                    bodyContent: employees
+                },
+                metaData: {
+                    title: "Employees List"
+                }
+            }
+        };
+        
+        res.status(200).json({
+            status: "success",
+            msg: "Employees retrieved successfully",
+            data: { ...responseData, totalRecords, endOfRecords }
+        });
+        
+    } catch (error) {
+        console.error(error);
+        res.status(200).json({
+            status: "failed",
+            msg: "Failed to retrieve employees list",
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
-    getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission
-}
+    getPriorityNews, 
+    getLatestNews, 
+    getMetaData, 
+    searchNews, 
+    getIndividualNewsInfo, 
+    getHelpTeam, 
+    getNewsFrames, 
+    addNewsFrame, 
+    updateNewsFrame, 
+    getNewsFrameById, 
+    getActiveNewsFrames, 
+    getScreenPermissions, 
+    updateScreenPermissions, 
+    toggleScreenPermission,
+    getEmployeesList
+};
