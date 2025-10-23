@@ -1823,9 +1823,11 @@ const getEmployeesDataPaginated = async (req, res) => {
 const getIndividualEmployeeData = async (req, res) => {
     try {
         let data = JSON.parse(JSON.stringify(req.body));
+        console.log(data)
         const userData = await reportersSchema.findOne({
             employeeId: data.data.employeeId
         })
+        console.log(userData)
         var userInfo = JSON.parse(JSON.stringify(userData))
         let deleteElements = ['_id', 'password', '__v', 'createdDate'];
         deleteElements.forEach(element => {
@@ -1847,6 +1849,7 @@ const getIndividualEmployeeData = async (req, res) => {
             data: userInfo
         });
     } catch (error) {
+        console.error(error)
         const obj = await errorLogBookSchema.create({
             message: `Error while Fetching Individual Employee Data`,
             stackTrace: JSON.stringify([...error.stack].join('/n')),
@@ -1857,7 +1860,7 @@ const getIndividualEmployeeData = async (req, res) => {
         })
         res.status(200).json({
             status: "failed",
-            msg: 'Error while processing..!'
+            msg: 'Error while processing..!', error:error
         })
     }
 }
@@ -1919,6 +1922,10 @@ const manipulateIndividualEmployee = async (req, res) => {
                         data.data['employeeId'] = newStateEmployeeId;
                         data.data.createdBy = newStateEmployeeId;
                         data['createdDate'] = new Date().getTime();
+                        // Ensure joiningDate is set if not provided
+                        if (!data.data.joiningDate) {
+                            data.data.joiningDate = new Date().getTime();
+                        }
 
                         let task = await reportersSchema.create(data.data);
 
@@ -2048,6 +2055,8 @@ const manipulateIndividualEmployee = async (req, res) => {
                             profilePicture: data.data.profilePicture || null,
                             bloodGroup: data.data.bloodGroup || '',
                             role: data.data.role,
+                            joiningDate: data.data.joiningDate || new Date().getTime(),
+                            currentResidenceAddress: data.data.currentResidenceAddress || '',
                             lastUpdatedOn: new Date().getTime(),
                             lastUpdatedBy: data.employeeId,
                             disabledBy: '',
@@ -2074,6 +2083,11 @@ const manipulateIndividualEmployee = async (req, res) => {
                         msg: 'Identification Updated Successfully...!',
                         data: task
                     });
+                } else {
+                    res.status(200).json({
+                        status: "failed",
+                        msg: 'Missing type of Transaction'
+                    })
                 }
             }
         }

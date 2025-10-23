@@ -61,7 +61,9 @@ const otpAuthRoutes = require('./../otpAuth');
  */
 
 // Add OTP authentication routes
+console.log('Registering OTP routes...');
 router.use(otpAuthRoutes);
+console.log('OTP routes registered');
 
 // Public API routes
 

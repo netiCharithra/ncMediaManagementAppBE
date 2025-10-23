@@ -9,6 +9,14 @@ const publicRoutes = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const mobileRoutes = require('./routes/mobileRoutes');
 
+// Debug middleware
+router.use((req, res, next) => {
+    console.log('=== V3 Common Route Hit ===');
+    console.log('Request URL:', req.url);
+    console.log('Request method:', req.method);
+    next();
+});
+
 // Public routes
 router.use(publicRoutes);
 

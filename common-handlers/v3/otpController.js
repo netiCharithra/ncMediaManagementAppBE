@@ -18,6 +18,9 @@ const errorResponse = (res, message, status = 200) => {
  */
 const sendOTP = async (req, res) => {
     try {
+        console.log('=== OTP Request Started ===');
+        console.log('Request Body:', req.body);
+        console.log('Request Headers:', req.headers);
         const { identifier } = req.body;
         
         if (!identifier) {
@@ -35,7 +38,14 @@ const sendOTP = async (req, res) => {
         } 
         // Check if it's a 10-digit mobile number
         else if (/^[0-9]{10}$/.test(identifier)) {
-            user = await reporterSchema.findOne({ mobile: parseInt(identifier) });
+            console.log('=== Mobile Number Validation ===');
+            console.log('Searching for mobile number:', identifier);
+            const mobileNumber = parseInt(identifier);
+            console.log('Parsed mobile number:', mobileNumber);
+            console.log('Database query:', { mobile: mobileNumber });
+            user = await reporterSchema.findOne({ mobile: mobileNumber });
+            console.log('Database response:', user);
+            console.log('Found user:', user ? 'Yes' : 'No');
             identifierType = 'mobile';
         } 
         // Otherwise, treat it as an employee ID

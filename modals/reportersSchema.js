@@ -46,6 +46,14 @@ const dataSchema = {
         type: String,
         default: ""
     },
+    joiningDate: {
+        type: Number,
+        default: () => new Date().getTime()
+    },
+    currentResidenceAddress: {
+        type: String,
+        default: ""
+    },
     activeUser: {
         type: Boolean,
         default: false

@@ -28,7 +28,12 @@ const { sendOTP, verifyOTPAndLogin } = require('./otpController');
  *       500:
  *         description: Server error
  */
-router.route('/public/login/send-otp').post(sendOTP);
+router.route('/public/login/send-otp').post((req, res, next) => {
+    console.log('=== Route Hit: /public/login/send-otp ===');
+    console.log('Request path:', req.path);
+    console.log('Full URL:', req.originalUrl);
+    return sendOTP(req, res, next);
+});
 
 /**
  * @swagger

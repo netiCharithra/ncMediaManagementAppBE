@@ -19,7 +19,7 @@ let cachedDb = null;
 const corsOptions = {
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-client-key', 'x-client-token', 'x-client-secret'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-client-key', 'x-client-token', 'x-client-secret', 'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform'],
     credentials: true,
     optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
