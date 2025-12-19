@@ -5,6 +5,7 @@ const newsFramesSchema = require('../../../modals/newsFramesSchema');
 const reportersSchema = require('../../../modals/reportersSchema');
 const { generateDownloadUrl } = require('../utils/s3Utils');
 const MobileScreenManagement = require('../../../modals/mobileScreenManagementSchema');
+const employeeTracing = require('../../../modals/employeeTracing');
 
 require('dotenv').config();
 
@@ -1058,6 +1059,414 @@ const getEmployeesList = async (req, res) => {
     }
 };
 
+
+const logNewsFrameSharing = async (req, res) => {
+    try {
+        const { employeeId, newsId, frameId } = req.body;
+        
+        // Find the news frame by newsId field
+        const newsFrame = await newsDataSchema.findOne({ newsId });
+        
+        if (!newsFrame) {
+            return res.status(200).json({
+                status: "failed",
+                msg: "News frame not found"
+            });
+        }
+        
+        // Update the news frame's sharing info
+        newsFrame.newsFrameSharingInfo.employeeIds.push(employeeId);
+        newsFrame.newsFrameSharingInfo.timestamps.push(new Date().getTime());
+        newsFrame.newsFrameSharingInfo.frameIds.push(frameId);
+        await newsFrame.save();
+        
+        res.status(200).json({
+            status: "success",
+            msg: "News frame shared successfully"
+        });
+        
+    } catch (error) {
+        console.error(error);
+        res.status(200).json({
+            status: "failed",
+            msg: "Failed to share news frame",
+            error: error.message
+        });
+    }
+};
+
+
+const newsSharingAnalytics = async (req, res) => {
+    try {
+        const { fromDate, toDate, newsType, state, district, mandal } = req.body;
+        const today = new Date();
+        const startOfToday = new Date(today);
+        startOfToday.setHours(0, 0, 0, 0);
+        const startOfTodayEpoch = startOfToday.getTime();
+
+        // Build base query
+        let baseQuery = {
+            rejected: false,
+            approved: true,
+            deleted: false
+        };
+
+        // Add date range if provided
+        if (fromDate || toDate) {
+            baseQuery.createdDate = {};
+            if (fromDate) baseQuery.createdDate.$gte = fromDate;
+            if (toDate) baseQuery.createdDate.$lte = toDate;
+            console.log("fromDate", new Date(fromDate))
+            console.log("toDate", new Date(toDate))
+        }
+
+        // Add location filters hierarchically
+        if (newsType){
+            console.log("newsType", newsType)
+             baseQuery[newsType === "Regional"?'newsType':'category'] = newsType
+        };
+        if (state) baseQuery.state = state;
+        if (district) baseQuery.district = district;
+        if (mandal) baseQuery.mandal = mandal;
+
+        // Get active employees count using aggregation
+        const activeEmployeesResult = await employeeTracing.aggregate([
+            {
+                $match: {
+                    $and: [
+                        { startDate: { $lte: today.getTime() } },
+                        { endDate: { $gte: today.getTime() } }
+                    ]
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    employeeIds: { $addToSet: "$employeeId" },
+                    employeeMap: {
+                        $push: {
+                            k: "$employeeId",
+                            v: "$name"
+                        }
+                    }
+                }
+            }
+        ]);
+
+        const activeEmployeeIds = new Set(activeEmployeesResult[0]?.employeeIds || []);
+        
+        // Get employee names from reporterSchema
+        const reporters = await reportersSchema.find(
+            { employeeId: { $in: Array.from(activeEmployeeIds) } },
+            { employeeId: 1, name: 1, _id: 0 }
+        );
+
+        // Create employee map from reporters
+        const employeeMap = reporters.reduce((acc, reporter) => {
+            acc[reporter.employeeId] = reporter.name;
+            return acc;
+        }, {});
+
+        // Get overall counts (with location filters but no date filter)
+        const overallQuery = { ...baseQuery };
+        delete overallQuery.createdDate;  // Remove date filter for overall counts
+        
+        const overallArticles = await newsDataSchema.find(
+            overallQuery,
+            { newsType: 1, 'newsFrameSharingInfo.employeeIds': 1 }
+        );
+
+        // Calculate overall totals
+        let totalShares = 0;
+        const overallNewsTypeTotal = {};
+        const overallSharedArticles = overallArticles.filter(article => {
+            if (article.newsFrameSharingInfo?.employeeIds?.length > 0) {
+                totalShares += article.newsFrameSharingInfo.employeeIds.length;
+                return true;
+            }
+            return false;
+        });
+
+        // Count overall articles by type
+        overallArticles.forEach(article => {
+            overallNewsTypeTotal[article.newsType] = (overallNewsTypeTotal[article.newsType] || 0) + 1;
+        });
+
+        // Get articles created in date range if provided
+        let rangeArticles = [];
+        let rangeShares = 0;
+        let rangeTotalArticles = 0;
+        let rangeNonShares = 0;
+
+        if (fromDate && toDate) {
+            // Get all articles created in the range (using all filters)
+            rangeArticles = await newsDataSchema.find(
+                baseQuery,
+                { 
+                    newsType: 1, 
+                    'newsFrameSharingInfo.employeeIds': 1, 
+                    'newsFrameSharingInfo.timestamps': 1,
+                    createdDate: 1,
+                    state: 1,
+                    district: 1,
+                    mandal: 1
+                }
+            );
+
+            // Calculate range statistics
+            rangeTotalArticles = rangeArticles.length;
+            
+            // Count articles that have been shared (from the articles created in range)
+            const rangeSharedArticles = rangeArticles.filter(article => 
+                article.newsFrameSharingInfo?.employeeIds?.length > 0
+            );
+            rangeShares = rangeSharedArticles.length;
+            rangeNonShares = rangeTotalArticles - rangeShares;
+        }
+
+        // Initialize counters for filtered data
+        let todaysShares = 0;
+        const filteredNewsTypeCount = {};
+        const filteredNewsTypeTotal = {};
+        const employeeShareCount = {};
+
+        // Process articles for today's shares and employee counts
+        const allArticles = await newsDataSchema.find(
+            { rejected: false, approved: true, deleted: false },
+            { 
+                'newsFrameSharingInfo.employeeIds': 1, 
+                'newsFrameSharingInfo.timestamps': 1
+            }
+        );
+
+        allArticles.forEach(article => {
+            if (!article.newsFrameSharingInfo?.employeeIds) return;
+
+            article.newsFrameSharingInfo.employeeIds.forEach((empId, index) => {
+                const shareTimestamp = article.newsFrameSharingInfo.timestamps[index];
+                
+                // Count today's shares
+                if (shareTimestamp >= startOfTodayEpoch) {
+                    todaysShares++;
+                }
+
+                // We don't need to count range shares here anymore
+                // Range shares are now counted based on article creation date
+
+                // Count employee shares
+                if (activeEmployeeIds.has(empId)) {
+                    employeeShareCount[empId] = (employeeShareCount[empId] || 0) + 1;
+                }
+            });
+        });
+
+        // Prepare top employees list
+        const topEmployees = Object.entries(employeeShareCount)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([employeeId, shareCount]) => ({
+                name: employeeMap[employeeId] || 'Unknown Employee',
+                employeeId,
+                shareCount
+            }));
+
+        // Prepare news type breakup with totals
+        // Prepare news type breakup based on date range
+        const newsTypeBreakup = fromDate && toDate ? 
+            // If date range provided, use rangeArticles
+            Object.values(rangeArticles.reduce((acc, article) => {
+                const type = article.newsType;
+                if (!acc[type]) {
+                    acc[type] = { 
+                        label: type, 
+                        value: 0,  // shared count
+                        total: 0   // total count
+                    };
+                }
+                acc[type].total++;
+                if (article.newsFrameSharingInfo?.employeeIds?.length > 0) {
+                    acc[type].value++;
+                }
+                return acc;
+            }, {})).sort((a, b) => b.value - a.value)
+            : 
+            // If no date range, return empty array
+            [];
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                // Overall stats (no date filter)
+                totalShares,
+                uniqueArticles: overallSharedArticles.length,
+                totalArticles: overallArticles.length,
+                nonSharedCount: overallArticles.length - overallSharedArticles.length,
+                
+                // Current day and active stats
+                todaysShares,
+                activeEmployees: activeEmployeeIds.size,
+                
+                // Date range stats (based on article creation date)
+                rangeShares: fromDate && toDate ? rangeShares : 'N/A',
+                rangeTotalArticles: fromDate && toDate ? rangeTotalArticles : 'N/A',
+                rangeNonShares: fromDate && toDate ? rangeNonShares : 'N/A',
+                
+                // Type breakup (value shows filtered count, total shows overall count)
+                newsTypeBreakup,
+                topEmployees
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(200).json({
+            status: 'failed',
+            msg: 'Failed to get sharing analytics',
+            error: error.message
+        });
+    }
+};
+
+// Helper function to get state and district labels
+const getLocationLabels = async (state, district) => {
+    try {
+        const result = { stateName: state, districtName: district };
+        
+        // Get state label
+        if (state) {
+            const statesData = await metaDataSchema.findOne({ type: "STATES" });
+            const stateInfo = statesData?.data?.find(s => s.value === state);
+            if (stateInfo) {
+                result.stateName = stateInfo.label;
+            }
+        }
+
+        // Get district label
+        if (state && district) {
+            const districtsData = await metaDataSchema.findOne({ type: `${state}_DISTRICTS` });
+            const districtInfo = districtsData?.data?.find(d => d.value === district);
+            if (districtInfo) {
+                result.districtName = districtInfo.label;
+            }
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Error getting location labels:', error);
+        return { stateName: state, districtName: district };
+    }
+};
+
+const getNewsWithSharingInfo = async (req, res) => {
+    try {
+        const { fromDate, toDate, newsType, state, district, mandal, showSharedNews, count = 10, page = 1 } = req.body;
+        
+        // Calculate pagination
+        const skip = (page - 1) * count;
+
+        // Build base query
+        let baseQuery = {
+            rejected: false,
+            approved: true,
+            deleted: false
+        };
+
+        // Add date range if provided
+        if (fromDate || toDate) {
+            baseQuery.createdDate = {};
+            if (fromDate) baseQuery.createdDate.$gte = fromDate;
+            if (toDate) baseQuery.createdDate.$lte = toDate;
+            console.log("fromDate", new Date(fromDate).toISOString());
+            console.log("toDate", new Date(toDate).toISOString());
+        }
+
+        // Add location filters hierarchically
+        if (newsType) baseQuery[newsType === "Regional" ? 'newsType' : 'category'] = newsType;
+        if (state) baseQuery.state = state;
+        if (district) baseQuery.district = district;
+        if (mandal) baseQuery.mandal = mandal;
+
+        // Add sharing filter if requested
+        if (showSharedNews === true) {
+            baseQuery['newsFrameSharingInfo.employeeIds'] = { $exists: true, $ne: [] };
+        } else if (showSharedNews === false) {
+            baseQuery.$or = [
+                { 'newsFrameSharingInfo.employeeIds': { $exists: false } },
+                { 'newsFrameSharingInfo.employeeIds': { $eq: [] } }
+            ];
+        }
+
+        console.log("baseQuery", baseQuery);
+        // Get total count
+        const totalCount = await newsDataSchema.countDocuments(baseQuery);
+
+        // Get paginated news with required fields
+        const news = await newsDataSchema.find(
+            baseQuery,
+            {
+                title: 1,
+                newsId: 1,
+                category: 1,
+                newsType: 1,
+                source: 1,
+                sourceLink: 1,
+                employeeId: 1,
+                state: 1,
+                district: 1,
+                mandal: 1,
+                'newsFrameSharingInfo.employeeIds': 1
+            }
+        )
+        .sort({ newsId: -1 })
+        .skip(skip)
+        .limit(count);
+
+        // Format response with location labels
+        const formattedNews = await Promise.all(news.map(async item => {
+            // Get employee name
+            const reporter = item.employeeId ? 
+                await reportersSchema.findOne({ employeeId: item.employeeId }, { name: 1 }) : null;
+
+            // Get state and district labels
+            const { stateName, districtName } = await getLocationLabels(item.state, item.district);
+
+            return {
+                title: item.title,
+                newsId: item.newsId,
+                category: item.category,
+                newsType: item.newsType,
+                source: item.source,
+                sourceLink: item.sourceLink,
+                employeeId: item.employeeId,
+                sharesCount: item.newsFrameSharingInfo?.employeeIds?.length || 0,
+                employeeName: reporter?.name || null,
+                stateName: stateName,
+                districtName: districtName,
+                mandal: item.mandal
+            };
+        }));
+
+        res.status(200).json({
+            status: 'success',
+            data: formattedNews,
+            pagination: {
+                totalRecords: totalCount,
+                totalPages: Math.ceil(totalCount / count),
+                currentPage: page,
+                pageSize: count
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(200).json({
+            status: 'failed',
+            msg: 'Failed to fetch news with sharing info',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getPriorityNews, 
     getLatestNews, 
@@ -1073,5 +1482,8 @@ module.exports = {
     getScreenPermissions, 
     updateScreenPermissions, 
     toggleScreenPermission,
-    getEmployeesList
+    getEmployeesList,
+    logNewsFrameSharing,
+    newsSharingAnalytics,
+    getNewsWithSharingInfo
 };

@@ -527,9 +527,10 @@ const getCategoryNewsPaginatedOnly = async (req, res) => {
                 records: [
                     {
                         $match: {
-                            // approvedOn: { $gt: 0 }, // Filtering for approved records
-                            category: req.body.category, // Match the specific category,
-                            // language:req.body.language
+                            approved: true,
+                            deleted: false,
+                            rejected: false,
+                            category: req.body.category, // Match the specific category
                         }
                     },
                     {

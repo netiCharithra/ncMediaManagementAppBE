@@ -135,6 +135,20 @@ const dataSchema = {
     priorityIndex: {
         type: Number,
         default: null
+    },
+    newsFrameSharingInfo: {
+        employeeIds: {
+            type: [String],
+            default: []
+        },
+        timestamps: {
+            type: [Number],
+            default: []
+        },
+        frameIds: {
+            type: [String],
+            default: []
+        }
     }
 }
 const newsDataSchema = new mongoose.Schema(dataSchema)

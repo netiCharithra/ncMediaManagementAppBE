@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import mobile-specific controller functions here
-const { getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission, getEmployeesList } = require('../controllers/mobileAPIFunctions');
+const { getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission, getEmployeesList, logNewsFrameSharing, newsSharingAnalytics, getNewsWithSharingInfo } = require('../controllers/mobileAPIFunctions');
 
 /**
  * @swagger
@@ -708,5 +708,12 @@ router.route('/toggleScreenPermission').post(toggleScreenPermission);
  *                           type: number
  */
 router.route('/getEmployeesList').post(getEmployeesList);
+
+
+router.route('/logNewsFrameSharing').post(logNewsFrameSharing);
+
+router.route('/newsSharingAnalytics').post(newsSharingAnalytics);
+
+router.route('/getNewsWithSharingInfo').post(getNewsWithSharingInfo);
 
 module.exports = router;
