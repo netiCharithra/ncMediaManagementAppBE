@@ -44,6 +44,8 @@ jobs:
             BUCKET_NAME_EMPLOYEE_DOCS=${{ secrets.BUCKET_NAME_EMPLOYEE_DOCS }}
             BUCKET_NEWS_FRAME=${{ secrets.BUCKET_NEWS_FRAME }}
             MONGO_DB_URL=${{ secrets.MONGO_DB_URL }}
+            EMAIL_USER=${{ secrets.EMAIL_USER }}
+            EMAIL_PASS=${{ secrets.EMAIL_PASS }}
             NODE_ENV=production
             EOF
             echo "Environment variables set. Restarting PM2..."
