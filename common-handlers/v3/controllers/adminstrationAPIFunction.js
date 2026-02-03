@@ -345,7 +345,7 @@ const fetchNewsListPending = async (req, res) => {
             const ntApprovedLst = await newsDataSchema.find({
                 approved: false,
                 rejected: false,
-                source: "NETI CHARITHRA",
+                source: "Neti Charithra",
                 "reportedBy.employeeId": req.body.employeeId
             })
                 .sort({ newsId: -1 })
@@ -591,7 +591,7 @@ const fetchNewsListApproved = async (req, res) => {
                 {
                     approved: true,
                     rejected: false,
-                    source: "NETI CHARITHRA",
+                    source: "Neti Charithra",
                     "reportedBy.employeeId": req.body.employeeId// Replace this with the actual employeeId
 
                 },
@@ -1869,6 +1869,7 @@ const manipulateIndividualEmployee = async (req, res) => {
     try {
 
         let data = JSON.parse(JSON.stringify(req.body));
+        console.log("RECIEVED EMPLOYEE", data)
         let employee = await reportersSchema.findOne({
             employeeId: data.employeeId
         });
