@@ -129,6 +129,10 @@ const dataSchema = {
     },
     identityApprovedOn:{
         type:Number
+    },
+    rootUser:{
+        type:Boolean,
+        default:false
     }
 }
 const reporterSchema = new mongoose.Schema(dataSchema)

@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const reporterSchema = require('../../modals/reportersSchema');
 const OTP = require('../../modals/otpTrackingSchema');
 const { generateDownloadUrl } = require('./utils/s3Utils');
-
+const transporter = require('../../middleware/mailer');
 // Simple error response helper
 const errorResponse = (res, message, status = 200) => {
     return res.status(status).json({
@@ -22,7 +22,7 @@ const sendOTP = async (req, res) => {
         console.log('Request Body:', req.body);
         console.log('Request Headers:', req.headers);
         const { identifier } = req.body;
-        
+
         if (!identifier) {
             return errorResponse(res, 'Email, mobile number, or employee ID is required');
         }
@@ -30,12 +30,15 @@ const sendOTP = async (req, res) => {
         // Determine identifier type (email, mobile, or employeeId)
         let user;
         let identifierType;
-        
+
+       
+
+        console.log("✅ Email sent");
         // Check if it's an email
         if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
             user = await reporterSchema.findOne({ mail: identifier });
             identifierType = 'email';
-        } 
+        }
         // Check if it's a 10-digit mobile number
         else if (/^[0-9]{10}$/.test(identifier)) {
             console.log('=== Mobile Number Validation ===');
@@ -47,7 +50,7 @@ const sendOTP = async (req, res) => {
             console.log('Database response:', user);
             console.log('Found user:', user ? 'Yes' : 'No');
             identifierType = 'mobile';
-        } 
+        }
         // Otherwise, treat it as an employee ID
         else {
             user = await reporterSchema.findOne({ employeeId: identifier });
@@ -57,6 +60,25 @@ const sendOTP = async (req, res) => {
         if (!user) {
 
             return errorResponse(res, 'Authentication failed! Invalid employee ID.', 401);
+        }
+
+        if (user.rootUser) {
+
+            if (user.disabledUser) {
+
+                let task = await reporterSchema.updateOne({ employeeId: user.employeeId },
+
+                    {
+                        activeUser: true,
+                        disabledUser: false,
+                        lastUpdatedOn: new Date().getTime(),
+                        lastUpdatedBy: "auto-updated-by-system",
+                        disabledBy: '',
+                        disabledOn: ''
+                    }
+                )
+
+            }
         }
 
         if (user.disabledUser) {
@@ -75,22 +97,23 @@ const sendOTP = async (req, res) => {
             expiry: { $gt: new Date() } // Not expired
         }).sort({ createdAt: -1 });
 
-        let otp, otpRecord, expiryTime;
+        let otp, otpRecord, expiryTime, expiryDate;
 
         if (existingOTP) {
             // Use existing OTP
             otpRecord = existingOTP;
             console.log("existing otp", otpRecord)
 
-            otp = 'EXISTING_OTP'; 
-            expiryTime = Math.floor(existingOTP.expiry.getTime() / 1000); 
+            otp = existingOTP.otp;
+            expiryDate = existingOTP.expiry;
+            expiryTime = Math.floor(existingOTP.expiry.getTime() / 1000);
         } else {
             // Generate new 6-digit numeric OTP
             otp = Math.floor(100000 + Math.random() * 900000).toString();
-            
-            const expiryDate = new Date(Date.now() + 120 * 1000); // 2 minutes from now
+
+            expiryDate = new Date(Date.now() + 120 * 1000); // 2 minutes from now
             expiryTime = Math.floor(expiryDate.getTime() / 1000); // Convert to epoch seconds
-            
+
             console.log("otp generated", otp)
             // Create OTP record with plain OTP
             otpRecord = await OTP.create({
@@ -102,26 +125,95 @@ const sendOTP = async (req, res) => {
             });
         }
 
+        // Send OTP email to user
+        if (user.mail) {
+            try {
+                const expiryMinutes = Math.floor((expiryDate - new Date()) / 60000);
+                const expirySeconds = Math.floor(((expiryDate - new Date()) % 60000) / 1000);
+                
+                const htmlTemplate = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+                        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+                        .header h1 { margin: 0; font-size: 24px; }
+                        .content { padding: 40px 30px; }
+                        .otp-box { background-color: #f8f9fa; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0; }
+                        .otp-code { font-size: 36px; font-weight: bold; color: #667eea; letter-spacing: 8px; margin: 10px 0; }
+                        .expiry-info { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0; border-radius: 4px; }
+                        .expiry-info strong { color: #856404; }
+                        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }
+                        .warning { color: #dc3545; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>🔐 NetiCharithra OTP Verification</h1>
+                        </div>
+                        <div class="content">
+                            <p>Hello <strong>${user.name}</strong>,</p>
+                            <p>You have requested to login to your NetiCharithra account. Please use the following One-Time Password (OTP) to complete your authentication:</p>
+                            
+                            <div class="otp-box">
+                                <div style="color: #6c757d; font-size: 14px; margin-bottom: 10px;">Your OTP Code</div>
+                                <div class="otp-code">${otp}</div>
+                            </div>
+
+                            <div class="expiry-info">
+                                <strong>⏰ Expiry Time:</strong> This OTP will expire in <strong>${expiryMinutes} minute(s) ${expirySeconds} second(s)</strong>
+                            </div>
+
+                            <p class="warning">⚠️ Do not share this OTP with anyone for security reasons.</p>
+                            
+                            <p style="margin-top: 30px; color: #6c757d; font-size: 14px;">If you did not request this OTP, please ignore this email or contact our support team.</p>
+                        </div>
+                        <div class="footer">
+                            <p>© ${new Date().getFullYear()} NetiCharithra. All rights reserved.</p>
+                            <p>This is an automated message, please do not reply to this email.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                `;
+
+                await transporter.sendMail({
+                    from: '"NetiCharithra" <noreply@neticharithra.com>',
+                    to: user.mail,
+                    subject: `Your NetiCharithra OTP: ${otp}`,
+                    html: htmlTemplate,
+                    text: `Your NetiCharithra OTP is: ${otp}. Valid for ${expiryMinutes} minute(s) ${expirySeconds} second(s). Do not share this code with anyone.`
+                });
+                
+                console.log(`✅ OTP email sent to ${user.mail}`);
+            } catch (emailError) {
+                console.error('Email sending error:', emailError);
+            }
+        }
+
         // In a real application, you would send the OTP via email/SMS here
         // For now, we'll just return it in the response for testing
         res.status(200).json({
             status: "success",
-           data:{
-            message: existingOTP ? 'Existing OTP is still valid' : 'New OTP generated successfully',
-            // In production, you should not return the OTP in the response
-            // This is just for development/testing purposes
-            otp: process.env.NODE_ENV === 'development' ? otp : undefined,
-            identifier: identifier,
-            identifierType: identifierType,
-            expiresAt: expiryTime, // Epoch time when OTP will expire
-            expiresIn: 120 // OTP expires in 120 seconds (2 minutes)
-           }
+            data: {
+                message: existingOTP ? 'Existing OTP is still valid' : 'New OTP generated successfully',
+                // In production, you should not return the OTP in the response
+                // This is just for development/testing purposes
+                otp: process.env.NODE_ENV === 'development' ? otp : undefined,
+                identifier: identifier,
+                identifierType: identifierType,
+                expiresAt: expiryTime, // Epoch time when OTP will expire
+                expiresIn: 120 // OTP expires in 120 seconds (2 minutes)
+            }
         });
 
     } catch (error) {
         console.error('Error generating OTP:', error);
         return errorResponse(
-            res, 
+            res,
             error.message || 'Failed to generate OTP',
             error.statusCode || 500
         );
@@ -141,31 +233,31 @@ const verifyOTPAndLogin = async (req, res) => {
             return errorResponse(res, 'Identifier and OTP are required');
         }
 
-        if(!authType || authType === 'otp') {
-            
+        if (!authType || authType === 'otp') {
+
             // Find the most recent unexpired OTP for this identifier
             const otpRecord = await OTP.findOne({
                 identifier,
                 isVerified: false,
                 purpose: 'login'
             }).sort({ createdAt: -1 });
-    
+
             console.log("TTTTTT")
             if (!otpRecord) {
                 return errorResponse(res, 'Invalid or expired OTP');
             }
-    
+
             // Special OTP for testing that always passes
             const isSpecialOTP = otp === '998877';
-            
+
             // Verify OTP - direct comparison with stored plain OTP or check if it's the special OTP
             const isOTPValid = isSpecialOTP || (otpRecord.otp === otp && otpRecord.expiry > new Date());
-            
+
             if (!isOTPValid) {
                 // Increment attempts
                 otpRecord.attempts += 1;
                 await otpRecord.save();
-                
+
                 // Find user by identifier
                 let user;
                 if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
@@ -175,35 +267,35 @@ const verifyOTPAndLogin = async (req, res) => {
                 } else {
                     user = await reporterSchema.findOne({ employeeId: identifier });
                 }
-                
+
                 // If user exists and this is the 3rd failed attempt, disable the account
                 if (user && otpRecord.attempts >= 3) {
                     user.disabledUser = true;
                     user.disabledBy = 'invalidOTPEntry';
                     user.disabledOn = Date.now();
                     await user.save();
-                    
+
                     // Mark OTP as verified to prevent further attempts
                     await OTP.findByIdAndUpdate(otpRecord._id, { isVerified: true });
-                    
+
                     // Clear any existing OTPs for this user
                     await OTP.deleteMany({
                         identifier,
                         isVerified: false
                     });
-                    
+
                     return errorResponse(res, 'Account temporarily disabled due to multiple failed attempts. Please contact support.');
                 }
-                
+
                 const remainingAttempts = 5 - otpRecord.attempts;
                 return errorResponse(
                     res,
-                    remainingAttempts > 0 
-                        ? `Invalid OTP. ${remainingAttempts} attempts remaining.` 
+                    remainingAttempts > 0
+                        ? `Invalid OTP. ${remainingAttempts} attempts remaining.`
                         : 'Maximum attempts exceeded. Please request a new OTP.'
                 );
             }
-    
+
             // Mark OTP as verified
             otpRecord.isVerified = true;
             await otpRecord.save();
@@ -211,15 +303,15 @@ const verifyOTPAndLogin = async (req, res) => {
 
         // Find user by identifier (email, mobile, or employeeId)
         let user;
-        
+
         // Check if it's an email
         if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
             user = await reporterSchema.findOne({ mail: identifier });
-        } 
+        }
         // Check if it's a 10-digit mobile number
         else if (/^[0-9]{10}$/.test(identifier)) {
             user = await reporterSchema.findOne({ mobile: parseInt(identifier) });
-        } 
+        }
         // Otherwise, treat it as an employee ID
         else {
             user = await reporterSchema.findOne({ employeeId: identifier });
@@ -239,7 +331,7 @@ const verifyOTPAndLogin = async (req, res) => {
         }
         // Set session expiry time (120 seconds from now)
         // const expiryTime = new Date(Date.now() + 120 * 1000);
-        
+
         // Create a simple session object (without JWT)
         // const session = {
         //     userId: user._id.toString(),
@@ -258,14 +350,14 @@ const verifyOTPAndLogin = async (req, res) => {
         expiryTime = new Date(Date.now() + 2 * 60 * 60 * 1000).getTime();
         userData['expiryTime'] = expiryTime;
 
-        if(userData?.profilePicture?.fileName){
+        if (userData?.profilePicture?.fileName) {
             const tempURL = await generateDownloadUrl(userData.profilePicture.fileName, 9000, 'employee_docs');
             userData.profilePicture.tempURL = tempURL || '';
         }
 
         res.status(200).json({
             status: "success",
-            data:{
+            data: {
                 userData
             }
         });
@@ -273,7 +365,7 @@ const verifyOTPAndLogin = async (req, res) => {
     } catch (error) {
         console.error('Error verifying OTP:', error);
         return errorResponse(
-            res, 
+            res,
             error.message || 'Failed to verify OTP',
             error.statusCode || 500
         );
