@@ -6,6 +6,7 @@ const reportersSchema = require('../../../modals/reportersSchema');
 const { generateDownloadUrl } = require('../utils/s3Utils');
 const MobileScreenManagement = require('../../../modals/mobileScreenManagementSchema');
 const employeeTracing = require('../../../modals/employeeTracing');
+const MobileUser = require('../../../modals/mobileUserSchema');
 
 require('dotenv').config();
 
@@ -1467,6 +1468,75 @@ const getNewsWithSharingInfo = async (req, res) => {
     }
 };
 
+const registerMobileUser = async (req, res) => {
+    try {
+        const { token, latitude, longitude, language, userId , platform} = req.body;
+
+        if (!token) {
+            return res.status(200).json({
+                status: "failed",
+                message: "FCM token is required"
+            });
+        }
+
+        const currentTimestamp = Date.now();
+
+        // Prepare mobile user data
+        const mobileUserData = {
+            fcmToken: token,
+            location: {
+                latitude: latitude || null,
+                longitude: longitude || null
+            },
+            preferredLanguage: language || 'en',
+            deviceInfo: {
+                deviceId: userId || null
+            }
+        };
+
+        // Find existing user or create new one
+        let mobileUser = await MobileUser.findOne({ fcmToken: token });
+
+        if (mobileUser) {
+            // Update existing user and add timestamp
+            mobileUser.location = mobileUserData.location;
+            mobileUser.preferredLanguage = mobileUserData.preferredLanguage;
+            mobileUser.deviceInfo = mobileUserData.deviceInfo;
+            mobileUser.accessTimestamps.push(currentTimestamp);
+            mobileUser.platform = platform;
+            await mobileUser.save();
+            console.log('Mobile user updated with new timestamp:', mobileUser._id);
+        } else {
+            // Create new user with first timestamp
+            mobileUserData.accessTimestamps = [currentTimestamp];
+            mobileUser = await MobileUser.create(mobileUserData);
+            console.log('New mobile user created:', mobileUser._id);
+        }
+
+        res.status(200).json({
+            status: "success",
+            message: "Mobile user registered successfully",
+            data: {
+                id: mobileUser._id,
+                fcmToken: mobileUser.fcmToken,
+                language: mobileUser.preferredLanguage,
+                location: mobileUser.location,
+                totalAccess: mobileUser.accessTimestamps.length,
+                lastAccess: currentTimestamp,
+                platform: mobileUser.platform
+            }
+        });
+
+    } catch (error) {
+        console.error("Error registering mobile user:", error);
+
+        res.status(200).json({
+            status: "failed",
+            message: error.message || "Failed to register mobile user"
+        });
+    }
+};
+
 module.exports = {
     getPriorityNews, 
     getLatestNews, 
@@ -1485,5 +1555,6 @@ module.exports = {
     getEmployeesList,
     logNewsFrameSharing,
     newsSharingAnalytics,
-    getNewsWithSharingInfo
+    getNewsWithSharingInfo,
+    registerMobileUser
 };

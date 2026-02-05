@@ -9,7 +9,7 @@ const {
     getIndividualNewsInfo, 
     employeeTraceCheck, 
     getVisitorsCount, 
-    getTypeCategorizedNewsPaginatedOnly 
+    getTypeCategorizedNewsPaginatedOnly
 } = require('../controllers/publicApiFunction');
 const otpAuthRoutes = require('./../otpAuth');
 

@@ -4,6 +4,7 @@ const metaDataSchema = require('../../../modals/metaDataSchema');
 const EmployeeTracing = require('../../../modals/employeeTracing')
 const reportersSchema = require('../../../modals/reportersSchema');
 const Visitor = require('../../../modals/visitorSchema');
+const MobileUser = require('../../../modals/mobileUserSchema');
 const { getFileTempUrls3 } = require('../../v2/commonApiFunction');
 const { generateDownloadUrl } = require('../utils/s3Utils');
 require('dotenv').config();

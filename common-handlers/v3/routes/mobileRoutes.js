@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import mobile-specific controller functions here
-const { getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission, getEmployeesList, logNewsFrameSharing, newsSharingAnalytics, getNewsWithSharingInfo } = require('../controllers/mobileAPIFunctions');
+const { getPriorityNews, getLatestNews, getMetaData, searchNews, getIndividualNewsInfo, getHelpTeam, getNewsFrames, addNewsFrame, updateNewsFrame, getNewsFrameById, getActiveNewsFrames, getScreenPermissions, updateScreenPermissions, toggleScreenPermission, getEmployeesList, logNewsFrameSharing, newsSharingAnalytics, getNewsWithSharingInfo, registerMobileUser } = require('../controllers/mobileAPIFunctions');
 
 /**
  * @swagger
@@ -715,5 +715,66 @@ router.route('/logNewsFrameSharing').post(logNewsFrameSharing);
 router.route('/newsSharingAnalytics').post(newsSharingAnalytics);
 
 router.route('/getNewsWithSharingInfo').post(getNewsWithSharingInfo);
+
+/**
+ * @swagger
+ * /mobile/registerMobileUser:
+ *   post:
+ *     summary: Register or update mobile user for push notifications
+ *     tags: [Mobile]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: FCM token for push notifications
+ *               latitude:
+ *                 type: number
+ *                 description: User's latitude
+ *               longitude:
+ *                 type: number
+ *                 description: User's longitude
+ *               language:
+ *                 type: string
+ *                 description: Preferred language code (en, te, hi, etc.)
+ *               userId:
+ *                 type: string
+ *                 description: Device/User identifier
+ *     responses:
+ *       200:
+ *         description: Mobile user registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     fcmToken:
+ *                       type: string
+ *                     language:
+ *                       type: string
+ *                     location:
+ *                       type: object
+ *                     totalAccess:
+ *                       type: number
+ *                     lastAccess:
+ *                       type: number
+ */
+router.route('/registerMobileUser').post(registerMobileUser);
 
 module.exports = router;
