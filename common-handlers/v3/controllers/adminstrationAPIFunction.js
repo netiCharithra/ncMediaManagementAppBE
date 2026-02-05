@@ -8,6 +8,7 @@ const employeeTracing = require('../../../modals/employeeTracing');
 const Visitor = require('../../../modals/visitorSchema');
 const { generateDownloadUrl, convertPresignedUrlToBase64 } = require('../utils/s3Utils');
 const axios = require('axios');
+const { sendPushNotificationToAllUsers } = require('../../../middleware/pushNotification');
 
 require('dotenv').config();
 
@@ -1112,6 +1113,9 @@ const manipulateNews = async (req, res) => {
                     const task = await newsDataSchema.create({
                         ...body.data
                     });
+
+
+                    
                     res.status(200).json({
                         status: "success",
                         msg: 'News sent for approval..!',
@@ -1140,6 +1144,12 @@ const manipulateNews = async (req, res) => {
                             rejectedBy: ''
                         }
                     );
+
+                    const approvedNews = await newsDataSchema.findOne({ newsId: body.data.newsId });
+                    
+                    sendPushNotificationToAllUsers(approvedNews).catch(err => {
+                        console.error('Failed to send push notifications:', err);
+                    });
 
                     res.status(200).json({
                         status: "success",

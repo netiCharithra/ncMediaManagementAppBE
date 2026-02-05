@@ -46,6 +46,7 @@ jobs:
             MONGO_DB_URL=${{ secrets.MONGO_DB_URL }}
             EMAIL_USER=${{ secrets.EMAIL_USER }}
             EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+            FIREBASE_SDK_JSON=${{ secrets.FIREBASE_SDK_JSON }}
             NODE_ENV=production
             EOF
             echo "Environment variables set. Restarting PM2..."

@@ -77,10 +77,14 @@ const errorLogBookSchema = require('./modals/errorLogBookSchema');
 const admin = require('firebase-admin');
 const { generateDownloadUrl } = require('./common-handlers/v3/utils/s3Utils.js');
 
-// const serviceAccount = require('./FireBaseConfig.json');
-// admin.initializeApp({
-//     credential: admin.credential.cert(serviceAccount)
-//   });
+const serviceAccount = process.env.FIREBASE_SDK_JSON ? JSON.parse(process.env.FIREBASE_SDK_JSON) : null;
+if (serviceAccount) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+} else {
+    console.warn('Firebase Admin SDK not initialized - FIREBASE_SDK_JSON not found in environment variables');
+}
 
 const BUCKET_NAME_ARTICLE = process.env.BUCKET_NAME_ARTICLE
 const BUCKET_NAME_EMPLOYEE_DOCS = process.env.BUCKET_NAME_EMPLOYEE_DOCS
