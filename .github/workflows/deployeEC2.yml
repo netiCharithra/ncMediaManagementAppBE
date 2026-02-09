@@ -32,6 +32,7 @@ jobs:
             cd /home/ec2-user/projects/ncMediaManagementAppBE
             echo "Current directory: $(pwd)"
             git config pull.rebase false
+            git checkout -- package-lock.json
             git pull origin main_v3
             echo "Installing dependencies..."
             npm install --production
