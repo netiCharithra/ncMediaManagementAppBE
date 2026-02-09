@@ -2,6 +2,7 @@ const admin = require('firebase-admin');
 const MobileUser = require('../modals/mobileUserSchema');
 const errorLogBookSchema = require('../modals/errorLogBookSchema');
 
+// Sending Pushnotiications to All Mobile users
 const sendPushNotificationToAllUsers = async (newsData) => {
     try {
         const fcmTokens = await MobileUser.find({}, { fcmToken: 1, _id: 0 });
