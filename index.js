@@ -18,10 +18,10 @@ let cachedDb = null;
 // Enable CORS for all routes
 const corsOptions = {
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-client-key', 'x-client-token', 'x-client-secret', 'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-client-key', 'x-client-token', 'x-client-secret', 'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'adminAuth'],
     credentials: true,
-    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+    optionsSuccessStatus: 200
 };
 
 app.use(compression()); // compress JSON responses
@@ -43,7 +43,7 @@ app.use(function (req, res, next) {
     // Request methods you wish to allow
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
     // Request headers you wish to allow
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,Authorization,adminAuth');
     // Set to true if you need the website to include cookies in the requests sent
     // to the API (e.g. in case you use sessions)
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -144,7 +144,7 @@ app.post('/api/v3/uploadFiles', upload.array('images'), async (req, res) => {
                 console.log(`Uploading file: ${fileName}`);
                 await s3.send(new PutObjectCommand(uploadParams));
 
-                const fileURLTemp = await generateDownloadUrl(fileName,undefined, bucketType);
+                const fileURLTemp = await generateDownloadUrl(fileName, undefined, bucketType);
 
 
                 uploadedImages.push({
@@ -172,7 +172,7 @@ app.post('/api/v3/uploadFiles', upload.array('images'), async (req, res) => {
             errorMessage: JSON.stringify(error)
         });
 
-        console.error("ERROR",error)
+        console.error("ERROR", error)
         console.error(error);
         res.status(500).json({
             status: "failed",
@@ -214,7 +214,7 @@ app.post('/api/v3/deleteS3', async (req, res) => {
         return res.status(200).json({
             status: "success",
             msg: 'Deleted Successfully',
-            data: {...req.body}
+            data: { ...req.body }
 
         });
 
@@ -263,7 +263,7 @@ const start = async () => {
     server.setTimeout(600000);
 
     let port = process.env.PORT || 3000;
-    
+
     const tryPort = (portToTry) => {
         return new Promise((resolve, reject) => {
             server.once('error', (err) => {
@@ -274,7 +274,7 @@ const start = async () => {
                     reject(err);
                 }
             });
-            
+
             server.listen(portToTry, () => {
                 console.log(`Server is running on port  ${portToTry}`);
                 console.log(`Local: http://localhost:${portToTry}`);
@@ -287,7 +287,7 @@ const start = async () => {
         // Connect to MongoDB
         const db = await connect(process.env.MONGO_DB_URL);
         console.log('MongoDB connected successfully');
-        
+
         // Start the server
         await tryPort(port);
     } catch (error) {

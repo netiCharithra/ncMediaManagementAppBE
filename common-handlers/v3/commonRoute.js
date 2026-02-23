@@ -9,6 +9,10 @@ const publicRoutes = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const mobileRoutes = require('./routes/mobileRoutes');
 
+// Grievance module — v3
+const grievancePublicRoutes = require('./routes/grievancePublicRoutes');
+const grievanceAdminRoutes = require('./routes/grievanceAdminRoutes');
+
 // Debug middleware
 router.use((req, res, next) => {
     console.log('=== V3 Common Route Hit ===');
@@ -19,6 +23,9 @@ router.use((req, res, next) => {
 
 // Public routes
 router.use(publicRoutes);
+
+// Grievance public routes (unauthenticated — submission + tracking)
+router.use(grievancePublicRoutes);
 
 // Authentication route (public)
 router.route('/admin/employeeLogin').post(employeeLogin);
@@ -32,6 +39,9 @@ adminRouter.use(adminAuth);
 
 // Protected admin routes
 adminRouter.use(adminRoutes);
+
+// Grievance admin routes (unauthenticated)
+router.use('/grievance/admin', grievanceAdminRoutes);
 
 // Monitoring routes (not protected by admin auth)
 router.route('/monitoringOnly/getCategoryWiseCount').post(getCategoryWiseCount);

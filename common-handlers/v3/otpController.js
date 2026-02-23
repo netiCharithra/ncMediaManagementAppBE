@@ -31,7 +31,7 @@ const sendOTP = async (req, res) => {
         let user;
         let identifierType;
 
-       
+
 
         console.log("✅ Email sent");
         // Check if it's an email
@@ -58,8 +58,12 @@ const sendOTP = async (req, res) => {
         }
 
         if (!user) {
-
             return errorResponse(res, 'Authentication failed! Invalid employee ID.', 401);
+        }
+
+        // Officer login check
+        if (req.body.isOfficerLogin && !user.rootUser) {
+            return errorResponse(res, 'Authentication failed! Not authorized as an officer.', 403);
         }
 
         if (user.rootUser) {
@@ -130,7 +134,7 @@ const sendOTP = async (req, res) => {
             try {
                 const expiryMinutes = Math.floor((expiryDate - new Date()) / 60000);
                 const expirySeconds = Math.floor(((expiryDate - new Date()) % 60000) / 1000);
-                
+
                 const htmlTemplate = `
                 <!DOCTYPE html>
                 <html>
@@ -187,7 +191,7 @@ const sendOTP = async (req, res) => {
                     html: htmlTemplate,
                     text: `Your NetiCharithra OTP is: ${otp}. Valid for ${expiryMinutes} minute(s) ${expirySeconds} second(s). Do not share this code with anyone.`
                 });
-                
+
                 console.log(`✅ OTP email sent to ${user.mail}`);
             } catch (emailError) {
                 console.error('Email sending error:', emailError);
@@ -319,6 +323,11 @@ const verifyOTPAndLogin = async (req, res) => {
 
         if (!user) {
             return errorResponse(res, 'User not found');
+        }
+
+        // Officer login check
+        if (req.body.isOfficerLogin && !user.rootUser) {
+            return errorResponse(res, 'Authentication failed! Not authorized as an officer.', 403);
         }
 
         // Check if user is active
