@@ -32,8 +32,9 @@ app.use(cors(corsOptions));
 // Handle preflight requests
 app.options('*', cors(corsOptions));
 
-// Parse JSON and URL-encoded bodies
+// Parse JSON, text, and URL-encoded bodies
 app.use(express.json());
+app.use(express.text());
 app.use(express.urlencoded({ extended: true }));
 
 // Add headers before the routes are defined
@@ -59,7 +60,10 @@ dotenv.config()
 const router = require('./common-handlers/v2/commonRoute.js');
 const router_v3 = require('./common-handlers/v3/commonRoute.js');
 const mobileRoutes_v3 = require('./common-handlers/v3/routes/mobileRoutes.js');
+const v3EncryptionMiddleware = require('./middleware/encryptionMiddleware.js');
+
 app.use('/api/v2', router);
+app.use('/api/v3', v3EncryptionMiddleware);
 app.use('/api/v3', router_v3);
 // app.use('/api/v3/mobile', mobileRoutes_v3);
 require('dotenv').config();

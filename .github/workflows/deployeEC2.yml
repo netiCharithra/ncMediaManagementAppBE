@@ -41,6 +41,7 @@ jobs:
             BUCKET_REGION=${{ secrets.AWS_REGION }}
             ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }}
             SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            HEX_KEY_ENCRYPT_DECRYPT=${{ secrets.HEX_KEY_ENCRYPT_DECRYPT }}
             BUCKET_NAME_ARTICLE=${{ secrets.BUCKET_NAME_ARTICLE }}
             BUCKET_NAME_EMPLOYEE_DOCS=${{ secrets.BUCKET_NAME_EMPLOYEE_DOCS }}
             BUCKET_NEWS_FRAME=${{ secrets.BUCKET_NEWS_FRAME }}
