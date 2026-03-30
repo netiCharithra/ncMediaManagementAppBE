@@ -252,3 +252,4 @@ Key indexes for performance:
 - `User`: 2dsphere on `location.coordinates`
 - `RawNews`: `(processingStatus, createdAt)`, `contentHash` unique sparse
 - `NewsTranslation`: unique `(newsId, language)`
+
