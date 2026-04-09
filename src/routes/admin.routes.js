@@ -51,12 +51,25 @@ const isSuperAdmin = [authenticate, authorize('super_admin')];
 router.post(
     '/login',
     [
-        body('email').isEmail().normalizeEmail(),
         body('password').notEmpty(),
+        body('email').optional().isEmail().normalizeEmail(),
+        body('phone').optional().isString(),
     ],
     validate,
     adminController.login
 );
+
+/**
+ * @swagger
+ * /admin/scheduler/status:
+ *   get:
+ *     summary: Get live scheduler status dashboard
+ *     tags: [Admin]
+ *     responses:
+ *       200:
+ *         description: Dashboard HTML fetched
+ */
+router.get('/scheduler/status', adminController.getSchedulerStatus);
 
 // ─── Protected admin routes ────────────────────────────────────────────────────
 router.use(isAdmin);
@@ -313,7 +326,8 @@ router.post(
     [authenticate, authorize('super_admin')],
     [
         body('name').trim().notEmpty().withMessage('Name is required'),
-        body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+        body('email').optional().isEmail().normalizeEmail().withMessage('Valid email is required'),
+        body('phone').optional().isString(),
         body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     ],
     validate,

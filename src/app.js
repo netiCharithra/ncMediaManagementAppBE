@@ -13,6 +13,7 @@ const { errorHandler, notFound } = require('./middlewares/errorHandler');
 
 // Route imports
 const authRoutes = require('./routes/auth.routes');
+const mpinRoutes = require('./routes/mpin.routes');
 const newsRoutes = require('./routes/news.routes');
 const adminRoutes = require('./routes/admin.routes');
 const contributorRoutes = require('./routes/contributor.routes');
@@ -99,6 +100,7 @@ setupSwagger(app);
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', mpinRoutes);   // MPIN: set-mpin, mpin-login, reset-mpin, devices
 app.use('/api/news', newsRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/notifications', notificationRoutes);

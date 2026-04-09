@@ -55,7 +55,8 @@ router.post(
     '/register',
     [
         body('name').trim().notEmpty(),
-        body('email').isEmail().normalizeEmail(),
+        body('email').optional().isEmail().normalizeEmail(),
+        body('phone').notEmpty().withMessage('Phone is required'),
         body('password').isLength({ min: 6 }),
     ],
     validate,
@@ -90,7 +91,11 @@ router.post(
 // POST /contributor/login
 router.post(
     '/login',
-    [body('email').isEmail().normalizeEmail(), body('password').notEmpty()],
+    [
+        body('email').optional().isEmail().normalizeEmail(),
+        body('phone').optional().isString(),
+        body('password').notEmpty()
+    ],
     validate,
     contributorController.login
 );

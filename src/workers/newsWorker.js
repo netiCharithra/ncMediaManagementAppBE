@@ -6,10 +6,10 @@
  * Scheduled worker (every 5 minutes via node-cron) that:
  *  1. Uses MongoDB aggregation to find UNIQUE stories missing images
  *     (one record per parentNewsId group — eliminating translation duplicates).
- *  2. Generates ONE image per unique story via the Gemini service.
+ *  2. Generates ONE image per unique story via the Hugging Face service.
  *  3. Bulk-updates ALL sibling docs (original + every translation) in one shot.
  *
- * This guarantees only 1 Gemini API call per news story regardless of how many
+ * This guarantees only 1 Hugging Face API call per news story regardless of how many
  * language translations exist.
  *
  * Can also be run as a standalone one-shot script:
@@ -30,7 +30,7 @@ const logger = require('../utils/logger');
 /** Max unique stories to process per cron tick. */
 const BATCH_SIZE = parseInt(process.env.IMAGE_WORKER_BATCH_SIZE || '5', 10);
 
-/** Delay between Gemini API calls (ms). Preview model is ~2 RPM free tier. */
+/** Delay between Hugging Face API calls (ms). Flux model is ~2 RPM free tier. */
 const INTER_CALL_DELAY_MS = parseInt(process.env.IMAGE_WORKER_DELAY_MS || '35000', 10);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -51,10 +51,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * otherwise just the first one.
  */
 const buildUniqueStoryPipeline = (batchSize) => [
-    // 1. Only published articles with no image
+    // 1. Only published or review articles with no image
     {
         $match: {
-            status: 'published',
+            status: { $in: ['published', 'review'] },
             $or: [
                 { imageUrl: { $exists: false } },
                 { imageUrl: null },
@@ -112,6 +112,8 @@ const run = async () => {
             `[NewsWorker] Found ${uniqueStories.length} unique story(-ies) without images (batch cap: ${BATCH_SIZE}).`
         );
 
+        const NewsTranslation = require('../models/NewsTranslation');
+
         // ── Step 2: For each unique story → generate image → update all siblings ─
         for (let i = 0; i < uniqueStories.length; i++) {
             const story = uniqueStories[i];
@@ -132,19 +134,16 @@ const run = async () => {
 
                 if (imageUrl) {
                     // Update:
-                    //  a) The original (storyKey is its _id, parentNewsId is null)
-                    //  b) All translations whose parentNewsId === storyKey
+                    //  a) The original News record and its promoted siblings
                     const result = await News.updateMany(
                         {
                             $and: [
-                                // Match the original OR any translation sharing this storyKey
                                 {
                                     $or: [
                                         { _id: storyKey },
                                         { parentNewsId: storyKey },
                                     ],
                                 },
-                                // Only touch docs that still have no image (idempotent)
                                 {
                                     $or: [
                                         { imageUrl: { $exists: false } },
@@ -157,9 +156,22 @@ const run = async () => {
                         { $set: { imageUrl } }
                     );
 
+                    // b) Sync to the NewsTranslation collection where the pending versions live
+                    const transResult = await NewsTranslation.updateMany(
+                        { 
+                            newsId: storyKey,
+                            $or: [
+                                { imageUrl: { $exists: false } },
+                                { imageUrl: null },
+                                { imageUrl: '' },
+                            ]
+                        },
+                        { $set: { imageUrl } }
+                    );
+
                     stats.processed++;
                     logger.info(
-                        `[NewsWorker] ✅ "${(story.repTitle || '').substring(0, 70)}" → ${imageUrl} (updated ${result.modifiedCount} docs)`
+                        `[NewsWorker] ✅ "${(story.repTitle || '').substring(0, 70)}" → ${imageUrl} (updated ${result.modifiedCount} News, ${transResult.modifiedCount} Translations)`
                     );
                 } else {
                     // generateAndUploadImage already logged the reason

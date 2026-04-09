@@ -51,7 +51,7 @@ const notificationSchema = new mongoose.Schema(
         sentAt: { type: Date },
         sentBy: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Admin',
+            ref: 'User',
         },
         errorMessage: { type: String },
     },

@@ -4,7 +4,7 @@ const authService = require('../services/auth.service');
 const ingestionService = require('../services/ingestion.service');
 const News = require('../models/News');
 const RawNews = require('../models/RawNews');
-const Contributor = require('../models/Contributor');
+const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { apiResponse } = require('../utils/helpers');
 const { AppError } = require('../utils/AppError');
@@ -40,7 +40,7 @@ const submitNews = asyncHandler(async (req, res) => {
     }
 
     // Update contributor stats
-    await Contributor.findByIdAndUpdate(req.user.id, {
+    await User.findByIdAndUpdate(req.user.id, {
         $inc: { 'stats.totalSubmissions': 1, 'stats.pending': 1 },
     });
 
@@ -65,7 +65,7 @@ const getMyNews = asyncHandler(async (req, res) => {
 
 // GET /contributor/profile
 const getProfile = asyncHandler(async (req, res) => {
-    const contributor = await Contributor.findById(req.user.id).lean();
+    const contributor = await User.findOne({ _id: req.user.id, role: 'contributor' }).lean();
     if (!contributor) throw new AppError('Contributor not found', 404);
     apiResponse(res, 200, { contributor }, 'Profile fetched');
 });

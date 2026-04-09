@@ -2,9 +2,9 @@
 
 This document explains the sequential logic of the **Vishwa Vani / Viva Digital News** pipeline.
 
-## 🔄 The News Journey: Sequence Diagram
+## 🔄 The News Journey: Master Sequential Pipeline
 
-The master sequential pipeline (`src/workers/cronScheduler.js`) ensures each stage finishes before the next starts.
+The master sequential pipeline (`src/workers/cronScheduler.js`) runs every 10 minutes and ensures each stage finishes before the next starts. 
 
 ```mermaid
 sequenceDiagram
@@ -12,21 +12,31 @@ sequenceDiagram
     participant RSS as Ingestion Worker
     participant Sum as Summarization Worker
     participant Trans as Translation Worker
+    participant Img as Image Worker
     participant DB as MongoDB (RawNews / News)
 
-    Web->>RSS: 1. Fetch XML Feeds
-    RSS->>DB: 2. Check for duplicate links
-    RSS->>DB: 3. Save new RawNews (pending)
+    Web->>RSS: 1. Fetch XML Feeds (Last 48h only)
+    RSS->>DB: 2. Save new RawNews (pending)
     
-    DB->>Sum: 4. Find pending RawNews
-    Sum->>Sum: 5. Groq AI Summarization
-    Sum->>DB: 6. Create News (review)
-    Sum->>DB: 7. Mark RawNews (processed)
+    DB->>Sum: 3. Find pending RawNews
+    Sum->>DB: 4. Create News (review)
     
-    DB->>Trans: 8. Find News (review) missing Telugu
-    Trans->>Trans: 9. Groq AI Translation (te, hi)
-    Trans->>DB: 10. Save NewsTranslations
+    DB->>Trans: 5. Find News (review) missing Telugu/Hindi
+    Trans->>DB: 6. Save NewsTranslations
+    
+    DB->>Img: 7. Find Review/Published Articles (no image)
+    Img->>DB: 8. Sync imageUrl to News & NewsTranslation
 ```
+
+---
+
+## 🛡️ Catch-up System (Redundancy Flow)
+
+To ensure no article is left behind (especially when RSS produces large batches), a secondary **Catch-up Worker** runs every 5 minutes.
+
+1.  **Summarize & Translate:** Scans for any articles that were missed by the 10-minute batch limit.
+2.  **Safety Image Worker:** Continuously scans for any article (old or new) missing an image.
+3.  **Atomic Locking:** All workers use atomic updates to ensure they don't process the same article if they trigger at the same time as the Master Pipeline.
 
 ---
 

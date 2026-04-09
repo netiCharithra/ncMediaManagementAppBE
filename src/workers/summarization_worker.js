@@ -22,20 +22,26 @@ const run = async () => {
         let processed = 0;
         let failed = 0;
 
-        // Process in cursor-based batches to avoid memory issues
-        const cursor = RawNews.find({ processingStatus: 'pending', retryCount: { $lt: 3 } })
-            .sort({ createdAt: -1 }) // Newest first (LIFO) for breaking news
-            .limit(BATCH_SIZE)
-            .cursor();
+        // ─── Process in atomic batches ───────────────────────────────────────
+        // Use findOneAndUpdate to "lock" the record so other workers skip it.
+        while (processed < BATCH_SIZE) {
+            const rawNews = await RawNews.findOneAndUpdate(
+                { processingStatus: 'pending', retryCount: { $lt: 3 } },
+                { $set: { processingStatus: 'processing' } },
+                { sort: { createdAt: -1 }, new: true } // Newest first
+            );
 
-        for await (const rawNews of cursor) {
+            if (!rawNews) break; // queue empty
+
             try {
                 logger.info(`[Pipeline] 🧠 Summarizing: "${(rawNews.title || 'Untitled').substring(0, 80)}..."`);
                 await processPipeline(rawNews);
                 processed++;
 
                 // 🤫 The "Slow Drip" Secret Weapon: Sleep for 3 seconds to avoid Groq Rate Limits
-                await new Promise((resolve) => setTimeout(resolve, 3000));
+                if (processed < BATCH_SIZE) {
+                    await new Promise((resolve) => setTimeout(resolve, 3000));
+                }
             } catch (err) {
                 logger.error(`[Pipeline] ❌ Summarization Failed! ID: ${rawNews._id} | Title: "${rawNews.title || 'Untitled'}" | Reason: ${err.message}`);
                 failed++;

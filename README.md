@@ -181,12 +181,12 @@ For in-depth technical details, please refer to the following:
 
 The backend features a fully automated content pipeline:
 
-1.  **Ingestion**: `RSS Ingestion Worker` pulls new content from web sources.
+1.  **Ingestion**: `RSS Ingestion Worker` pulls new content from web sources (last 48 hours only).
 2.  **Summarization**: `AI Summarizer` (Groq/Llama 3) creates headlines and briefs.
-3.  **Refinement**: Content is moved to `review` status for editorial approval.
-4.  **Translation**: `AI Translator` (Groq) generates Telugu and Hindi versions.
-5.  **Visuals**: `AI Image Worker` (Hugging Face / FLUX.1) generates realistic news photography.
-6.  **Delivery**: Content is cached in **Redis** and served via **Express API**.
+3.  **Translation**: `AI Translator` (Groq) generates Telugu and Hindi versions.
+4.  **Visuals**: `AI Image Worker` (Hugging Face / FLUX.1) generates realistic photography.
+5.  **Review**: Articles wait in **`review`** status for manual editorial approval.
+6.  **Publication**: Once an admin publishes, translations are promoted to the main feed.
 
 ---
 
@@ -194,18 +194,16 @@ The backend features a fully automated content pipeline:
 
 | Worker | Schedule | Provider | Description |
 |--------|----------|----------|-------------|
-| RSS Ingestion | Every 10 min | - | Fetch configured RSS feeds |
-| AI Summarization | Every 10 min | Groq / Gemma | Process pending raw news |
-| AI Translation | Every 10 min | Groq / Llama | Translate to Telugu & Hindi |
-| AI Image Gen | Every 5 min | HF / FLUX.1 | Generate news photography |
-| Trending Recalc | Every hour | - | Recompute trending flags |
+| **Master Pipeline** | Every 10 min | Multiple | Sequential: RSS → Summarize → Translate → Images |
+| **Catch-up Worker** | Every 5 min | Groq | Processes straggler raw news missed by 10-min pipe |
+| **Safety Image Worker** | Every 5 min | HF / FLUX.1 | Scans for any article missing a generated image |
+| **Trending Recalc** | Every hour | - | Recompute trending flags derived from views |
 
 Run a worker manually:
 ```bash
-npm run worker:rss
-npm run worker:summarize
-npm run worker:translate
-npm run worker:images
+npm run worker:all
+# Full sequential processing of all pending items:
+npm run worker:process
 ```
 
 ---

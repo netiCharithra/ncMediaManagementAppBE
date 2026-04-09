@@ -8,6 +8,16 @@ const logger = require('../utils/logger');
  * Workers are required lazily to allow this file to load before DB is connected.
  */
 const scheduleCronJobs = () => {
+    logger.info('========================================================================');
+    logger.info('   📅 CURRENT ACTIVE SCHEDULE DASHBOARD (VIVA DIGITAL NEWS)            ');
+    logger.info('------------------------------------------------------------------------');
+    logger.info('   1. Master Pipeline  --> [*/10 MINS] --> (Sequential Flow)            ');
+    logger.info('   2. Catch-up Worker  --> [*/5 MINS]  --> (Summarize + Translate)      ');
+    logger.info('   3. Image Safety Net --> [*/5 MINS]  --> (Hugging Face / R2)          ');
+    logger.info('   4. Trending Refresh --> [HOURLY]    --> (Views Ranker)               ');
+    logger.info('   5. Daily Summary    --> [11:59PM IST]                                ');
+    logger.info('========================================================================');
+
     // ─── Master Continuous Pipeline: Every 10 minutes ──────────────────────────
     // Executes sequentially: Pull -> Summarize -> Translate without idle waiting.
     cron.schedule('*/10 * * * *', async () => {
@@ -30,8 +40,12 @@ const scheduleCronJobs = () => {
             const { run: runTranslation } = require('./translation_worker');
             const transStats = await runTranslation() || {};
 
+            logger.info('[Cron] Step 4: Translations complete. Initiating Image Generation...');
+            const { run: runImages } = require('./newsWorker');
+            const imageStats = await runImages() || {};
+
             logger.info('========================================================================');
-            logger.info(`[Cron] 📊 CYCLE SUMMARY: | Fetched: ${rssStats.totalNew || 0} | Summarized: ${sumStats.processed || 0} | Translated: ${transStats.success || 0} |`);
+            logger.info(`[Cron] 📊 CYCLE SUMMARY: | Fetched: ${rssStats.totalNew || 0} | Summarized: ${sumStats.processed || 0} | Translated: ${transStats.success || 0} | Images: ${imageStats.processed || 0} |`);
             logger.info('========================================================================');
             logger.info('[Cron] ✅ Master Pipeline Cycle Completed flawlessly!');
         } catch (err) {
@@ -106,6 +120,28 @@ const scheduleCronJobs = () => {
     // Finds published news with empty imageUrl, calls Gemini, uploads to R2.
     const { schedule: scheduleImageWorker } = require('./newsWorker');
     scheduleImageWorker();
+
+    // ─── Catch-up Worker: Every 5 minutes ─────────────────────────────────────
+    // Processes any pending RawNews articles that were missed by the 10-min pipe.
+    cron.schedule('*/5 * * * *', async () => {
+        logger.info('[Cron] 🔄 Triggering 5-minute Captch-up Worker (Summarize -> Translate)...');
+        try {
+            // Step 1: Summarize pending raw news
+            const { run: runSummarization } = require('./summarization_worker');
+            const sumStats = await runSummarization() || {};
+
+            if (sumStats.processed > 0) {
+                logger.info(`[Cron] 🔄 Summarized ${sumStats.processed} stragglers. Initiating Translation...`);
+                // Step 2: Translate the newly summarized articles
+                const { run: runTranslation } = require('./translation_worker');
+                await runTranslation();
+            } else {
+                logger.info('[Cron] 🔄 No pending articles found for the catch-up worker.');
+            }
+        } catch (err) {
+            logger.error('[Cron] ❌ Catch-up Worker error:', err.message);
+        }
+    });
 
     logger.info('[Cron] All jobs scheduled');
 };

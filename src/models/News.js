@@ -81,14 +81,10 @@ const newsSchema = new mongoose.Schema(
         // Authorship
         author: {
             type: mongoose.Schema.Types.ObjectId,
-            refPath: 'authorModel',
+            ref: 'User',
         },
-        authorModel: {
-            type: String,
-            enum: ['Admin', 'Contributor'],
-        },
-        reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
-        approvals: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Admin' }],
+        reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        approvals: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         publishedAt: { type: Date, index: true },
 
         // Engagement

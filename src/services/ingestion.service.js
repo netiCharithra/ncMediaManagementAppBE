@@ -50,6 +50,17 @@ const ingestRSSFeeds = async () => {
                     continue;
                 }
 
+                // ─── Filter: Only process news from the last 48 hours ─────────────────
+                const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+                const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+                
+                if (pubDate < fortyEightHoursAgo) {
+                    // logger.debug(`[RSS] ⏭️ Skipping old article: "${title.substring(0, 50)}..." (${pubDate.toDateString()})`);
+                    summary.skipped++;
+                    feedSkipped++;
+                    continue;
+                }
+
                 const contentHash = generateContentHash(title, content);
 
                 // Idempotent upsert based on hash
@@ -67,7 +78,7 @@ const ingestRSSFeeds = async () => {
                     sourceName: feed.title || new URL(trimmedUrl).hostname,
                     sourceType: 'rss',
                     language: detectedLanguage,
-                    publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+                    publishedAt: pubDate,
                     imageUrl: item.enclosure?.url || null,
                     contentHash,
                     processingStatus: 'pending',

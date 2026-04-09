@@ -31,7 +31,7 @@ const newsTranslationSchema = new mongoose.Schema(
             default: 'api',
         },
         isReviewed: { type: Boolean, default: false },
-        reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+        reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     },
     { timestamps: true }
 );

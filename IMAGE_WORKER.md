@@ -1,162 +1,72 @@
-# 🖼️ AI Image Generation Worker — neticharithra.com
+# 🖼️ AI Image Generation Worker — Hugging Face FLUX.1
 
-This document explains the setup, environment variables, and operational details for the
-**newsWorker** — a scheduled cron job that automatically generates editorial images for
-published news articles that are missing one.
+This doc explains the image worker, a scheduled job that automatically generates professional news photography using **FLUX.1-schnell** on Hugging Face Inference.
 
 ---
 
-## File Structure
+## 🏗️ Architecture
 
 ```
-src/
-├── services/
-│   └── geminiService.js      ← Gemini API wrapper + R2 upload logic
-└── workers/
-    ├── newsWorker.js          ← Cron logic (every 5 min) + standalone runner
-    └── cronScheduler.js       ← Updated: schedules newsWorker alongside other jobs
-```
-
----
-
-## How It Works
-
-```
-Every 5 minutes
+Every 5 Minutes (Safety) / Pipeline Trigger (10min)
       │
       ▼
-┌─────────────────────────────────────────┐
-│  Query News where:                      │
-│    status = 'published'                 │
-│    imageUrl = null / ''                 │
-│  Sort: publishedAt DESC (latest first)  │
-│  Limit: IMAGE_WORKER_BATCH_SIZE (20)    │
-└───────────────┬─────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  Query News where:                           │
+│    status IN ('published', 'review')         │
+│    imageUrl = null / ''                      │
+│  Sort: publishedAt DESC                      │
+│  Limit: 10 Unique Stories                    │
+└───────────────┬──────────────────────────────┘
                 │
         ┌───────┴───────┐
-        │               │
-   Originals       Translations
-(no parentNewsId)  (has parentNewsId)
-        │               │
         ▼               ▼
-  Call Gemini       Reuse parent's
-  Flash Image       imageUrl (DB or
-  Generation API    in-process cache)
-        │
-        ▼
-  Upload PNG → Cloudflare R2
-        │
-        ▼
-  updateMany: set imageUrl on
-  original + ALL translations
-  sharing same parentNewsId
+   Call Hugging Face  Update ALL Collections:
+   (Inference API)    1. News (Originals)
+        │             2. News (Promoted)
+        ▼             3. NewsTranslation
+   Upload PNG → Cloudflare R2
 ```
-
-### Deduplication Logic
-
-| Scenario | Behaviour |
-|---|---|
-| Translation with a parent that already HAS an `imageUrl` in the DB | Skip API call — copy the parent's URL directly |
-| Multiple translations of the same parent in the same batch | Generate once, cache in-process, reuse |
-| Article with `parentNewsId = null` (original) | Always generates a new image |
 
 ---
 
-## Environment Variables
+## 🛡️ Deduplication Strategy
 
-### Required
+The worker uses **MongoDB Aggregation** to identify unique news stories before calling the AI.
+*   It groups by `storyKey` (which is `parentNewsId` for translations, or `_id` for originals).
+*   It only makes **one AI API call** per news story, regardless of how many languages exist.
+*   Once generated, it uses `updateMany` to sync the same URL across all linked records in **both** the `News` and `NewsTranslation` collections.
 
-| Variable | Description |
-|---|---|
-| `GEMINI_API_KEY` | Your Google AI Studio API key (see below for how to get it) |
-| `R2_ACCESS_KEY_ID` | Cloudflare R2 access key |
-| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret key |
-| `R2_ENDPOINT` | e.g. `https://<account_id>.r2.cloudflarestorage.com` |
-| `R2_BUCKET_NAME` | Name of your R2 bucket |
-| `R2_PUBLIC_URL` | Public base URL, e.g. `https://pub-<hash>.r2.dev` |
+---
 
-### Optional Tuning
+## ⚙️ Environment Variables
 
-| Variable | Default | Description |
+| Variable | Requirement | Description |
 |---|---|---|
-| `IMAGE_WORKER_BATCH_SIZE` | `20` | Max articles processed per 5-min tick |
-| `IMAGE_WORKER_DELAY_MS` | `4000` | Milliseconds to wait between Gemini API calls (rate-limit buffer) |
+| `HF_TOKEN` | **Required** | Your Hugging Face API Token. |
+| `R2_ACCESS_KEY_ID` | **Required** | Cloudflare R2 storage credentials. |
+| `R2_PUBLIC_URL` | **Required** | Base URL for serving the images. |
+| `IMAGE_WORKER_DELAY_MS` | Optional | Default **35000 (35s)**. Pause between images to avoid rate limits. |
 
 ---
 
-## Getting Your Gemini API Key (Jio / Google AI Pro Offer)
+## 🚀 Execution
 
-1. Open **[Google AI Studio](https://aistudio.google.com/app/apikey)** in your browser.
-2. Sign in with the Google account linked to your **Jio Google AI Pro** offer.
-3. Click **"Create API Key"** → choose an existing Google Cloud project (or create one).
-4. Copy the key and add it to your `.env`:
-
-```bash
-GEMINI_API_KEY=AIzaSy...
-```
-
-> **Note:** The worker uses the `gemini-3.1-flash-image-preview` model (confirmed via `ListModels`).
-> Alternatives available on your key: `gemini-2.5-flash-image`, `gemini-3-pro-image-preview`.
-> All three support `generateContent` with `Modality.IMAGE` output.
-
----
-
-## Running Locally
-
-### One-shot (process all missing images now and exit)
-
+Run a manual catch-up pass:
 ```bash
 npm run worker:images
-# or directly:
-node src/workers/newsWorker.js
 ```
-
-### As part of the full server (cron runs automatically every 5 min)
-
-```bash
-npm run dev          # Includes cron scheduler
-# or
-npm start
-```
-
-> The `dev:api-only` script sets `DISABLE_CRON=true`, so the image worker will **not**
-> run there. Use `npm run dev` or `npm run worker:images` for image generation.
 
 ---
 
-## Safety & Content Policy
+## 🎨 Creative Constraints (Prompt Engineering)
 
-The Gemini system prompt enforces:
-
-- **No realistic human faces** — avoids uncanny valley / misinformation risk
-- **No text/watermarks** in the generated image
-- **No blood, weapons, gore, or hateful symbols**
-- **Sensitive news** (accidents, crime, tragedy) → abstract/symbolic imagery only
-  (broken chain, glowing siren, rainy street, etc.)
-
-These rules live in `geminiService.js → IMAGE_SYSTEM_PROMPT` and can be adjusted there.
-
----
-
-## Error Handling
-
-| Error | Behaviour |
-|---|---|
-| `400` — Safety filter triggered | `WARN` log; article skipped; retried next tick |
-| `429` — Rate limit | `WARN` log; article skipped; retried next tick |
-| Any other Gemini error | `ERROR` log; article skipped |
-| R2 upload failure | `ERROR` log; falls back to placeholder URL (configurable in `r2.js`) |
-| Gemini returns no image part | `WARN` log; article skipped |
-
----
-
-## Logs to Watch
-
-```
-[NewsWorker] 🖼️  Starting image generation pass...
-[NewsWorker] Found 12 article(s) without images.
-[GeminiService] 🎨 Generating image for: "CM launches new scheme..."
-[GeminiService] ✅ Image uploaded → https://pub-xxx.r2.dev/ai-images/1234-news-5678.png
+The service prompt (`hfImageService.js`) enforces:
+1.  **Realistic Photo-style:** Professional editorial news look.
+2.  **No Humans/Faces:** Strictly avoids faces, people, and human figures.
+3.  **No Text/Signs:** Strictly filters for zero text, captions, or watermarks.
+4.  **Symbolic Nature:** Focuses on objects, architecture, or environment related to the headline.
+5.  **Sensitive News:** Tragic or criminal news results in abstract imagery (e.g., siren light on wet road).
+xxx.r2.dev/ai-images/1234-news-5678.png
 [NewsWorker] ✅ Updated "CM launches new scheme..." → https://...
 [GeminiService] ♻️  Cache hit for parentNewsId=abc123 → reusing https://...
 [NewsWorker] ♻️  Reused parent image for translation 6789abc

@@ -13,20 +13,18 @@ const userSchema = new mongoose.Schema(
         },
         email: {
             type: String,
-            required: [true, 'Email is required'],
             unique: true,
+            sparse: true, // Making sparse so users can login via mobile only if they prefer
             lowercase: true,
             trim: true,
             match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
         },
         phone: {
             type: String,
+            required: [true, 'Mobile number is required'],
             unique: true,
-            sparse: true,
             match: [/^[6-9]\d{9}$/, 'Please provide a valid Indian mobile number'],
         },
-        googleId: { type: String, unique: true, sparse: true },
-        avatar: { type: String },
         password: {
             type: String,
             minlength: 6,
@@ -34,9 +32,41 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['user'],
+            enum: ['user', 'contributor', 'admin', 'super_admin', 'editor'],
             default: 'user',
         },
+
+        // --- ADMIN / EDITOR Specific Fields ---
+        permissions: {
+            manageNews: { type: Boolean, default: true },
+            approveNews: { type: Boolean, default: true },
+            bulkPublish: { type: Boolean, default: false },
+            manageUsers: { type: Boolean, default: false },
+            manageContributors: { type: Boolean, default: false },
+            sendNotifications: { type: Boolean, default: false },
+            viewAnalytics: { type: Boolean, default: true },
+        },
+
+        // --- CONTRIBUTOR Specific Fields ---
+        bio: { type: String, maxlength: 500 },
+        coveringDistricts: [{ type: String }],
+        coveringState: { type: String, default: 'Andhra Pradesh' },
+        specialization: [{ type: String }],
+        stats: {
+            totalSubmissions: { type: Number, default: 0 },
+            approved: { type: Number, default: 0 },
+            rejected: { type: Number, default: 0 },
+            pending: { type: Number, default: 0 },
+        },
+        contributorStatus: {
+            type: String,
+            enum: ['pending', 'approved', 'suspended'],
+            default: 'pending',
+        },
+
+        // --- USER & COMMON Fields ---
+        googleId: { type: String, unique: true, sparse: true },
+        avatar: { type: String }, // Used as profile image for all roles
         preferredLanguage: {
             type: String,
             enum: ['te', 'hi', 'en'],
@@ -60,19 +90,25 @@ const userSchema = new mongoose.Schema(
         isEmailVerified: { type: Boolean, default: false },
         refreshToken: { type: String, select: false },
         lastLogin: { type: Date },
+        // Convenience flag — true when user has MPIN set on ≥1 device.
+        // The actual MPIN hash is stored in UserDevice (never here).
+        mpinEnabled: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
 
 userSchema.index({ 'location.coordinates': '2dsphere' });
+userSchema.index({ role: 1 });
+userSchema.index({ phone: 1 });
 
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
+    if (!this.isModified('password') || !this.password) return next();
     this.password = await bcrypt.hash(this.password, 12);
     next();
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
+    if (!this.password) return false;
     return bcrypt.compare(candidatePassword, this.password);
 };
 

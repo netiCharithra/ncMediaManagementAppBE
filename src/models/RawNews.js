@@ -38,7 +38,7 @@ const rawNewsSchema = new mongoose.Schema(
         },
         processingError: { type: String },
         processedNewsId: { type: mongoose.Schema.Types.ObjectId, ref: 'News' },
-        contributorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contributor' },
+        contributorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         category: { type: String },
         tags: [{ type: String }],
         location: {

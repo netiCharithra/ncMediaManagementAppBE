@@ -8,7 +8,7 @@
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 const mongoose = require('mongoose');
-const Admin = require('../models/Admin');
+const User = require('../models/User');
 const Category = require('../models/Category');
 const Language = require('../models/Language');
 const logger = require('../utils/logger');
@@ -56,11 +56,12 @@ const seed = async () => {
         logger.info(`Bootstrap: Ensured ${LANGUAGES.length} languages exist`);
 
         // Seed super admin if not exists
-        const existing = await Admin.findOne({ email: process.env.ADMIN_EMAIL || 'admin@vivadigitalnews.com' });
+        const existing = await User.findOne({ email: process.env.ADMIN_EMAIL || 'admin@vivadigitalnews.com' });
         if (!existing) {
-            await Admin.create({
+            await User.create({
                 name: 'Super Admin',
                 email: process.env.ADMIN_EMAIL || 'admin@vivadigitalnews.com',
+                phone: process.env.ADMIN_PHONE || '9999999999',
                 password: process.env.ADMIN_PASSWORD || 'Admin@SecurePass123!',
                 role: 'super_admin',
                 permissions: {

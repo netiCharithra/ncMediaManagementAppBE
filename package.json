@@ -13,7 +13,7 @@
     "worker:translate": "node src/workers/translation_worker.js",
     "worker:images": "node src/workers/newsWorker.js",
     "worker:all": "npm run worker:rss && npm run worker:summarize && npm run worker:translate",
-    "worker:process": "npm run worker:summarize && npm run worker:translate",
+    "worker:process": "npm run worker:summarize && npm run worker:translate && npm run worker:images",
     "db:clear": "node src/scripts/clear_news.js",
     "lint": "eslint src/",
     "test": "jest --runInBand"
@@ -37,6 +37,7 @@
     "cloudinary": "^2.9.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
+    "cron-parser": "^5.5.0",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "express-mongo-sanitize": "^2.2.0",

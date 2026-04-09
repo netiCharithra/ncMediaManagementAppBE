@@ -2,8 +2,6 @@
 
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Admin = require('../models/Admin');
-const Contributor = require('../models/Contributor');
 const { AppError } = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -35,27 +33,22 @@ const authenticate = asyncHandler(async (req, _res, next) => {
 
     const { id, role } = decoded;
 
-    // Find user in the correct collection based on role
-    let currentUser;
-    if (role === 'admin' || role === 'super_admin' || role === 'editor') {
-        currentUser = await Admin.findById(id).select('+isActive');
-    } else if (role === 'contributor') {
-        currentUser = await Contributor.findById(id).select('+isActive +status');
-        if (currentUser && currentUser.status !== 'approved') {
-            return next(new AppError('Your contributor account is not yet approved.', 403));
-        }
-    } else {
-        currentUser = await User.findById(id).select('+isActive');
-    }
+    // Find user in the single User collection
+    const currentUser = await User.findById(id).select('+isActive +contributorStatus +permissions');
 
     if (!currentUser || !currentUser.isActive) {
         return next(new AppError('The account associated with this token no longer exists or is inactive.', 401));
     }
 
+    // Role-specific checks
+    if (currentUser.role === 'contributor' && currentUser.contributorStatus !== 'approved') {
+        return next(new AppError('Your contributor account is not yet approved.', 403));
+    }
+
     req.user = {
         id: currentUser._id,
-        role,
-        model: currentUser.constructor.modelName,
+        role: currentUser.role,
+        model: 'User',
         permissions: currentUser.permissions || {},
     };
     next();

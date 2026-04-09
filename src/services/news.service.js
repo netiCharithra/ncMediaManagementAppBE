@@ -234,7 +234,7 @@ const createNews = async (data, adminId, file = null) => {
         newsData.originalLanguage = 'te'; // Default to Telugu for new articles
     }
 
-    const news = await News.create({ ...newsData, author: adminId, authorModel: 'Admin' });
+    const news = await News.create({ ...newsData, author: adminId });
 
     // If this news was created from a RawNews entry, mark the raw entry as processed
     if (data.rawNewsId) {
