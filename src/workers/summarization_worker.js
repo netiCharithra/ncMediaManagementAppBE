@@ -16,8 +16,17 @@ const BATCH_SIZE = 50;
 const run = async () => {
     logger.info(`[Pipeline] 🧠 Summarization Worker Started...`);
     try {
-        await connectDB();
-        await connectRedis();
+        if (mongoose.connection.readyState !== 1) {
+            await connectDB();
+        }
+        
+        const redisAlreadyConnected = getRedisClient && (() => {
+            try { return !!getRedisClient(); } catch { return false; }
+        })();
+        
+        if (!redisAlreadyConnected) {
+            await connectRedis();
+        }
 
         let processed = 0;
         let failed = 0;
@@ -38,9 +47,9 @@ const run = async () => {
                 await processPipeline(rawNews);
                 processed++;
 
-                // 🤫 The "Slow Drip" Secret Weapon: Sleep for 3 seconds to avoid Groq Rate Limits
+                // 🤫 The "Slow Drip" Secret Weapon: Sleep for 6 seconds to avoid Groq Rate Limits (Free Tier)
                 if (processed < BATCH_SIZE) {
-                    await new Promise((resolve) => setTimeout(resolve, 3000));
+                    await new Promise((resolve) => setTimeout(resolve, 6000));
                 }
             } catch (err) {
                 logger.error(`[Pipeline] ❌ Summarization Failed! ID: ${rawNews._id} | Title: "${rawNews.title || 'Untitled'}" | Reason: ${err.message}`);

@@ -7,8 +7,11 @@ const morgan = require('morgan');
 const compression = require('compression');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
+const mongoose = require('mongoose');
 
 const logger = require('./utils/logger');
+const { getRedisClient } = require('./config/redis');
+const { requestIdMiddleware } = require('./utils/requestId');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
 
 // Route imports
@@ -25,7 +28,8 @@ const setupSwagger = require('./config/swagger');
 
 const app = express();
 
-// ─── Security Middleware ───────────────────────────────────────────────────────
+// ─── Request ID & Security Middleware ──────────────────────────────────────────
+app.use(requestIdMiddleware);
 app.use(helmet());
 app.use(mongoSanitize());
 
@@ -63,9 +67,6 @@ app.use((req, res, next) => {
     const contentType = req.headers['content-type'] || '';
 
     if (contentType.includes('multipart/form-data')) {
-        // multer runs AFTER this middleware at the route level,
-        // so req.body is empty here for multipart requests.
-        // Actual fields will be logged by the post-multer logger (see admin/contributor routes).
         logger.info('Payload: [multipart/form-data — fields logged post-multer]');
     } else if (req.body && Object.keys(req.body).length > 0) {
         const safeBody = { ...req.body };
@@ -85,10 +86,30 @@ app.use(
 );
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
-    res.status(200).json({
-        success: true,
-        message: 'Viva Digital News API is healthy',
+app.get('/health', async (_req, res) => {
+    let mongoStatus = 'disconnected';
+    let redisStatus = 'disconnected';
+
+    try {
+        if (mongoose.connection.readyState === 1) {
+            mongoStatus = 'connected';
+        }
+        
+        const redis = getRedisClient();
+        if (redis.status === 'ready') {
+            redisStatus = 'connected';
+        }
+    } catch (err) {
+        logger.error('Health check partial failure:', err);
+    }
+
+    const isHealthy = mongoStatus === 'connected' && redisStatus === 'connected';
+
+    res.status(isHealthy ? 200 : 503).json({
+        success: isHealthy,
+        message: isHealthy ? 'Viva Digital News API is healthy' : 'Viva Digital News API is degraded',
+        database: mongoStatus,
+        redis: redisStatus,
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV,
     });
@@ -100,7 +121,7 @@ setupSwagger(app);
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
-app.use('/api/auth', mpinRoutes);   // MPIN: set-mpin, mpin-login, reset-mpin, devices
+app.use('/api/auth', mpinRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/notifications', notificationRoutes);

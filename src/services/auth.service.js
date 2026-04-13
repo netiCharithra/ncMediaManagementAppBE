@@ -194,7 +194,7 @@ const refreshAccessToken = async (refreshToken) => {
 
     const entity = await User.findById(decoded.id).select('+refreshToken');
 
-    if (!entity || entity.refreshToken !== refreshToken) {
+    if (!entity || !(await entity.compareRefreshToken(refreshToken))) {
         throw new AppError('Refresh token mismatch or revoked', 401);
     }
 

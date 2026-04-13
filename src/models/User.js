@@ -102,14 +102,30 @@ userSchema.index({ role: 1 });
 userSchema.index({ phone: 1 });
 
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password') || !this.password) return next();
-    this.password = await bcrypt.hash(this.password, 12);
+    // Hash password if modified
+    if (this.isModified('password') && this.password) {
+        this.password = await bcrypt.hash(this.password, 12);
+    }
+
+    // Hash refreshToken if modified and it has a value (don't hash null/empty)
+    if (this.isModified('refreshToken') && this.refreshToken) {
+        this.refreshToken = await bcrypt.hash(this.refreshToken, 10);
+    }
+
     next();
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
     if (!this.password) return false;
     return bcrypt.compare(candidatePassword, this.password);
+};
+
+/**
+ * Compare a candidate refresh token against its hash.
+ */
+userSchema.methods.compareRefreshToken = async function (candidateToken) {
+    if (!this.refreshToken) return false;
+    return bcrypt.compare(candidateToken, this.refreshToken);
 };
 
 userSchema.methods.toSafeObject = function () {

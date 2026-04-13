@@ -109,6 +109,10 @@ newsSchema.index({ status: 1, 'location.scope': 1, publishedAt: -1 });
 newsSchema.index({ status: 1, isTrending: 1, publishedAt: -1 });
 newsSchema.index({ status: 1, isBreaking: 1, publishedAt: -1 });
 newsSchema.index({ tags: 1 });
+// Compound index for tag-based cross-source image deduplication in newsWorker.
+// Query pattern: { tags: $in, status: $in, publishedAt: $gte, imageUrl: $exists }
+// tags first (high selectivity via $in), then publishedAt for range filter.
+newsSchema.index({ tags: 1, publishedAt: -1, status: 1 });
 newsSchema.index(
     { title: 'text', summary: 'text', content: 'text', tags: 'text' },
     { weights: { title: 10, summary: 5, content: 1, tags: 3 } }

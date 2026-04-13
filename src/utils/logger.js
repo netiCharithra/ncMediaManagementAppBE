@@ -10,10 +10,14 @@ if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
 const { LoggingWinston } = require('@google-cloud/logging-winston');
 
+const { getRequestId } = require('./requestId');
+
 const { combine, timestamp, printf, colorize, errors } = winston.format;
 
 const logFormat = printf(({ level, message, timestamp: ts, stack }) => {
-    return `[${ts}] ${level}: ${stack || message}`;
+    const requestId = getRequestId();
+    const requestIdStr = requestId ? ` [${requestId.split('-')[0]}]` : '';
+    return `[${ts}]${requestIdStr} ${level}: ${stack || message}`;
 });
 
 const logger = winston.createLogger({

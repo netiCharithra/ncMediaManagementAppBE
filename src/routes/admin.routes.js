@@ -1,7 +1,7 @@
 'use strict';
 
 const router = require('express').Router();
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const adminController = require('../controllers/admin.controller');
 const { authenticate, authorize, authorizePermission } = require('../middlewares/auth.middleware');
 const upload = require('../middlewares/upload.middleware');
@@ -127,7 +127,16 @@ router.get('/dashboard/stats', adminController.getDashboardStats);
  *         description: News articles listed
  */
 // News management
-router.get('/news', adminController.listNews);
+router.get(
+    '/news',
+    [
+        query('q').optional().isString().isLength({ max: 100 }).withMessage('Search query too long'),
+        query('page').optional().isInt({ min: 1 }).toInt(),
+        query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+    ],
+    validate,
+    adminController.listNews
+);
 
 /**
  * @swagger

@@ -45,9 +45,6 @@ const uploadToCloud = async (fileBuffer, fileName, mimetype, folder = 'news') =>
  * Attach this AFTER upload.single() on any route to log form fields + file info.
  */
 const logMultipartPayload = (req, _res, next) => {
-    console.log(
-        "req.body", req.body
-    )
     const safeBody = { ...req.body };
     if (safeBody.password) safeBody.password = '********';
 

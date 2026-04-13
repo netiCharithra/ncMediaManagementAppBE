@@ -163,13 +163,14 @@ const tagLocation = (title, content) => {
  * Deduplicate → Summarize → Categorize → Location Tag → Publish (as draft)
  */
 const processPipeline = async (rawNews) => {
-    if (rawNews.processingStatus !== 'pending') return null;
+    // Allow 'processing' because the worker locks the record before calling this function
+    if (rawNews.processingStatus !== 'pending' && rawNews.processingStatus !== 'processing') return null;
 
     try {
         await RawNews.findByIdAndUpdate(rawNews._id, { processingStatus: 'processing' });
 
-        // Summarize (Now returns { title, summary })
-        const { title: summarizedTitle, summary } = await summarizeNews(rawNews.title, rawNews.content);
+        // Summarize (Now returns { title, summary, tags })
+        const { title: summarizedTitle, summary, tags } = await summarizeNews(rawNews.title, rawNews.content);
 
         // Categorize
         const categoryId = await categorizeContent(summarizedTitle, rawNews.content);
@@ -178,8 +179,8 @@ const processPipeline = async (rawNews) => {
         const location = tagLocation(summarizedTitle, rawNews.content);
 
         // Find default admin author
-        const Admin = require('../models/Admin');
-        const defaultAdmin = await Admin.findOne({ role: { $in: ['admin', 'super_admin'] } }).lean();
+        const User = require('../models/User');
+        const defaultAdmin = await User.findOne({ role: { $in: ['admin', 'super_admin'] } }).lean();
 
         // Create News document (draft state for editorial review)
         const news = await News.create({
@@ -193,10 +194,10 @@ const processPipeline = async (rawNews) => {
             originalLanguage: rawNews.language,
             rawNewsId: rawNews._id,
             category: categoryId,
+            tags: tags || [],        // ← AI-generated semantic tags for deduplication
             location,
             status: 'review',
             author: defaultAdmin?._id || null,
-            authorModel: 'Admin',
             publishedAt: rawNews.publishedAt,
         });
 

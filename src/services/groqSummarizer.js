@@ -18,7 +18,7 @@ const callGroqAPI = async (title, content) => {
                 {
                     role: 'system',
                     content:
-                        `You are a professional News Editor. Your task is to process news articles for a mobile app feed.
+                        `You are a professional News Editor for a South Indian digital news platform (ViVaDigitalNews). Your task is to process news articles for a mobile app feed.
 
 Instructions:
 1. Create a CONCISE TITLE: Strictly MAX 10 words. Must fit in 2 lines on a mobile screen.
@@ -26,12 +26,19 @@ Instructions:
 3. NO REPETITION: Do NOT repeat the title in the summary. Start directly with the story.
 4. LANGUAGE: Respond in the SAME LANGUAGE as the input article.
 5. Maintain absolute factual accuracy.
-6. Output ONLY valid JSON with keys "title" and "summary".`,
+6. Generate 3-5 SEMANTIC TAGS that best describe the TOPIC of this article. Tags MUST:
+   - Be lowercase English words or short phrases (max 2 words each)
+   - Be SPECIFIC: prefer "bengaluru metro" over just "metro"
+   - Include LOCATION tags if the article has a clear geographic focus (e.g., "hyderabad", "telangana", "andhra pradesh", "chennai", "india")
+   - Include TOPIC tags (e.g., "election", "road accident", "cricket", "budget", "flood")
+   - Include a KEY ENTITY tag if applicable (e.g., a politician's name, a company, a scheme name)
+   - These tags will be used for cross-source deduplication: two articles from different sources covering the SAME EVENT should ideally share 2+ common tags
+7. Output ONLY valid JSON with keys "title", "summary", and "tags" (array of strings).`,
                 },
                 { role: 'user', content: `Original Title: ${title}\n\nOriginal Content: ${content}` },
             ],
-            max_tokens: 400, // Reduced to stay under TPM limits
-            temperature: 0.5,
+            max_tokens: 500, // Slightly more for tags array
+            temperature: 0.4,
             response_format: { type: 'json_object' },
         },
         {
@@ -78,9 +85,19 @@ const summarizeNews = async (title, content) => {
                 }
             }
 
+            // Normalise tags: must be array of lowercase strings, fallback to []
+            let tags = [];
+            if (Array.isArray(result.tags)) {
+                tags = result.tags
+                    .filter((t) => typeof t === 'string' && t.trim())
+                    .map((t) => t.toLowerCase().trim().substring(0, 50))
+                    .slice(0, 5);
+            }
+
             return {
                 title: result.title || title,
                 summary: result.summary || content.substring(0, 300),
+                tags,
             };
 
         } catch (err) {
@@ -113,6 +130,7 @@ const summarizeNews = async (title, content) => {
     return {
         title: title.substring(0, 60),
         summary: content.substring(0, 300).trim() + (content.length > 300 ? '...' : ''),
+        tags: [], // Empty tags on fallback — deduplication will skip this story
     };
 };
 
