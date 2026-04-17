@@ -3,7 +3,6 @@
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
-const morgan = require('morgan');
 const compression = require('compression');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
@@ -60,30 +59,65 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ─── Request & Payload Logging ────────────────────────────────────────────────
-app.use((req, res, next) => {
-    logger.info(`[API Hit] ${req.method} ${req.originalUrl}`);
+// ─── HTTP Observability Logging ──────────────────────────────────────────────
+const SENSITIVE_KEYS = new Set(['password', 'pass', 'token', 'accessToken', 'refreshToken', 'authorization', 'secret', 'apiKey']);
+const LOG_HTTP_BODY = process.env.LOG_HTTP_BODY === 'true';
 
-    const contentType = req.headers['content-type'] || '';
+const sanitizePayload = (value) => {
+    if (Array.isArray(value)) return value.map(sanitizePayload);
+    if (!value || typeof value !== 'object') return value;
 
-    if (contentType.includes('multipart/form-data')) {
-        logger.info('Payload: [multipart/form-data — fields logged post-multer]');
-    } else if (req.body && Object.keys(req.body).length > 0) {
-        const safeBody = { ...req.body };
-        if (safeBody.password) safeBody.password = '********';
-        logger.info(`Payload: ${JSON.stringify(safeBody, null, 2)}`);
+    const sanitized = {};
+    for (const [key, val] of Object.entries(value)) {
+        if (SENSITIVE_KEYS.has(key)) {
+            sanitized[key] = '***REDACTED***';
+        } else {
+            sanitized[key] = sanitizePayload(val);
+        }
     }
+    return sanitized;
+};
+
+app.use((req, res, next) => {
+    const start = process.hrtime.bigint();
+
+    logger.infoEvent('http.request.started', {
+        component: 'HTTP',
+        method: req.method,
+        path: req.originalUrl || req.url,
+        ip: req.ip,
+        user_agent: req.get('user-agent'),
+        content_type: req.get('content-type'),
+    });
+
+    res.on('finish', () => {
+        const durationMs = Number((process.hrtime.bigint() - start) / 1000000n);
+        const statusCode = res.statusCode;
+        const level = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
+        const logFn = level === 'error' ? logger.errorEvent : level === 'warn' ? logger.warnEvent : logger.infoEvent;
+
+        const fields = {
+            component: 'HTTP',
+            method: req.method,
+            path: req.originalUrl || req.url,
+            status_code: statusCode,
+            duration_ms: durationMs,
+            ip: req.ip,
+            user_agent: req.get('user-agent'),
+            request_bytes: req.get('content-length') ? Number(req.get('content-length')) : undefined,
+            response_bytes: res.getHeader('content-length') ? Number(res.getHeader('content-length')) : undefined,
+            user_id: req.user?._id ? String(req.user._id) : undefined,
+        };
+
+        if (LOG_HTTP_BODY && req.body && Object.keys(req.body).length > 0) {
+            fields.request_body = sanitizePayload(req.body);
+        }
+
+        logFn('http.request.completed', fields);
+    });
+
     next();
 });
-
-
-// ─── HTTP Request Logging ─────────────────────────────────────────────────────
-app.use(
-    morgan('combined', {
-        stream: { write: (msg) => logger.http(msg.trim()) },
-        skip: () => process.env.NODE_ENV === 'test',
-    })
-);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
@@ -100,7 +134,11 @@ app.get('/health', async (_req, res) => {
             redisStatus = 'connected';
         }
     } catch (err) {
-        logger.error('Health check partial failure:', err);
+        logger.errorEvent('health.partial_failure', {
+            component: 'Health',
+            error: err.message,
+            stack: err.stack,
+        });
     }
 
     const isHealthy = mongoStatus === 'connected' && redisStatus === 'connected';

@@ -39,14 +39,18 @@ const errorHandler = (err, req, res, _next) => {
         isOperational = true;
     }
 
-    if (!isOperational) {
-        logger.error('Unexpected error:', {
-            message: err.message,
-            stack: err.stack,
-            url: req.originalUrl,
-            method: req.method,
-        });
-    }
+    const level = statusCode >= 500 ? 'error' : 'warn';
+    const logFn = level === 'error' ? logger.errorEvent : logger.warnEvent;
+    logFn('http.request.error', {
+        component: 'HTTP',
+        method: req.method,
+        path: req.originalUrl,
+        status_code: statusCode,
+        is_operational: Boolean(isOperational),
+        error_name: err.name,
+        error_message: err.message,
+        stack: err.stack,
+    });
 
     res.status(statusCode).json({
         success: false,

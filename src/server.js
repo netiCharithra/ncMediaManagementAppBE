@@ -15,7 +15,9 @@ const startServer = async () => {
     try {
         // Connect to MongoDB
         await connectDB();
-        logger.info('MongoDB connected successfully');
+        logger.infoEvent('startup.mongodb.connected', {
+            component: 'Server',
+        });
 
         // Bootstrap initial data (admin and categories)
         await bootstrapData();
@@ -23,25 +25,43 @@ const startServer = async () => {
 
         // Connect to Redis
         await connectRedis();
-        logger.info('Redis connected successfully');
+        logger.infoEvent('startup.redis.connected', {
+            component: 'Server',
+        });
 
         // Schedule background cron workers
         if (process.env.DISABLE_CRON !== 'true') {
             scheduleCronJobs();
-            logger.info('Cron jobs scheduled');
+            logger.infoEvent('startup.cron.scheduled', {
+                component: 'Server',
+                disable_cron: false,
+            });
         } else {
-            logger.info('⚠️ Cron jobs skipped (DISABLE_CRON=true)');
+            logger.warnEvent('startup.cron.skipped', {
+                component: 'Server',
+                disable_cron: true,
+                reason: 'DISABLE_CRON=true',
+            });
         }
 
         const server = app.listen(PORT, () => {
-            logger.info(`Viva Digital News API running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+            logger.infoEvent('startup.server.ready', {
+                component: 'Server',
+                port: Number(PORT),
+                environment: process.env.NODE_ENV || 'development',
+            });
         });
 
         // Graceful shutdown
         const shutdown = (signal) => {
-            logger.info(`${signal} received. Shutting down gracefully...`);
+            logger.warnEvent('shutdown.signal.received', {
+                component: 'Server',
+                signal,
+            });
             server.close(() => {
-                logger.info('HTTP server closed');
+                logger.infoEvent('shutdown.http.closed', {
+                    component: 'Server',
+                });
                 process.exit(0);
             });
         };
@@ -50,16 +70,28 @@ const startServer = async () => {
         process.on('SIGINT', () => shutdown('SIGINT'));
 
         process.on('unhandledRejection', (err) => {
-            logger.error('Unhandled Rejection:', err);
+            logger.errorEvent('process.unhandled_rejection', {
+                component: 'Server',
+                error: err?.message || String(err),
+                stack: err?.stack,
+            });
             server.close(() => process.exit(1));
         });
 
         process.on('uncaughtException', (err) => {
-            logger.error('Uncaught Exception:', err);
+            logger.errorEvent('process.uncaught_exception', {
+                component: 'Server',
+                error: err?.message || String(err),
+                stack: err?.stack,
+            });
             process.exit(1);
         });
     } catch (error) {
-        logger.error('Failed to start server:', error);
+        logger.errorEvent('startup.failed', {
+            component: 'Server',
+            error: error?.message || String(error),
+            stack: error?.stack,
+        });
         process.exit(1);
     }
 };

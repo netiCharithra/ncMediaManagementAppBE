@@ -1,0 +1,76 @@
+name: Deploy Viva Digital News Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: SSH and deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Deploying VivaDigitalNews Backend..."
+            cd /home/ec2-user/projects/ViVaDigitalNews/backend
+            
+            echo "Current directory: $(pwd)"
+            git config pull.rebase false
+            git checkout -- package-lock.json
+            git pull origin main
+            
+            echo "Installing dependencies..."
+            npm install --production
+            
+            echo "Setting up environment variables..."
+            cat > .env << EOF
+            NODE_ENV=production
+            PORT=${{ secrets.PORT }}
+            MONGO_URI=${{ secrets.MONGO_URI }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            JWT_REFRESH_EXPIRES_IN=${{ secrets.JWT_REFRESH_EXPIRES_IN }}
+            REDIS_HOST=${{ secrets.REDIS_HOST }}
+            REDIS_PORT=${{ secrets.REDIS_PORT }}
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+            FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}
+            FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+            FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+            FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}
+            FIREBASE_DATABASE_URL=${{ secrets.FIREBASE_DATABASE_URL }}
+            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            GOOGLE_TRANSLATE_API_KEY=${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
+            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}
+            R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}
+            R2_ENDPOINT=${{ secrets.R2_ENDPOINT }}
+            R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
+            R2_PUBLIC_URL=${{ secrets.R2_PUBLIC_URL }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            HF_TOKEN=${{ secrets.HF_TOKEN }}
+            IMAGE_WORKER_BATCH_SIZE=4
+            LOG_LEVEL=info
+            EOF
+            
+            echo "Environment variables set. Restarting PM2 processes..."
+            pm2 restart viva-digital-news-api || pm2 start src/server.js --name "viva-digital-news-api"
+            
+            # Restart background workers
+            pm2 restart viva-rss-worker || pm2 start src/workers/rss_ingestion_worker.js --name "viva-rss-worker"
+            pm2 restart viva-summarize-worker || pm2 start src/workers/summarization_worker.js --name "viva-summarize-worker"
+            pm2 restart viva-translate-worker || pm2 start src/workers/translation_worker.js --name "viva-translate-worker"
+            pm2 restart viva-image-worker || pm2 start src/workers/newsWorker.js --name "viva-image-worker"
+            
+            echo "Deployment Complete! 🚀"
