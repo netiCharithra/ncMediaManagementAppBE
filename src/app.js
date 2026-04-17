@@ -22,6 +22,7 @@ const contributorRoutes = require('./routes/contributor.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const categoryRoutes = require('./routes/category.routes');
 const communityRoutes = require('./routes/community.routes');
+const colabRoutes = require('./routes/colab.routes');
 const setupSwagger = require('./config/swagger');
 
 
@@ -164,6 +165,7 @@ app.use('/api/news', newsRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/colab_ngrok', colabRoutes);
 app.use('/admin', adminRoutes);
 app.use('/contributor', contributorRoutes);
 
