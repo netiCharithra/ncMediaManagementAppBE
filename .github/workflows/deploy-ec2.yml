@@ -78,9 +78,9 @@ jobs:
             # Stop existing background workers if they are running (for now)
             pm2 delete viva-rss-worker viva-summarize-worker viva-translate-worker viva-image-worker || true
             
-            # Run ONLY the dev:api-only script
+            # Run ONLY the api-only script for production
             pm2 delete viva-digital-news-api || true
-            pm2 start npm --name "viva-digital-news-api" -- run dev:api-only
+            pm2 start npm --name "viva-digital-news-api" -- run start:api-only
             pm2 save || true
             
             echo "Deployment Complete! 🚀"

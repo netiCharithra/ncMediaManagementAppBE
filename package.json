@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "start:api-only": "DISABLE_CRON=true node src/server.js",
     "dev": "nodemon src/server.js",
     "dev:api-only": "DISABLE_CRON=true nodemon src/server.js",
     "dev:no-rss": "DISABLE_RSS=true nodemon src/server.js",
