@@ -23,7 +23,7 @@ const { translateArticle } = require('./googleTranslator');
  */
 /*
 const summarizeContent = async (title, content) => {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.VIVA_DIGITAL_OPENAI_API_KEY) {
         logger.warn('OPENAI_API_KEY not set. Using fallback summarization.');
         return content.substring(0, 200).trim() + (content.length > 200 ? '...' : '');
     }
@@ -45,7 +45,7 @@ const summarizeContent = async (title, content) => {
                 temperature: 0.3,
             },
             {
-                headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+                headers: { Authorization: `Bearer ${process.env.VIVA_DIGITAL_OPENAI_API_KEY}` },
                 timeout: 15000,
             }
         );

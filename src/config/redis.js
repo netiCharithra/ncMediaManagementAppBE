@@ -7,9 +7,9 @@ let redisClient;
 
 const connectRedis = async () => {
     redisClient = new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT) || 6379,
-        password: process.env.REDIS_PASSWORD || undefined,
+        host: process.env.VIVA_DIGITAL_REDIS_HOST || 'localhost',
+        port: parseInt(process.env.VIVA_DIGITAL_REDIS_PORT) || 6379,
+        password: process.env.VIVA_DIGITAL_REDIS_PASSWORD || undefined,
         retryStrategy: (times) => {
             const delay = Math.min(times * 50, 2000);
             return delay;

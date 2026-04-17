@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
  */
 const translateText = async (text, targetLang) => {
     if (!text) return text;
-    const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY || process.env.TRANSLATION_API_KEY;
+    const apiKey = process.env.VIVA_DIGITAL_GOOGLE_TRANSLATE_API_KEY || process.env.VIVA_DIGITAL_TRANSLATION_API_KEY;
 
     if (!apiKey || apiKey === 'your_translation_api_key') {
         logger.warn('Google Translate API Key not set. Returning original text.');

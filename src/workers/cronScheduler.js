@@ -24,7 +24,7 @@ const scheduleCronJobs = () => {
         logger.info('[Cron] 🚀 Triggering Master Sequential Pipeline...');
         try {
             let rssStats = {};
-            if (process.env.DISABLE_RSS !== 'true') {
+            if (process.env.VIVA_DIGITAL_DISABLE_RSS !== 'true') {
                 logger.info('[Cron] Step 1: Initiating RSS Ingestion...');
                 const { run: runIngestion } = require('./rss_ingestion_worker');
                 rssStats = await runIngestion() || {};

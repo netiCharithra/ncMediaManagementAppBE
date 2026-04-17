@@ -21,7 +21,7 @@ const { uploadToCloud } = require('../utils/r2');
 const logger = require('../utils/logger');
 
 // ─── Configuration ─────────────────────────────────────────────────────────
-const BATCH_SIZE = parseInt(process.env.GEMINI_WORKER_BATCH_SIZE || '5', 10);
+const BATCH_SIZE = parseInt(process.env.VIVA_DIGITAL_GEMINI_WORKER_BATCH_SIZE || '5', 10);
 const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
 const INTER_CALL_DELAY_MS = 35000; // 35s between calls — safe for 2 RPM free tier
 
@@ -29,7 +29,7 @@ const INTER_CALL_DELAY_MS = 35000; // 35s between calls — safe for 2 RPM free 
 let _geminiClient = null;
 const getGeminiClient = () => {
     if (!_geminiClient) {
-        const key = process.env.GEMINI_API_KEY;
+        const key = process.env.VIVA_DIGITAL_GEMINI_API_KEY;
         if (!key) throw new Error('GEMINI_API_KEY not set in .env');
         _geminiClient = new GoogleGenAI({ apiKey: key });
     }

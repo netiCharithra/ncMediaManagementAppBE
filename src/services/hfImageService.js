@@ -45,7 +45,7 @@ const trimError = (msg, max = 400) => {
 let _hfClient = null;
 const getHFClient = () => {
     if (!_hfClient) {
-        const token = process.env.HUGGING_FACE_API_KEY || process.env.HF_TOKEN;
+        const token = process.env.VIVA_DIGITAL_HUGGING_FACE_API_KEY || process.env.VIVA_DIGITAL_HF_TOKEN;
         if (!token) throw new Error('HF_TOKEN not set.');
         _hfClient = new HfInference(token);
     }
@@ -55,7 +55,7 @@ const getHFClient = () => {
 let _geminiClient = null;
 const getGeminiClient = () => {
     if (!_geminiClient) {
-        const key = process.env.GEMINI_API_KEY;
+        const key = process.env.VIVA_DIGITAL_GEMINI_API_KEY;
         if (!key) throw new Error('GEMINI_API_KEY not set.');
         _geminiClient = new GoogleGenAI({ apiKey: key });
     }

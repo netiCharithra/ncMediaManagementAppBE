@@ -30,7 +30,7 @@ const startServer = async () => {
         });
 
         // Schedule background cron workers
-        if (process.env.DISABLE_CRON !== 'true') {
+        if (process.env.VIVA_DIGITAL_DISABLE_CRON !== 'true') {
             scheduleCronJobs();
             logger.infoEvent('startup.cron.scheduled', {
                 component: 'Server',

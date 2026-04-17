@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
  */
 const translateArticle = async (article, targetLang) => {
     if (!article.title && !article.summary && !article.content) return article;
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.VIVA_DIGITAL_GROQ_API_KEY) {
         logger.warn('GROQ_API_KEY not set. Returning original text.');
         return article;
     }
@@ -52,7 +52,7 @@ const translateArticle = async (article, targetLang) => {
                 },
                 {
                     headers: {
-                        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                        'Authorization': `Bearer ${process.env.VIVA_DIGITAL_GROQ_API_KEY}`,
                         'Content-Type': 'application/json'
                     },
                     timeout: 60000, // Increase timeout for long articles

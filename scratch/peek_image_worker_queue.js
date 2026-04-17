@@ -7,7 +7,7 @@ const connectDB = require('../src/config/database');
 
 const run = async () => {
     try {
-        if (!process.env.MONGODB_URI && !process.env.MONGO_URI) {
+        if (!process.env.MONGODB_URI && !process.env.VIVA_DIGITAL_MONGO_URI) {
            console.error('Environment variables:', Object.keys(process.env).filter(k => k.includes('MON')));
            throw new Error('MONGO_URI is not defined in environment variables');
         }

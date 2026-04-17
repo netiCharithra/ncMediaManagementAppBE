@@ -23,10 +23,10 @@ const { generateAndUploadImage, clearImageCache } = require('../services/hfImage
 const logger = require('../utils/logger');
 
 // ─── Configuration ─────────────────────────────────────────────────────────
-const BATCH_SIZE = parseInt(process.env.IMAGE_WORKER_BATCH_SIZE || '10', 10);
-const TAG_DEDUP_WINDOW_HOURS = parseInt(process.env.TAG_DEDUP_WINDOW_HOURS || '12', 10);
-const TAG_MATCH_THRESHOLD = parseInt(process.env.TAG_MATCH_THRESHOLD || '2', 10);
-const INTER_CALL_DELAY_MS = parseInt(process.env.IMAGE_WORKER_DELAY_MS || '35000', 10);
+const BATCH_SIZE = parseInt(process.env.VIVA_DIGITAL_IMAGE_WORKER_BATCH_SIZE || '10', 10);
+const TAG_DEDUP_WINDOW_HOURS = parseInt(process.env.VIVA_DIGITAL_TAG_DEDUP_WINDOW_HOURS || '12', 10);
+const TAG_MATCH_THRESHOLD = parseInt(process.env.VIVA_DIGITAL_TAG_MATCH_THRESHOLD || '2', 10);
+const INTER_CALL_DELAY_MS = parseInt(process.env.VIVA_DIGITAL_IMAGE_WORKER_DELAY_MS || '35000', 10);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

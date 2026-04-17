@@ -33,7 +33,7 @@ app.use(helmet());
 app.use(mongoSanitize());
 
 // ─── CORS ──────────────────────────────────────────────────────────────────────
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+const allowedOrigins = (process.env.VIVA_DIGITAL_ALLOWED_ORIGINS || '').split(',').filter(Boolean);
 app.use(
     cors({
         origin: (origin, callback) => {
@@ -46,8 +46,8 @@ app.use(
 
 // ─── Rate Limiting ─────────────────────────────────────────────────────────────
 const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+    windowMs: parseInt(process.env.VIVA_DIGITAL_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    max: parseInt(process.env.VIVA_DIGITAL_RATE_LIMIT_MAX) || 100,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many requests, please try again later.' },
@@ -61,7 +61,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ─── HTTP Observability Logging ──────────────────────────────────────────────
 const SENSITIVE_KEYS = new Set(['password', 'pass', 'token', 'accessToken', 'refreshToken', 'authorization', 'secret', 'apiKey']);
-const LOG_HTTP_BODY = process.env.LOG_HTTP_BODY === 'true';
+const LOG_HTTP_BODY = process.env.VIVA_DIGITAL_LOG_HTTP_BODY === 'true';
 
 const sanitizePayload = (value) => {
     if (Array.isArray(value)) return value.map(sanitizePayload);

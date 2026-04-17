@@ -43,7 +43,7 @@ Instructions:
         },
         {
             headers: {
-                Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+                Authorization: `Bearer ${process.env.VIVA_DIGITAL_GROQ_API_KEY}`,
                 'Content-Type': 'application/json',
             },
             timeout: 20000,
@@ -57,7 +57,7 @@ Instructions:
  * Retries up to MAX_RETRIES times on rate limit (429) errors with exponential backoff.
  */
 const summarizeNews = async (title, content) => {
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.VIVA_DIGITAL_GROQ_API_KEY) {
         logger.warn('GROQ_API_KEY not set. Using fallback summarization.');
         return {
             title: title.substring(0, 60),

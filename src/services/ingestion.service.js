@@ -15,7 +15,7 @@ const parser = new RSSParser({
  * Returns { ingested, skipped, errors } summary.
  */
 const ingestRSSFeeds = async () => {
-    const RSS_FEEDS = (process.env.RSS_FEED_URLS || '').split(',').filter(Boolean);
+    const RSS_FEEDS = (process.env.VIVA_DIGITAL_RSS_FEED_URLS || '').split(',').filter(Boolean);
     const summary = { ingested: 0, skipped: 0, errors: 0 };
     logger.info(`[RSS Ingestion] Starting... Found ${RSS_FEEDS.length} feed URLs configured.`);
 

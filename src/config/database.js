@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 const connectDB = async () => {
-    const uri = process.env.MONGO_URI;
+    const uri = process.env.VIVA_DIGITAL_MONGO_URI;
     if (!uri) throw new Error('MONGO_URI is not defined in environment variables');
 
     await mongoose.connect(uri, {

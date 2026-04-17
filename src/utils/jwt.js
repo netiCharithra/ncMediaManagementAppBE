@@ -6,8 +6,8 @@ const jwt = require('jsonwebtoken');
  * Generate an access token (short-lived).
  */
 const generateAccessToken = (payload) => {
-    return jwt.sign(payload, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    return jwt.sign(payload, process.env.VIVA_DIGITAL_JWT_SECRET, {
+        expiresIn: process.env.VIVA_DIGITAL_JWT_EXPIRES_IN || '15m',
     });
 };
 
@@ -15,8 +15,8 @@ const generateAccessToken = (payload) => {
  * Generate a refresh token (long-lived).
  */
 const generateRefreshToken = (payload) => {
-    return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+    return jwt.sign(payload, process.env.VIVA_DIGITAL_JWT_REFRESH_SECRET, {
+        expiresIn: process.env.VIVA_DIGITAL_JWT_REFRESH_EXPIRES_IN || '30d',
     });
 };
 
@@ -24,14 +24,14 @@ const generateRefreshToken = (payload) => {
  * Verify an access token.
  */
 const verifyAccessToken = (token) => {
-    return jwt.verify(token, process.env.JWT_SECRET);
+    return jwt.verify(token, process.env.VIVA_DIGITAL_JWT_SECRET);
 };
 
 /**
  * Verify a refresh token.
  */
 const verifyRefreshToken = (token) => {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    return jwt.verify(token, process.env.VIVA_DIGITAL_JWT_REFRESH_SECRET);
 };
 
 module.exports = {

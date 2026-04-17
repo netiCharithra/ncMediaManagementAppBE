@@ -138,7 +138,7 @@ const mpinLogin = async ({ identifier, mpin, deviceId }) => {
 
         const remaining = Math.max(
             0,
-            (parseInt(process.env.MAX_MPIN_ATTEMPTS) || 5) - device.mpinFailedAttempts
+            (parseInt(process.env.VIVA_DIGITAL_MAX_MPIN_ATTEMPTS) || 5) - device.mpinFailedAttempts
         );
 
         if (device.isMpinLocked()) {

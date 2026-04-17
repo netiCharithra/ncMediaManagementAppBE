@@ -10,10 +10,10 @@ const logger = require('../utils/logger');
 let _aiClient = null;
 const getClient = () => {
     if (!_aiClient) {
-        if (!process.env.GEMINI_API_KEY) {
+        if (!process.env.VIVA_DIGITAL_GEMINI_API_KEY) {
             throw new Error('GEMINI_API_KEY is not set in environment variables.');
         }
-        _aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        _aiClient = new GoogleGenAI({ apiKey: process.env.VIVA_DIGITAL_GEMINI_API_KEY });
     }
     return _aiClient;
 };

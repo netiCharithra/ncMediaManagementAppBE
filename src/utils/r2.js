@@ -5,10 +5,10 @@ const logger = require('./logger');
 
 const r2Client = new S3Client({
     region: 'auto',
-    endpoint: process.env.R2_ENDPOINT,
+    endpoint: process.env.VIVA_DIGITAL_R2_ENDPOINT,
     credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        accessKeyId: process.env.VIVA_DIGITAL_R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.VIVA_DIGITAL_R2_SECRET_ACCESS_KEY,
     },
 });
 
@@ -20,7 +20,7 @@ const uploadToCloud = async (fileBuffer, fileName, mimetype, folder = 'news') =>
         const key = `${folder}/${Date.now()}-${fileName}`;
 
         const command = new PutObjectCommand({
-            Bucket: process.env.R2_BUCKET_NAME,
+            Bucket: process.env.VIVA_DIGITAL_R2_BUCKET_NAME,
             Key: key,
             Body: fileBuffer,
             ContentType: mimetype,
@@ -29,7 +29,7 @@ const uploadToCloud = async (fileBuffer, fileName, mimetype, folder = 'news') =>
         await r2Client.send(command);
 
         // Construct the public URL
-        const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+        const publicUrl = `${process.env.VIVA_DIGITAL_R2_PUBLIC_URL}/${key}`;
         logger.info(`File uploaded to R2: ${publicUrl}`);
 
         return publicUrl;

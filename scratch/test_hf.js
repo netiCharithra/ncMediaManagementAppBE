@@ -1,7 +1,7 @@
 const { HfInference } = require('@huggingface/inference');
 require('dotenv').config();
 
-const hf = new HfInference(process.env.HUGGING_FACE_API_KEY || process.env.HF_TOKEN);
+const hf = new HfInference(process.env.VIVA_DIGITAL_HUGGING_FACE_API_KEY || process.env.VIVA_DIGITAL_HF_TOKEN);
 
 (async () => {
     console.log('Testing HF Inference...');

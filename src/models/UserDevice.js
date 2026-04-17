@@ -106,8 +106,8 @@ userDeviceSchema.methods.isMpinLocked = function () {
  * Record a failed MPIN attempt.
  * Locks the device for MPIN_LOCK_MINUTES (default 30) after MAX_MPIN_ATTEMPTS failures.
  */
-const MAX_MPIN_ATTEMPTS = parseInt(process.env.MAX_MPIN_ATTEMPTS) || 5;
-const MPIN_LOCK_MINUTES = parseInt(process.env.MPIN_LOCK_MINUTES) || 30;
+const MAX_MPIN_ATTEMPTS = parseInt(process.env.VIVA_DIGITAL_MAX_MPIN_ATTEMPTS) || 5;
+const MPIN_LOCK_MINUTES = parseInt(process.env.VIVA_DIGITAL_MPIN_LOCK_MINUTES) || 30;
 
 userDeviceSchema.methods.recordMpinFailure = function () {
     this.mpinFailedAttempts += 1;

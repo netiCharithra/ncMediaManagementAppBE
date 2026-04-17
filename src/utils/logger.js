@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const logDir = process.env.LOG_DIR || 'logs';
+const logDir = process.env.VIVA_DIGITAL_LOG_DIR || 'logs';
 if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
 const { LoggingWinston } = require('@google-cloud/logging-winston');
@@ -24,7 +24,7 @@ const {
 } = winston.format;
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'viva-digital-news-backend';
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_LEVEL = process.env.VIVA_DIGITAL_LOG_LEVEL || 'info';
 const PRETTY_CONSOLE = process.env.LOG_PRETTY !== 'false';
 
 const extractBracketTags = (message) => {

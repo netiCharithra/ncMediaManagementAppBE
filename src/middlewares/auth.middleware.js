@@ -23,7 +23,7 @@ const authenticate = asyncHandler(async (req, _res, next) => {
 
     let decoded;
     try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
+        decoded = jwt.verify(token, process.env.VIVA_DIGITAL_JWT_SECRET);
     } catch (err) {
         if (err.name === 'TokenExpiredError') {
             return next(new AppError('Your session has expired. Please log in again.', 401));
