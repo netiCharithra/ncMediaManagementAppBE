@@ -3,7 +3,7 @@ name: Deploy Viva Digital News Backend to EC2
 on:
   push:
     branches:
-      - main
+      - viva_digital_backend
 
 jobs:
   deploy:
@@ -26,7 +26,7 @@ jobs:
             echo "Current directory: $(pwd)"
             git config pull.rebase false
             git checkout -- package-lock.json
-            git pull origin main
+            git pull origin viva_digital_backend
             
             echo "Installing dependencies..."
             npm install --production
@@ -65,12 +65,10 @@ jobs:
             EOF
             
             echo "Environment variables set. Restarting PM2 processes..."
-            pm2 restart viva-digital-news-api || pm2 start src/server.js --name "viva-digital-news-api"
+            # Stop existing background workers if they are running (for now)
+            pm2 delete viva-rss-worker viva-summarize-worker viva-translate-worker viva-image-worker || true
             
-            # Restart background workers
-            pm2 restart viva-rss-worker || pm2 start src/workers/rss_ingestion_worker.js --name "viva-rss-worker"
-            pm2 restart viva-summarize-worker || pm2 start src/workers/summarization_worker.js --name "viva-summarize-worker"
-            pm2 restart viva-translate-worker || pm2 start src/workers/translation_worker.js --name "viva-translate-worker"
-            pm2 restart viva-image-worker || pm2 start src/workers/newsWorker.js --name "viva-image-worker"
+            # Run ONLY the dev:api-only script
+            pm2 restart viva-digital-news-api || pm2 start npm --name "viva-digital-news-api" -- run dev:api-only
             
             echo "Deployment Complete! 🚀"
