@@ -137,7 +137,7 @@ const logger = winston.createLogger({
             ),
         }),
 
-        ...((process.env.GOOGLE_APPLICATION_CREDENTIALS !== undefined
+        ...((process.env.VIVA_DIGITAL_GOOGLE_APPLICATION_CREDENTIALS !== undefined
             || process.env.GOOGLE_CLOUD_PROJECT !== undefined
             || process.env.NODE_ENV === 'production')
             && process.env.VIVA_DIGITAL_PAUSE_GCP_LOGGING !== 'true'
