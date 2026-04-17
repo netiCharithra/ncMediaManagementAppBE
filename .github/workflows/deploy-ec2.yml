@@ -21,7 +21,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "Deploying VivaDigitalNews Backend..."
-            cd /home/ec2-user/projects/ViVaDigitalNews/backend
+            cd /home/ec2-user/projects/ncMediaManagementAppBE
             
             echo "Current directory: $(pwd)"
             git config pull.rebase false
