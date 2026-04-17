@@ -79,6 +79,8 @@ jobs:
             pm2 delete viva-rss-worker viva-summarize-worker viva-translate-worker viva-image-worker || true
             
             # Run ONLY the dev:api-only script
-            pm2 restart viva-digital-news-api || pm2 start npm --name "viva-digital-news-api" -- run dev:api-only
+            pm2 delete viva-digital-news-api || true
+            pm2 start npm --name "viva-digital-news-api" -- run dev:api-only
+            pm2 save || true
             
             echo "Deployment Complete! 🚀"
