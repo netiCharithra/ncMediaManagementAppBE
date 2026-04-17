@@ -72,6 +72,8 @@ jobs:
             VIVA_DIGITAL_HF_TOKEN=${{ secrets.VIVA_DIGITAL_HF_TOKEN }}
             VIVA_DIGITAL_IMAGE_WORKER_BATCH_SIZE=4
             VIVA_DIGITAL_LOG_LEVEL=info
+            VIVA_DIGITAL_PAUSE_GCP_LOGGING=false
+            PAUSE_GCP_LOGGING=false
             EOF
             
             echo "Environment variables set. Restarting PM2 processes..."

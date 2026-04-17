@@ -99,7 +99,6 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ 'location.coordinates': '2dsphere' });
 userSchema.index({ role: 1 });
-userSchema.index({ phone: 1 });
 
 userSchema.pre('save', async function (next) {
     // Hash password if modified
