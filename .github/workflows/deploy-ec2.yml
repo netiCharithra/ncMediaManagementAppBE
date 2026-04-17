@@ -21,12 +21,22 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "Deploying VivaDigitalNews Backend..."
-            cd /home/ec2-user/projects/ncMediaManagementAppBE
+            mkdir -p /home/ec2-user/projects/ViVaDigitalNews/backend
+            cd /home/ec2-user/projects/ViVaDigitalNews/backend
             
             echo "Current directory: $(pwd)"
-            git config pull.rebase false
-            git checkout -- package-lock.json
-            git pull origin viva_digital_backend
+            
+            if [ ! -d ".git" ]; then
+              echo "Initializing Git tracking to ncMediaManagementAppBE repo..."
+              git init
+              git remote add origin https://github.com/netiCharithra/ncMediaManagementAppBE.git
+              git fetch origin viva_digital_backend
+              git checkout -b viva_digital_backend origin/viva_digital_backend
+            else
+              git config pull.rebase false
+              git checkout -- package-lock.json
+              git pull origin viva_digital_backend
+            fi
             
             echo "Installing dependencies..."
             npm install --production
