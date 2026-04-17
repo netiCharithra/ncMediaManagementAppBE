@@ -142,7 +142,11 @@ const logger = winston.createLogger({
             || process.env.NODE_ENV === 'production')
             && process.env.VIVA_DIGITAL_PAUSE_GCP_LOGGING !== 'true'
             && process.env.PAUSE_GCP_LOGGING !== 'true'
-            ? [new LoggingWinston()]
+            ? [new LoggingWinston(
+                process.env.VIVA_DIGITAL_GOOGLE_APPLICATION_CREDENTIALS 
+                ? { keyFilename: process.env.VIVA_DIGITAL_GOOGLE_APPLICATION_CREDENTIALS } 
+                : {}
+            )]
             : [])
     ],
 });
