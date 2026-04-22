@@ -7,10 +7,18 @@ const commonConfig = {
   target: 'node18',
   minify: true,
   sourcemap: true,
-  // We mark these as external if they have native components or issues with bundling
-  // But for simple setups, standard libraries usually bundle well.
-  // We'll try to bundle everything except common native-prone ones if they existed.
-  external: [], 
+  // We mark these as external because they contain native binary components (.node files)
+  // that cannot be bundled into a single JavaScript file.
+  external: [
+    'snappy',
+    'mongodb-client-encryption',
+    'kerberos',
+    'aws4',
+    'mock-aws-s3',
+    'nock',
+    'fsevents',
+    'canvas'
+  ], 
   loader: {
     '.json': 'json',
   },
