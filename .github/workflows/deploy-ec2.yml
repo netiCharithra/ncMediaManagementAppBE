@@ -83,7 +83,7 @@ jobs:
             
             # Run ONLY the api-only script for production
             pm2 delete viva-digital-news-api || true
-            pm2 start npm --name "viva-digital-news-api" -- run start:api-only
+            pm2 start npm --name "viva-digital-news-api" -- run start:api
             pm2 save || true
             
             echo "Deployment Complete! 🚀"
