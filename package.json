@@ -4,23 +4,17 @@
   "description": "Vishwa Vani Digital News - Hyperlocal News Distribution Backend",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "start:api-only": "DISABLE_CRON=true node src/server.js",
-    "dev": "nodemon src/server.js",
-    "dev:api-only": "DISABLE_CRON=true nodemon src/server.js",
-    "dev:no-rss": "DISABLE_RSS=true nodemon src/server.js",
-    "dev:no-gcp": "PAUSE_GCP_LOGGING=true nodemon src/server.js",
-    "dev:api-no-gcp": "DISABLE_CRON=true PAUSE_GCP_LOGGING=true nodemon src/server.js",
-    "worker:rss": "node src/workers/rss_ingestion_worker.js",
-    "worker:summarize": "node src/workers/summarization_worker.js",
-    "worker:translate": "node src/workers/translation_worker.js",
-    "worker:images": "node src/workers/newsWorker.js",
-    "worker:gemini": "node src/workers/geminiWorker.js",
-    "worker:all": "npm run worker:rss && npm run worker:summarize && npm run worker:translate",
-    "worker:process": "npm run worker:summarize && npm run worker:translate && npm run worker:images",
-    "db:clear": "node src/scripts/clear_news.js",
-    "lint": "eslint src/",
-    "test": "jest --runInBand"
+    "build":        "node scripts/build.js",
+    "start:api":    "VIVA_DIGITAL_DISABLE_CRON=true node src/server.js",
+    "start:worker": "node src/worker.js",
+    "start:api:prod": "VIVA_DIGITAL_DISABLE_CRON=true node dist/server.js",
+    "start:worker:prod": "node dist/worker.js",
+    "dev":          "nodemon src/server.js",
+    "dev:api":      "VIVA_DIGITAL_DISABLE_CRON=true nodemon src/server.js",
+    "dev:worker":   "nodemon src/worker.js",
+    "db:clear":     "node src/scripts/clear_news.js",
+    "lint":         "eslint src/",
+    "test":         "jest --runInBand"
   },
   "keywords": [
     "news",
@@ -66,6 +60,7 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "esbuild": "^0.20.1",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
     "nodemon": "^3.1.0",

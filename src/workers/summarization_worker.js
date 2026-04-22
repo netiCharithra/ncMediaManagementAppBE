@@ -1,7 +1,6 @@
 'use strict';
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
-const mongoose = require('mongoose');
 const connectDB = require('../config/database');
 const { connectRedis, getRedisClient } = require('../config/redis');
 const RawNews = require('../models/RawNews');
@@ -19,14 +18,13 @@ const RESUMMARIZE_BATCH = 5;          // Re-summarize up to 5 fallback articles 
 const run = async () => {
     logger.info(`[Pipeline] 🧠 Summarization Worker Started...`);
     try {
-        if (mongoose.connection.readyState !== 1) {
-            await connectDB();
-        }
-        
+        // connectDB() is idempotent — it no-ops if already connected
+        await connectDB();
+
         const redisAlreadyConnected = getRedisClient && (() => {
             try { return !!getRedisClient(); } catch { return false; }
         })();
-        
+
         if (!redisAlreadyConnected) {
             await connectRedis();
         }
