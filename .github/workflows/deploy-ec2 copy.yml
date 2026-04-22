@@ -3,7 +3,7 @@ name: Deploy Viva Digital News Backend to EC2
 on:
   push:
     branches:
-      - viva_digital_backend
+      - viva_digital_backend_bkp
 
 jobs:
   deploy:
@@ -38,8 +38,13 @@ jobs:
               git pull origin viva_digital_backend
             fi
             
-            echo "Installing dependencies..."
-            npm install --production
+            echo "Installing dependencies and building bundle..."
+            npm install
+            npm run build
+            
+            # Optional: Prune to keep only production deps on disk, 
+            # though bundles are mostly self-contained.
+            npm prune --production
             
             echo "Setting up environment variables..."
             cat > .env << EOF
@@ -78,12 +83,10 @@ jobs:
             EOF
             
             echo "Environment variables set. Restarting PM2 processes..."
-            # Stop existing background workers if they are running (for now)
-            pm2 delete viva-rss-worker viva-summarize-worker viva-translate-worker viva-image-worker || true
-            
-            # Run ONLY the api-only script for production
+
+            # Restart the API process using the BUNDLED file directly
             pm2 delete viva-digital-news-api || true
-            pm2 start npm --name "viva-digital-news-api" -- run start:api-only
+            pm2 start dist/server.js --name "viva-digital-news-api" --node-args="-r dotenv/config"
             pm2 save || true
             
             echo "Deployment Complete! 🚀"
