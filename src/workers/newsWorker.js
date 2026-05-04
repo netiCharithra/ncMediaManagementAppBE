@@ -168,8 +168,9 @@ const run = async () => {
 
                 // Throttle: only wait if an API was actually called
                 if (i < uniqueStories.length - 1 && source !== 'tag-dedup' && source !== 'cache') {
-                    logger.info(`[NewsWorker] ⏳ Waiting ${INTER_CALL_DELAY_MS / 1000}s (${source || 'unknown'}) before next call...`);
-                    await sleep(INTER_CALL_DELAY_MS);
+                    const delayMs = source === 'Colab' ? 5000 : INTER_CALL_DELAY_MS;
+                    logger.info(`[NewsWorker] ⏳ Waiting ${delayMs / 1000}s (${source || 'unknown'}) before next call...`);
+                    await sleep(delayMs);
                 }
 
             } catch (err) {

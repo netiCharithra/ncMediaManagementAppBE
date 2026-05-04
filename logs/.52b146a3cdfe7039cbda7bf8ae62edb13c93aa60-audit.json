@@ -14,6 +14,16 @@
             "date": 1776401857274,
             "name": "logs/observability-2026-04-17.log",
             "hash": "cb26ba8a8fa629b66ffa4c1989afc4d05e6b1c233c143aa0babdf89c1b0b977f"
+        },
+        {
+            "date": 1776847445097,
+            "name": "logs/observability-2026-04-22.log",
+            "hash": "000e2ac03e12ef64d43b7d81bb594c475d368b365f37a6abdd9489f8cd5ec7f0"
+        },
+        {
+            "date": 1777875325831,
+            "name": "logs/observability-2026-05-04.log",
+            "hash": "2760d9d1c5d12ba49a2b372a46a8f27020ea688dbf0a328adeacc6e302439918"
         }
     ],
     "hashType": "sha256"
