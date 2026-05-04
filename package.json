@@ -6,6 +6,10 @@
   "scripts": {
     "start": "VIVA_DIGITAL_DISABLE_CRON=true node src/server.js",
     "worker": "node src/worker.js",
+    "worker:ingest": "node src/workers/rss_ingestion_worker.js && node src/workers/summarization_worker.js",
+    "worker:translate": "node src/workers/translation_worker.js",
+    "worker:images": "node src/workers/newsWorker.js",
+    "worker:all": "node src/workers/master_pipeline_worker.js",
     "dev": "nodemon src/server.js",
     "dev:api": "VIVA_DIGITAL_DISABLE_CRON=true nodemon src/server.js",
     "dev:worker": "nodemon src/worker.js",

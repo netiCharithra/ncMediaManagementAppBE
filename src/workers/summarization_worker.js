@@ -31,30 +31,33 @@ const run = async () => {
 
         let processed = 0;
         let failed = 0;
+        const MAX_PER_RUN = 500; // Safety cap to prevent infinite loops
 
-        // ─── Process in atomic batches ───────────────────────────────────────
-        // Use findOneAndUpdate to "lock" the record so other workers skip it.
-        while (processed < BATCH_SIZE) {
+        // ─── Process until queue is empty ────────────────────────────────────
+        while (processed < MAX_PER_RUN) {
             const rawNews = await RawNews.findOneAndUpdate(
                 { processingStatus: 'pending', retryCount: { $lt: 3 } },
                 { $set: { processingStatus: 'processing' } },
-                { sort: { createdAt: -1 }, new: true } // Newest first
+                { sort: { createdAt: -1 }, new: true } 
             );
 
-            if (!rawNews) break; // queue empty
+            if (!rawNews) {
+                logger.info('[Pipeline] ✅ No more pending news found.');
+                break; 
+            }
 
             try {
-                logger.info(`[Pipeline] 🧠 Summarizing: "${(rawNews.title || 'Untitled').substring(0, 80)}..."`);
+                logger.info(`[Pipeline] 🧠 Summarizing [${processed + 1}]: "${(rawNews.title || 'Untitled').substring(0, 80)}..."`);
                 await processPipeline(rawNews);
                 processed++;
 
                 // 🤫 Slow Drip: 12s gap keeps us safely under Groq free-tier rate limits
-                if (processed < BATCH_SIZE) {
-                    await new Promise((resolve) => setTimeout(resolve, INTER_REQUEST_DELAY_MS));
-                }
+                await new Promise((resolve) => setTimeout(resolve, INTER_REQUEST_DELAY_MS));
             } catch (err) {
                 logger.error(`[Pipeline] ❌ Summarization Failed! ID: ${rawNews._id} | Title: "${rawNews.title || 'Untitled'}" | Reason: ${err.message}`);
                 failed++;
+                // Still wait a bit after a failure to avoid spamming the API
+                await new Promise((resolve) => setTimeout(resolve, 5000));
             }
         }
 

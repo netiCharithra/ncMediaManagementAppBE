@@ -104,78 +104,80 @@ const run = async () => {
     logger.info('[NewsWorker] 🖼️ Starting image generation pass (Gemini → HF → Pollinations)...');
 
     try {
-        const uniqueStories = await News.aggregate(buildUniqueStoryPipeline(BATCH_SIZE));
-        if (uniqueStories.length === 0) {
-            logger.info('[NewsWorker] ✅ No stories missing images.');
-            return stats;
-        }
+        const MAX_PER_RUN = 100; // Images take a long time, so cap it lower than text
+        
+        while (stats.processed + stats.failed < MAX_PER_RUN) {
+            const uniqueStories = await News.aggregate(buildUniqueStoryPipeline(10));
+            if (uniqueStories.length === 0) {
+                logger.info('[NewsWorker] ✅ No more stories missing images.');
+                break;
+            }
 
-        logger.info(`[NewsWorker] Found ${uniqueStories.length} unique story(-ies) without images (batch cap: ${BATCH_SIZE}).`);
+            const NewsTranslation = require('../models/NewsTranslation');
 
-        const NewsTranslation = require('../models/NewsTranslation');
+            for (let i = 0; i < uniqueStories.length; i++) {
+                const story = uniqueStories[i];
+                const storyKey = story._id;
+                const storyTags = story.repTags || [];
 
-        for (let i = 0; i < uniqueStories.length; i++) {
-            const story = uniqueStories[i];
-            const storyKey = story._id;
-            const storyTags = story.repTags || [];
+                logger.info(
+                    `[NewsWorker] [${stats.processed + stats.failed + 1}] Processing: "${(story.repTitle || '').substring(0, 80)}"\n` +
+                    `  Lang: ${story.repLang || 'unknown'} | Tags: [${storyTags.join(', ')}]`
+                );
 
-            logger.info(
-                `[NewsWorker] [${i + 1}/${uniqueStories.length}] Processing: "${(story.repTitle || '').substring(0, 80)}"\n` +
-                `  Lang: ${story.repLang || 'unknown'} | Tags: [${storyTags.join(', ')}]`
-            );
+                try {
+                    // Layer 2: Tag-based dedup
+                    const siblingImageUrl = await findSiblingImageByTags(storyTags, storyKey);
+                    let imageUrl = siblingImageUrl;
+                    let source = siblingImageUrl ? 'tag-dedup' : '';
 
-            try {
-                // Layer 2: Tag-based dedup
-                const siblingImageUrl = await findSiblingImageByTags(storyTags, storyKey);
-                let imageUrl = siblingImageUrl;
-                let source = siblingImageUrl ? 'tag-dedup' : '';
-
-                // Layer 1: Waterfall generation — Gemini → HF → Pollinations
-                if (!imageUrl) {
-                    logger.info('[NewsWorker] 🎨 No tag-dedup match — generating new image via AI...');
-                    const result = await generateAndUploadImage({
-                        title: story.repTitle,
-                        summary: story.repSummary,
-                        parentNewsId: String(storyKey),
-                    });
-                    imageUrl = result?.imageUrl;
-                    source = result?.source;
-                }
-
-                if (imageUrl) {
-                    const updateResult = await News.updateMany(
-                        { $and: [
-                            { $or: [{ _id: storyKey }, { parentNewsId: storyKey }] },
-                            { $or: [{ imageUrl: { $exists: false } }, { imageUrl: null }, { imageUrl: '' }] }
-                        ]},
-                        { $set: { imageUrl } }
-                    );
-                    const transResult = await NewsTranslation.updateMany(
-                        { newsId: storyKey, $or: [{ imageUrl: { $exists: false } }, { imageUrl: null }, { imageUrl: '' }] },
-                        { $set: { imageUrl } }
-                    );
-
-                    if (source === 'tag-dedup') {
-                        stats.reused++;
-                        logger.info(`[NewsWorker] ♻️  REUSED image for "${(story.repTitle || '').substring(0, 70)}" (updated ${updateResult.modifiedCount} News, ${transResult.modifiedCount} Translations)`);
-                    } else {
-                        stats.processed++;
-                        logger.info(`[NewsWorker] ✅ "${(story.repTitle || '').substring(0, 70)}" → ${imageUrl} [${source}] (updated ${updateResult.modifiedCount} News, ${transResult.modifiedCount} Translations)`);
+                    // Layer 1: Waterfall generation — Gemini → HF → Pollinations
+                    if (!imageUrl) {
+                        logger.info('[NewsWorker] 🎨 No tag-dedup match — generating new image via AI...');
+                        const result = await generateAndUploadImage({
+                            title: story.repTitle,
+                            summary: story.repSummary,
+                            parentNewsId: String(storyKey),
+                        });
+                        imageUrl = result?.imageUrl;
+                        source = result?.source;
                     }
-                } else {
+
+                    if (imageUrl) {
+                        const updateResult = await News.updateMany(
+                            { $and: [
+                                { $or: [{ _id: storyKey }, { parentNewsId: storyKey }] },
+                                { $or: [{ imageUrl: { $exists: false } }, { imageUrl: null }, { imageUrl: '' }] }
+                            ]},
+                            { $set: { imageUrl } }
+                        );
+                        const transResult = await NewsTranslation.updateMany(
+                            { newsId: storyKey, $or: [{ imageUrl: { $exists: false } }, { imageUrl: null }, { imageUrl: '' }] },
+                            { $set: { imageUrl } }
+                        );
+
+                        if (source === 'tag-dedup') {
+                            stats.reused++;
+                            logger.info(`[NewsWorker] ♻️  REUSED image for "${(story.repTitle || '').substring(0, 70)}" (updated ${updateResult.modifiedCount} News, ${transResult.modifiedCount} Translations)`);
+                        } else {
+                            stats.processed++;
+                            logger.info(`[NewsWorker] ✅ "${(story.repTitle || '').substring(0, 70)}" → ${imageUrl} [${source}] (updated ${updateResult.modifiedCount} News, ${transResult.modifiedCount} Translations)`);
+                        }
+                    } else {
+                        stats.failed++;
+                    }
+
+                    // Throttle: only wait if an API was actually called
+                    if (source !== 'tag-dedup' && source !== 'cache') {
+                        const delayMs = source === 'Colab' ? 5000 : INTER_CALL_DELAY_MS;
+                        logger.info(`[NewsWorker] ⏳ Waiting ${delayMs / 1000}s (${source || 'unknown'}) before next call...`);
+                        await sleep(delayMs);
+                    }
+
+                } catch (err) {
+                    logger.error(`[NewsWorker] ❌ Story ${storyKey}: ${err.message}`);
                     stats.failed++;
                 }
-
-                // Throttle: only wait if an API was actually called
-                if (i < uniqueStories.length - 1 && source !== 'tag-dedup' && source !== 'cache') {
-                    const delayMs = source === 'Colab' ? 5000 : INTER_CALL_DELAY_MS;
-                    logger.info(`[NewsWorker] ⏳ Waiting ${delayMs / 1000}s (${source || 'unknown'}) before next call...`);
-                    await sleep(delayMs);
-                }
-
-            } catch (err) {
-                logger.error(`[NewsWorker] ❌ Story ${storyKey}: ${err.message}`);
-                stats.failed++;
             }
         }
 
@@ -190,11 +192,25 @@ const run = async () => {
 
 // ─── Schedule ──────────────────────────────────────────────────────────────
 const schedule = () => {
-    cron.schedule('*/5 * * * *', async () => {
+    let isImageWorkerRunning = false;
+
+    cron.schedule('*/10 * * * *', async () => {
+        if (isImageWorkerRunning) {
+            logger.warn('[Cron] 🖼️ Image Worker is still running. Skipping to prevent pile-up...');
+            return;
+        }
+
+        isImageWorkerRunning = true;
         clearImageCache();
-        try { await run(); } catch (err) { logger.error(`[Cron] NewsWorker error: ${err.message}`); }
+        try { 
+            await run(); 
+        } catch (err) { 
+            logger.error(`[Cron] NewsWorker error: ${err.message}`); 
+        } finally {
+            isImageWorkerRunning = false;
+        }
     });
-    logger.info('[Cron] 🖼️ NewsWorker scheduled: every 5 minutes.');
+    logger.info('[Cron] 🖼️ NewsWorker scheduled: every 10 minutes (with pile-up protection).');
 };
 
 if (require.main === module) {

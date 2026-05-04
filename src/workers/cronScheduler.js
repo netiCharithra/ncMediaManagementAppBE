@@ -18,9 +18,19 @@ const scheduleCronJobs = () => {
     logger.info('   5. Daily Summary    --> [11:59PM IST]                                ');
     logger.info('========================================================================');
 
+    // ─── Mutex Flags ─────────────────────────────────────────────────────────
+    let isMasterPipeRunning = false;
+    let isCatchupPipeRunning = false;
+
     // ─── Master Continuous Pipeline: Every 10 minutes ──────────────────────────
     // Executes sequentially: Pull -> Summarize -> Translate without idle waiting.
     cron.schedule('*/10 * * * *', async () => {
+        if (isMasterPipeRunning) {
+            logger.warn('[Cron] ⚠️ Master Pipeline is still running from previous cycle. Skipping...');
+            return;
+        }
+
+        isMasterPipeRunning = true;
         logger.info('[Cron] 🚀 Triggering Master Sequential Pipeline...');
         try {
             let rssStats = {};
@@ -50,6 +60,8 @@ const scheduleCronJobs = () => {
             logger.info('[Cron] ✅ Master Pipeline Cycle Completed flawlessly!');
         } catch (err) {
             logger.error('[Cron] ❌ Master Pipeline encountered an error:', err.message);
+        } finally {
+            isMasterPipeRunning = false;
         }
     });
 
@@ -121,10 +133,17 @@ const scheduleCronJobs = () => {
     const { schedule: scheduleImageWorker } = require('./newsWorker');
     scheduleImageWorker();
 
-    // ─── Catch-up Worker: Every 5 minutes ─────────────────────────────────────
+    // ─── Catch-up Worker: Every 10 minutes (Offset by 5m from Master) ──────────
     // Processes any pending RawNews articles that were missed by the 10-min pipe.
-    cron.schedule('*/5 * * * *', async () => {
-        logger.info('[Cron] 🔄 Triggering 5-minute Captch-up Worker (Summarize -> Translate)...');
+    // Scheduled at :05, :15, :25... to avoid collision with Master Pipeline at :00, :10, :20...
+    cron.schedule('5,15,25,35,45,55 * * * *', async () => {
+        if (isCatchupPipeRunning) {
+            logger.warn('[Cron] 🔄 Catch-up Worker is still running. Skipping...');
+            return;
+        }
+
+        isCatchupPipeRunning = true;
+        logger.info('[Cron] 🔄 Triggering 5-minute Catch-up Worker (Summarize -> Translate)...');
         try {
             // Step 1: Summarize pending raw news
             const { run: runSummarization } = require('./summarization_worker');
@@ -140,6 +159,37 @@ const scheduleCronJobs = () => {
             }
         } catch (err) {
             logger.error('[Cron] ❌ Catch-up Worker error:', err.message);
+        } finally {
+            isCatchupPipeRunning = false;
+        }
+    });
+
+    // ─── Zombie Recovery: Every 30 minutes ────────────────────────────────────
+    // Resets articles stuck in 'processing' for > 30 mins back to 'pending'.
+    // This handles cases where a worker crashed or the server restarted mid-run.
+    cron.schedule('*/30 * * * *', async () => {
+        logger.info('[Cron] 🧟 Running Zombie Recovery check...');
+        try {
+            const RawNews = require('../models/RawNews');
+            const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+            const result = await RawNews.updateMany(
+                { 
+                    processingStatus: 'processing', 
+                    updatedAt: { $lt: thirtyMinsAgo } 
+                },
+                { 
+                    $set: { processingStatus: 'pending' } 
+                }
+            );
+
+            if (result.modifiedCount > 0) {
+                logger.info(`[Cron] 🧟 Zombie Recovery: Rescued ${result.modifiedCount} articles stuck in processing.`);
+            } else {
+                logger.info('[Cron] 🧟 Zombie Recovery: No stuck articles found.');
+            }
+        } catch (err) {
+            logger.error('[Cron] ❌ Zombie Recovery error:', err.message);
         }
     });
 
